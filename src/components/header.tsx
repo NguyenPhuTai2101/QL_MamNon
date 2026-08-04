@@ -105,6 +105,17 @@ export default function Header() {
           <span className="font-medium capitalize">{today}</span>
         </div>
 
+        {/* Parent Multi-Child Selector */}
+        {user?.role === "PARENT" && (
+          <div className="flex items-center gap-2 bg-pink-50 border border-pink-200 px-3 py-1.5 rounded-xl text-xs">
+            <span className="text-pink-600 font-bold hidden sm:inline">👶 Chọn con:</span>
+            <select className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer">
+              <option value="1">Nguyễn Minh Khang (Lớp Mầm 1)</option>
+              <option value="2">Nguyễn Minh Anh (Lớp Lá 1)</option>
+            </select>
+          </div>
+        )}
+
         {/* PWA Install Button */}
         {isInstallable && (
           <button
