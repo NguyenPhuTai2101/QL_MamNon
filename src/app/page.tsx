@@ -229,7 +229,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -239,7 +239,7 @@ export default function Home() {
         <Header />
 
         {/* Dynamic Inner Page Content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 pb-24 md:pb-8">
           {/* Overview Dashboard Tab */}
           {activeTab === "overview" && (
             <div className="space-y-8 animate-fadeIn">

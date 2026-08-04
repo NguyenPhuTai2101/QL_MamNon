@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -12,13 +12,22 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#4f46e5",
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "Hệ thống Quản lý Mầm non NVSOFT",
   description: "Phần mềm quản lý học phí, điểm danh, thực đơn và chi phí thực đơn cho trường mầm non",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
     title: "QL Mầm Non",
   },
 };
