@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/sidebar";
 import Header from "@/components/header";
 import AttendanceTab from "@/components/attendance-tab";
@@ -38,12 +39,14 @@ import {
 } from "lucide-react";
 
 export default function Home() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
 
   const [students, setStudents] = useState<Student[]>(mockStudents);
   const [weeklyMenu, setWeeklyMenu] = useState<Record<string, MenuItem>>(mockWeeklyMenu);
   const [ingredients, setIngredients] = useState<IngredientCost[]>(mockIngredients);
   const [isMounted, setIsMounted] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const [userRole, setUserRole] = useState<string>("ADMIN");
 
@@ -51,12 +54,20 @@ export default function Home() {
   useEffect(() => {
     setIsMounted(true);
     const session = localStorage.getItem("user_session");
-    if (session) {
-      try {
-        const parsed = JSON.parse(session);
-        if (parsed.role) setUserRole(parsed.role);
-      } catch (e) {}
+    if (!session) {
+      router.push("/login");
+      return;
     }
+    
+    try {
+      const parsed = JSON.parse(session);
+      if (parsed.role) setUserRole(parsed.role);
+      setIsAuthenticated(true);
+    } catch (e) {
+      router.push("/login");
+      return;
+    }
+
     const savedStudents = localStorage.getItem("app_students");
     if (savedStudents) {
       try { setStudents(JSON.parse(savedStudents)); } catch (e) {}
@@ -208,6 +219,14 @@ export default function Home() {
     });
     setShowEditMenuModal(false);
   };
+
+  if (!isMounted || !isAuthenticated) {
+    return (
+      <div className="flex h-screen bg-slate-900 items-center justify-center">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
