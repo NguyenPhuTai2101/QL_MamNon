@@ -43,39 +43,42 @@ export default function VietQRModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 relative border border-slate-100">
-        {/* Close Button */}
-        <button 
-          onClick={onClose} 
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-all"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Title */}
-        <div className="text-center space-y-1">
-          <div className="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-2xl mb-2">
-            <QrCode className="w-6 h-6" />
+    <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-5 relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+        {/* Top Header Ribbon & Close Button */}
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <QrCode className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 leading-tight">Thanh toán qua VietQR</h3>
+              <p className="text-[11px] text-slate-500">Dùng App Ngân hàng quét mã bên dưới</p>
+            </div>
           </div>
-          <h3 className="text-xl font-bold text-slate-800">Thanh toán qua VietQR</h3>
-          <p className="text-xs text-slate-500">Mở ứng dụng Ngân hàng (App Banking) bất kỳ để quét mã</p>
+          <button 
+            onClick={onClose} 
+            className="p-2 bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200 rounded-full transition-all"
+            title="Đóng cửa sổ"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
-        {/* QR Code Container */}
-        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col items-center justify-center relative">
+        {/* QR Code Container (Compact & Crisp) */}
+        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col items-center justify-center relative">
           <img 
             src={qrUrl} 
             alt="Mã VietQR Thanh toán Học phí" 
-            className="w-64 h-64 object-contain rounded-xl shadow-md bg-white p-2"
+            className="w-48 h-48 sm:w-52 sm:h-52 object-contain rounded-xl shadow-md bg-white p-2"
           />
-          <span className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Tự động điền số tiền và nội dung chuyển khoản
+          <span className="text-[11px] text-slate-500 mt-2 flex items-center gap-1 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" /> Tự động điền số tiền & nội dung chuyển khoản
           </span>
         </div>
 
         {/* Details Box */}
-        <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
+        <div className="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
           <div className="flex justify-between items-center pb-2 border-b border-slate-200">
             <span className="text-slate-500">Học sinh:</span>
             <span className="font-bold text-slate-800">{studentName}</span>
@@ -92,10 +95,10 @@ export default function VietQRModal({
             <span className="text-slate-500">Nội dung chuyển khoản:</span>
             <button 
               onClick={handleCopyMemo}
-              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono font-bold bg-indigo-50 px-2 py-1 rounded-md"
+              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all"
             >
               {memo}
-              <Copy className="w-3 h-3" />
+              <Copy className="w-3 h-3 text-indigo-600" />
             </button>
           </div>
           {copied && (
@@ -104,7 +107,7 @@ export default function VietQRModal({
         </div>
 
         {/* Actions */}
-        <div className="space-y-2 pt-2">
+        <div className="space-y-2 pt-1">
           <button
             onClick={onConfirmPayment}
             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 text-sm"
