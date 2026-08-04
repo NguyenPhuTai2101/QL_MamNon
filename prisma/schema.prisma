@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String   // Mật khẩu mã hóa
+  name      String   // Tên người dùng
+  role      String   // ADMIN, TEACHER, PARENT
+  email     String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Class {
+  id        String    @id @default(uuid())
+  name      String    @unique // Tên lớp, ví dụ: Mầm 1, Chồi 2, Lá 1
+  room      String?   // Phòng học
+  teacher   String    // Giáo viên chủ nhiệm
+  students  Student[]
+  menus     DailyMenu[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Student {
+  id            String         @id @default(uuid())
+  firstName     String
+  lastName      String
+  birthDate     DateTime
+  gender        String         // Nam / Nữ
+  parentId      String?
+  parentName    String
+  parentPhone   String
+  address       String?
+  classId       String
+  class         Class          @relation(fields: [classId], references: [id])
+  invoices      Invoice[]
+  attendances   Attendance[]
+  healthRecords HealthRecord[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Attendance {
+  id           String   @id @default(uuid())
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id])
+  date         DateTime // Ngày điểm danh
+  status       String   // PRESENT (Có mặt), ABSENT_PERMIT (Vắng có phép), ABSENT_NO_PERMIT (Vắng không phép)
+  pickupPerson String?  // Tên người đưa/đón trẻ
+  notes        String?  // Ghi chú sức khỏe/tâm trạng buổi sáng
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model HealthRecord {
+  id        String   @id @default(uuid())
+  studentId String
+  student   Student  @relation(fields: [studentId], references: [id])
+  heightCm  Float?   // Chiều cao (cm)
+  weightKg  Float?   // Cân nặng (kg)
+  allergies String?  // Tiền sử dị ứng thực phẩm/thuốc
+  bloodType String?  // Nhóm máu
+  notes     String?  // Ghi chú thêm từ phụ huynh/bác sĩ
+  updatedAt DateTime @updatedAt
+}
+
+model TuitionFee {
+  id          String   @id @default(uuid())
+  name        String   // Tên khoản thu (Học phí, Bữa ăn, Xe đưa đón, dã ngoại...)
+  amount      Float    // Số tiền
+  type        String   // Loại thu: MONTHLY (Hằng tháng), ONE_TIME (Một lần), DAILY (Theo ngày thực tế)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id            String    @id @default(uuid())
+  studentId     String
+  student       Student   @relation(fields: [studentId], references: [id])
+  month         Int       // Tháng thu học phí (1-12)
+  year          Int       // Năm thu
+  amount        Float     // Tổng số tiền cần đóng
+  status        String    // UNPAID, PAID, OVERDUE (Chưa thanh toán, Đã thanh toán, Quá hạn)
+  paymentDate   DateTime?
+  paymentMethod String?   // CASH, TRANSFER, QR (Tiền mặt, Chuyển khoản, Quét QR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model DailyMenu {
+  id             String   @id @default(uuid())
+  date           DateTime // Ngày áp dụng thực đơn
+  classId        String?  // Lớp áp dụng (null nếu áp dụng cho toàn trường)
+  class          Class?   @relation(fields: [classId], references: [id])
+  breakfast      String   // Bữa sáng
+  lunch          String   // Bữa trưa
+  snack          String   // Bữa xế (bữa phụ)
+  costPerStudent Float    // Chi phí ước tính trên mỗi học sinh
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model IngredientCost {
+  id        String   @id @default(uuid())
+  date      DateTime // Ngày nhập/tiêu thụ nguyên liệu
+  name      String   // Tên nguyên liệu (Thịt heo, Rau cải, Sữa, Gạo,...)
+  quantity  Float    // Số lượng (kg, lít,...)
+  unit      String   // Đơn vị tính (kg, bao, thùng)
+  unitPrice Float    // Đơn giá
+  totalCost Float    // Thành tiền (quantity * unitPrice)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

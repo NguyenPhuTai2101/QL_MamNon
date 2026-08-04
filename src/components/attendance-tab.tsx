@@ -1,0 +1,252 @@
+"use client";
+
+import React, { useState } from "react";
+import { CheckCircle2, XCircle, AlertCircle, Calendar as CalendarIcon, Save, Filter, CheckCheck } from "lucide-react";
+
+interface AttendanceRecord {
+  studentId: string;
+  studentName: string;
+  className: string;
+  status: "PRESENT" | "ABSENT_PERMIT" | "ABSENT_NO_PERMIT";
+  pickupPerson: string;
+  notes: string;
+}
+
+export default function AttendanceTab() {
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+  const [selectedClass, setSelectedClass] = useState("Mầm 1");
+  const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const availableClasses = ["Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"];
+
+  // Mock initial attendance list grouped by class
+  const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([
+    { studentId: "1", studentName: "Nguyễn Minh Khang", className: "Mầm 1", status: "PRESENT", pickupPerson: "Bố Triết", notes: "Sức khỏe bình thường" },
+    { studentId: "4", studentName: "Phạm Mai Chi", className: "Mầm 1", status: "PRESENT", pickupPerson: "Bố Nghĩa", notes: "" },
+    { studentId: "6", studentName: "Trần Đức Anh", className: "Mầm 1", status: "PRESENT", pickupPerson: "Mẹ Mai", notes: "" },
+    { studentId: "2", studentName: "Lê Vy Anh", className: "Chồi 2", status: "PRESENT", pickupPerson: "Mẹ Nam", notes: "" },
+    { studentId: "5", studentName: "Đỗ Gia Huy", className: "Chồi 1", status: "ABSENT_NO_PERMIT", pickupPerson: "", notes: "Chưa thấy phụ huynh báo" },
+    { studentId: "3", studentName: "Trần Bảo Nam", className: "Lá 1", status: "ABSENT_PERMIT", pickupPerson: "Bà Nội", notes: "Sốt nhẹ nghỉ ở nhà" },
+  ]);
+
+  // Filter list by selected class
+  const filteredStudents = attendanceList.filter(s => s.className === selectedClass);
+
+  const handleStatusChange = (studentId: string, status: "PRESENT" | "ABSENT_PERMIT" | "ABSENT_NO_PERMIT") => {
+    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, status } : item));
+    setSavedSuccess(false);
+  };
+
+  const handlePickupChange = (studentId: string, pickupPerson: string) => {
+    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, pickupPerson } : item));
+    setSavedSuccess(false);
+  };
+
+  const handleNotesChange = (studentId: string, notes: string) => {
+    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, notes } : item));
+    setSavedSuccess(false);
+  };
+
+  // Quick action: Mark all students in current class as PRESENT
+  const handleMarkAllPresent = () => {
+    setAttendanceList(attendanceList.map(item => 
+      item.className === selectedClass ? { ...item, status: "PRESENT" } : item
+    ));
+    setSavedSuccess(false);
+  };
+
+  const handleSaveAttendance = () => {
+    setSavedSuccess(true);
+    setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const presentCount = filteredStudents.filter(a => a.status === "PRESENT").length;
+  const absentPermitCount = filteredStudents.filter(a => a.status === "ABSENT_PERMIT").length;
+  const absentNoPermitCount = filteredStudents.filter(a => a.status === "ABSENT_NO_PERMIT").length;
+
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      {/* Header controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Điểm danh lớp học</h2>
+          <p className="text-sm text-slate-500 mt-1">Giáo viên chọn lớp và thực hiện điểm danh danh sách học sinh theo ngày.</p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white px-3 py-2 border border-slate-200 rounded-xl text-sm shadow-sm">
+            <CalendarIcon className="w-4 h-4 text-indigo-600" />
+            <input 
+              type="date" 
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="focus:outline-none text-slate-700 bg-transparent font-medium"
+            />
+          </div>
+          <button 
+            onClick={handleSaveAttendance}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+          >
+            <Save className="w-4 h-4" />
+            Lưu điểm danh
+          </button>
+        </div>
+      </div>
+
+      {savedSuccess && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+          Đã lưu thông tin điểm danh lớp {selectedClass} ngày {selectedDate} vào cơ sở dữ liệu thành công!
+        </div>
+      )}
+
+      {/* Class Selector Tabs & Quick Actions */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
+            <Filter className="w-3.5 h-3.5" /> Chọn lớp:
+          </span>
+          {availableClasses.map((cls) => (
+            <button
+              key={cls}
+              onClick={() => setSelectedClass(cls)}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                selectedClass === cls
+                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              Lớp {cls}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={handleMarkAllPresent}
+          className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all"
+        >
+          <CheckCheck className="w-4 h-4 text-emerald-600" />
+          Điểm danh cả lớp Có mặt
+        </button>
+      </div>
+
+      {/* Summary stats for the selected class */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase">Sĩ số có mặt (Lớp {selectedClass})</span>
+            <h3 className="text-2xl font-bold text-emerald-600 mt-1">{presentCount} / {filteredStudents.length} trẻ</h3>
+          </div>
+          <div className="bg-emerald-50 p-3.5 rounded-xl text-emerald-600">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase">Vắng có phép</span>
+            <h3 className="text-2xl font-bold text-amber-600 mt-1">{absentPermitCount} trẻ</h3>
+          </div>
+          <div className="bg-amber-50 p-3.5 rounded-xl text-amber-600">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold text-slate-400 uppercase">Vắng không phép</span>
+            <h3 className="text-2xl font-bold text-rose-600 mt-1">{absentNoPermitCount} trẻ</h3>
+          </div>
+          <div className="bg-rose-50 p-3.5 rounded-xl text-rose-600">
+            <XCircle className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* Attendance table filtered by class */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        {filteredStudents.length > 0 ? (
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-100">
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên trẻ</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái điểm danh</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Người đưa / đón trẻ</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Ghi chú sức khỏe</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredStudents.map((item) => (
+                <tr key={item.studentId} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-4 text-sm font-semibold text-slate-800">{item.studentName}</td>
+                  <td className="px-6 py-4 text-sm text-slate-500">
+                    <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-md">
+                      Lớp {item.className}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="inline-flex gap-1.5 bg-slate-100 p-1 rounded-xl">
+                      <button
+                        onClick={() => handleStatusChange(item.studentId, "PRESENT")}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          item.status === "PRESENT"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Có mặt
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(item.studentId, "ABSENT_PERMIT")}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          item.status === "ABSENT_PERMIT"
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Có phép
+                      </button>
+                      <button
+                        onClick={() => handleStatusChange(item.studentId, "ABSENT_NO_PERMIT")}
+                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
+                          item.status === "ABSENT_NO_PERMIT"
+                            ? "bg-rose-600 text-white shadow-sm"
+                            : "text-slate-600 hover:text-slate-900"
+                        }`}
+                      >
+                        Không phép
+                      </button>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <input
+                      type="text"
+                      value={item.pickupPerson}
+                      onChange={(e) => handlePickupChange(item.studentId, e.target.value)}
+                      placeholder="Tên người đón..."
+                      className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-44 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </td>
+                  <td className="px-6 py-4">
+                    <input
+                      type="text"
+                      value={item.notes}
+                      onChange={(e) => handleNotesChange(item.studentId, e.target.value)}
+                      placeholder="Ghi chú sức khỏe..."
+                      className="px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-48 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <div className="p-8 text-center text-slate-400 text-sm">
+            Chưa có học sinh nào trong Lớp {selectedClass}. Hãy sang tab "Học sinh & Lớp học" để thêm mới!
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
