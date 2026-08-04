@@ -109,7 +109,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       </aside>
 
       {/* Mobile Top Navbar with Drawer Toggle */}
-      <div className="md:hidden bg-slate-900 text-white border-b border-slate-800 p-4 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      <div className="md:hidden bg-slate-900 text-white border-b border-slate-800 p-4 mobile-header-notch flex items-center justify-between sticky top-0 z-30 shadow-md">
         <div className="flex items-center gap-2.5">
           <div className="bg-indigo-600 p-2 rounded-xl text-white shadow-md">
             <GraduationCap className="w-5 h-5" />

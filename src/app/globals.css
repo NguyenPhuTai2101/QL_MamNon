@@ -40,3 +40,15 @@ body {
   animation: fadeIn 0.25s ease-out forwards;
 }
 
+/* PWA Mobile Notch Safe Area Utilities */
+.safe-area-pt {
+  padding-top: env(safe-area-inset-top, 16px);
+}
+
+.safe-area-pb {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.mobile-header-notch {
+  padding-top: max(1rem, calc(env(safe-area-inset-top, 0px) + 0.75rem));
+}
