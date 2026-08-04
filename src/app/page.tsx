@@ -540,6 +540,80 @@ export default function Home() {
                   );
                 })}
               </div>
+
+              {/* Detailed Student Directory Table */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden space-y-4 p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">Danh sách Hồ sơ Trẻ theo Lớp</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Tra cứu danh sách trẻ, phụ huynh liên hệ và thông tin học phí.</p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ và tên trẻ</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ tên Phụ huynh</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Trạng thái Học phí</th>
+                        {userRole === "ADMIN" && (
+                          <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {students.map((student) => (
+                        <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 text-sm font-semibold text-slate-800 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                              {student.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            {student.name}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-500">
+                            <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-md">
+                              Lớp {student.className}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 font-medium">{student.parentName}</td>
+                          <td className="px-6 py-4 text-sm font-mono text-slate-500">{student.parentPhone}</td>
+                          <td className="px-6 py-4">
+                            {student.tuitionStatus === "PAID" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Đã hoàn thành
+                              </span>
+                            )}
+                            {student.tuitionStatus === "UNPAID" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-100">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Chưa hoàn thành
+                              </span>
+                            )}
+                            {student.tuitionStatus === "OVERDUE" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-700 text-xs font-semibold rounded-full border border-rose-100 animate-pulse">
+                                <XCircle className="w-3.5 h-3.5" /> Quá hạn đóng
+                              </span>
+                            )}
+                          </td>
+                          {userRole === "ADMIN" && (
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleDeleteStudent(student.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Xóa hồ sơ học sinh"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           )}
         </main>
