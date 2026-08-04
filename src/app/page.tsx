@@ -45,9 +45,18 @@ export default function Home() {
   const [ingredients, setIngredients] = useState<IngredientCost[]>(mockIngredients);
   const [isMounted, setIsMounted] = useState(false);
 
+  const [userRole, setUserRole] = useState<string>("ADMIN");
+
   // Load saved state after client mount to prevent Hydration Warning
   useEffect(() => {
     setIsMounted(true);
+    const session = localStorage.getItem("user_session");
+    if (session) {
+      try {
+        const parsed = JSON.parse(session);
+        if (parsed.role) setUserRole(parsed.role);
+      } catch (e) {}
+    }
     const savedStudents = localStorage.getItem("app_students");
     if (savedStudents) {
       try { setStudents(JSON.parse(savedStudents)); } catch (e) {}
@@ -456,22 +465,24 @@ export default function Home() {
                   <h2 className="text-2xl font-bold text-slate-800">Thông tin Học sinh & Quản lý Lớp học</h2>
                   <p className="text-sm text-slate-500 mt-1">Quản lý danh sách lớp học, giáo viên phụ trách và hồ sơ từng trẻ.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setShowAddClassModal(true)}
-                    className="flex items-center gap-2 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-                  >
-                    <Plus className="w-4 h-4 text-indigo-600" />
-                    Thêm Lớp học mới
-                  </button>
-                  <button 
-                    onClick={() => setShowAddStudentModal(true)}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                    Thêm học sinh mới
-                  </button>
-                </div>
+                {userRole === "ADMIN" && (
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => setShowAddClassModal(true)}
+                      className="flex items-center gap-2 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
+                    >
+                      <Plus className="w-4 h-4 text-indigo-600" />
+                      Thêm Lớp học mới
+                    </button>
+                    <button 
+                      onClick={() => setShowAddStudentModal(true)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-md shadow-indigo-600/10"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Thêm học sinh mới
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Class Summary Grid */}
