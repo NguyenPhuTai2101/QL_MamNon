@@ -213,12 +213,13 @@ export default function Home() {
   // Save Edited Menu
   const handleSaveMenu = (e: React.FormEvent) => {
     e.preventDefault();
-    setWeeklyMenu({
-      ...weeklyMenu,
-      [selectedDayMenu]: editMenuForm
-    });
     setShowEditMenuModal(false);
   };
+
+  // Filter display students based on role (Parents only see their own children)
+  const displayStudents = userRole === "PARENT"
+    ? students.filter(s => s.parentName.toLowerCase().includes("triết") || s.parentName.toLowerCase().includes("nguyễn"))
+    : students;
 
   if (!isMounted || !isAuthenticated) {
     return (
@@ -370,36 +371,42 @@ export default function Home() {
           {/* Tuition Management Tab */}
           {activeTab === "tuition" && (
             <div className="space-y-8 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Quản lý đóng học phí</h2>
-                  <p className="text-sm text-slate-500 mt-1">Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800">
+                      {userRole === "PARENT" ? "Học phí & Thanh toán VietQR cho con" : "Quản lý đóng học phí"}
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {userRole === "PARENT" ? "Tra cứu học phí và quét mã VietQR chuyển khoản 1-click." : "Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì."}
+                    </p>
+                  </div>
+                  {userRole === "ADMIN" && (
+                    <button 
+                      onClick={() => setShowAddStudentModal(true)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Thêm học sinh mới
+                    </button>
+                  )}
                 </div>
-                <button 
-                  onClick={() => setShowAddStudentModal(true)}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Thêm học sinh mới
-                </button>
-              </div>
 
-              {/* Student table */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên học sinh</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Tên Phụ huynh</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Học phí</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {students.map((student) => (
+                {/* Student table */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên học sinh</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Tên Phụ huynh</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Học phí</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {displayStudents.map((student) => (
                       <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-semibold text-slate-800">{student.name}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{student.className}</td>
@@ -432,21 +439,25 @@ export default function Home() {
                               >
                                 <QrCode className="w-3.5 h-3.5" /> Quét VietQR
                               </button>
-                              <button
-                                onClick={() => handleMarkAsPaid(student.id)}
-                                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
-                              >
-                                <Check className="w-3.5 h-3.5" /> Đã nộp
-                              </button>
+                              {userRole === "ADMIN" && (
+                                <button
+                                  onClick={() => handleMarkAsPaid(student.id)}
+                                  className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Đã nộp
+                                </button>
+                              )}
                             </>
                           )}
-                          <button
-                            onClick={() => handleDeleteStudent(student.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Xóa học sinh"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {userRole === "ADMIN" && (
+                            <button
+                              onClick={() => handleDeleteStudent(student.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-2"
+                              title="Xóa học sinh"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
