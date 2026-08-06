@@ -63,13 +63,24 @@ export default function AdmissionsTab() {
           <h1 className="text-2xl font-bold text-slate-800">Quản lý Tuyển sinh</h1>
           <p className="text-slate-500">Theo dõi quy trình tư vấn và đăng ký nhập học</p>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl transition-colors shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-          <span>Thêm hồ sơ mới</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <a
+            href="/register"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>Mở trang Đăng ký Online phụ huynh</span>
+          </a>
+          <button 
+            onClick={() => setShowAddModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Thêm hồ sơ mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}
