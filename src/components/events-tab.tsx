@@ -41,7 +41,7 @@ const initialEvents: SchoolEvent[] = [
   {
     id: "1",
     title: "Khai giảng năm học mới 2026-2027",
-    description: "Lễ khai giảng năm học mới dành cho toàn bộ học sinh và giáo viên.",
+    description: "Lễ khai giảng năm học mới dành cho toàn bộ học sinh và giáo viên toàn trường.",
     date: "2026-09-05",
     endDate: "2026-09-05",
     type: "EVENT",
@@ -52,7 +52,7 @@ const initialEvents: SchoolEvent[] = [
   {
     id: "2",
     title: "Họp phụ huynh đầu năm",
-    description: "Triển khai kế hoạch năm học mới và các hoạt động của trường.",
+    description: "Triển khai kế hoạch năm học mới và lắng nghe ý kiến đóng góp từ các phụ huynh.",
     date: "2026-09-12",
     endDate: "2026-09-12",
     type: "EVENT",
@@ -63,7 +63,7 @@ const initialEvents: SchoolEvent[] = [
   {
     id: "3",
     title: "Nghỉ lễ Quốc khánh 2/9",
-    description: "Toàn trường nghỉ lễ Quốc khánh theo quy định của nhà nước.",
+    description: "Toàn trường nghỉ lễ Quốc khánh theo quy định chung của Nhà nước.",
     date: "2026-09-02",
     endDate: "2026-09-03",
     type: "HOLIDAY",
@@ -74,7 +74,7 @@ const initialEvents: SchoolEvent[] = [
   {
     id: "4",
     title: "Thông báo thu học phí tháng 9",
-    description: "Đề nghị quý phụ huynh hoàn thành học phí tháng 9 trước ngày 10/09.",
+    description: "Đề nghị quý phụ huynh hoàn thành đóng học phí tháng 9 trước ngày 10/09.",
     date: "2026-09-01",
     endDate: "2026-09-10",
     type: "ANNOUNCEMENT",
@@ -85,7 +85,7 @@ const initialEvents: SchoolEvent[] = [
   {
     id: "5",
     title: "Thông báo phòng dịch Sốt xuất huyết",
-    description: "Tăng cường vệ sinh, diệt muỗi, lăng quăng tại các khu vực lớp học.",
+    description: "Tăng cường vệ sinh, diệt muỗi, lăng quăng tại tất cả các nhóm lớp học.",
     date: "2026-08-15",
     endDate: "2026-08-30",
     type: "ANNOUNCEMENT",
@@ -95,453 +95,374 @@ const initialEvents: SchoolEvent[] = [
   },
   {
     id: "6",
-    title: "Nghỉ Tết Trung thu",
-    description: "Học sinh được nghỉ học buổi chiều để tham gia rước đèn.",
+    title: "Vui hội Tết Trung thu",
+    description: "Học sinh tham gia làm đèn ông sao, phá cỗ và xem múa lân tại sân trường.",
     date: "2026-09-25",
     endDate: "2026-09-25",
-    type: "HOLIDAY",
-    priority: "NORMAL",
-    targetClass: null,
-    createdBy: "Ban Giám Hiệu",
-  },
-  {
-    id: "7",
-    title: "Tham quan dã ngoại Thảo Cầm Viên",
-    description: "Chương trình dã ngoại học tập ngoại khóa cho các khối Mầm, Chồi, Lá.",
-    date: "2026-10-15",
-    endDate: "2026-10-15",
     type: "EVENT",
     priority: "NORMAL",
     targetClass: null,
-    createdBy: "Phòng Đào tạo",
-  },
-  {
-    id: "8",
-    title: "Thay đổi lịch học thể dục Lớp Chồi 1",
-    description: "Lịch học thể dục chuyển từ sáng Thứ 3 sang chiều Thứ 4.",
-    date: "2026-08-20",
-    endDate: "2026-08-20",
-    type: "ANNOUNCEMENT",
-    priority: "NORMAL",
-    targetClass: "Chồi 1",
-    createdBy: "Giáo viên Thể chất",
+    createdBy: "Đoàn Thanh niên",
   },
 ];
 
-const classes = ["Mầm 1", "Mầm 2", "Chồi 1", "Chồi 2", "Lá 1", "Lá 2"];
+const TYPE_MAP: Record<EventType, { label: string; color: string; icon: any }> = {
+  EVENT: { label: "Sự kiện", color: "bg-indigo-50 text-indigo-700 border-indigo-200", icon: PartyPopper },
+  ANNOUNCEMENT: { label: "Thông báo", color: "bg-amber-50 text-amber-700 border-amber-200", icon: Megaphone },
+  HOLIDAY: { label: "Nghỉ lễ", color: "bg-emerald-50 text-emerald-700 border-emerald-200", icon: Calendar },
+};
+
+const PRIORITY_MAP: Record<Priority, { label: string; color: string }> = {
+  URGENT: { label: "Khẩn cấp", color: "bg-rose-50 text-rose-700 border-rose-200" },
+  IMPORTANT: { label: "Quan trọng", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  NORMAL: { label: "Bình thường", color: "bg-slate-100 text-slate-700 border-slate-200" },
+};
 
 export default function EventsTab() {
   const [events, setEvents] = useState<SchoolEvent[]>(initialEvents);
-  const [activeFilter, setActiveFilter] = useState<EventType | "ALL">("ALL");
-  const [viewMode, setViewMode] = useState<"LIST" | "CALENDAR">("LIST");
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<EventType | "ALL">("ALL");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [currentDate, setCurrentDate] = useState(new Date("2026-08-01"));
 
-  // Form State
-  const [formData, setFormData] = useState<Partial<SchoolEvent>>({
+  const [addForm, setAddForm] = useState({
     title: "",
     description: "",
-    date: "",
-    endDate: "",
-    type: "EVENT",
-    priority: "NORMAL",
+    date: new Date().toISOString().split("T")[0],
+    endDate: new Date().toISOString().split("T")[0],
+    type: "EVENT" as EventType,
+    priority: "NORMAL" as Priority,
     targetClass: "",
-    createdBy: "Admin",
   });
 
-  const handleAddEvent = (e: React.FormEvent) => {
+  const filteredEvents = events.filter((e) => {
+    const matchSearch =
+      e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchType = typeFilter === "ALL" || e.type === typeFilter;
+    return matchSearch && matchType;
+  });
+
+  const handleDelete = (id: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa sự kiện / thông báo này?")) {
+      setEvents(events.filter((item) => item.id !== id));
+    }
+  };
+
+  const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addForm.title) return;
+
     const newEvent: SchoolEvent = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: formData.title || "",
-      description: formData.description || "",
-      date: formData.date || "",
-      endDate: formData.endDate || formData.date || "",
-      type: (formData.type as EventType) || "EVENT",
-      priority: (formData.priority as Priority) || "NORMAL",
-      targetClass: formData.targetClass || null,
-      createdBy: formData.createdBy || "Admin",
+      id: Date.now().toString(),
+      title: addForm.title,
+      description: addForm.description,
+      date: addForm.date,
+      endDate: addForm.endDate || addForm.date,
+      type: addForm.type,
+      priority: addForm.priority,
+      targetClass: addForm.targetClass || null,
+      createdBy: "Admin",
     };
-    setEvents([...events, newEvent]);
+
+    setEvents([newEvent, ...events]);
     setIsAddModalOpen(false);
-    setFormData({
+    setAddForm({
       title: "",
       description: "",
-      date: "",
-      endDate: "",
+      date: new Date().toISOString().split("T")[0],
+      endDate: new Date().toISOString().split("T")[0],
       type: "EVENT",
       priority: "NORMAL",
       targetClass: "",
-      createdBy: "Admin",
     });
   };
 
-  const handleDelete = (id: string) => {
-    setEvents(events.filter((ev) => ev.id !== id));
-  };
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      {/* Header controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-800">Lịch Sự Kiện & Bảng Thông Báo</h2>
+          <p className="text-sm text-slate-500 mt-1">Đăng tải thông báo toàn trường, lên lịch nghỉ lễ và các hoạt động ngoại khóa.</p>
+        </div>
 
-  const filteredEvents = events.filter((ev) => {
-    const matchesFilter = activeFilter === "ALL" || ev.type === activeFilter;
-    const matchesSearch = ev.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
-
-  const upcomingEvents = [...events]
-    .filter((ev) => new Date(ev.date) >= new Date())
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3);
-
-  const getBadgeColor = (type: EventType) => {
-    switch (type) {
-      case "EVENT":
-        return "bg-indigo-100 text-indigo-700 border-indigo-200";
-      case "ANNOUNCEMENT":
-        return "bg-amber-100 text-amber-700 border-amber-200";
-      case "HOLIDAY":
-        return "bg-emerald-100 text-emerald-700 border-emerald-200";
-    }
-  };
-
-  const getTypeLabel = (type: EventType) => {
-    switch (type) {
-      case "EVENT":
-        return "Sự kiện";
-      case "ANNOUNCEMENT":
-        return "Thông báo";
-      case "HOLIDAY":
-        return "Nghỉ lễ";
-    }
-  };
-
-  const getTypeIcon = (type: EventType) => {
-    switch (type) {
-      case "EVENT":
-        return <PartyPopper className="w-4 h-4 mr-1" />;
-      case "ANNOUNCEMENT":
-        return <Megaphone className="w-4 h-4 mr-1" />;
-      case "HOLIDAY":
-        return <CalendarDays className="w-4 h-4 mr-1" />;
-    }
-  };
-
-  const getPriorityBadge = (priority: Priority) => {
-    switch (priority) {
-      case "URGENT":
-        return (
-          <span className="flex items-center text-xs font-medium text-red-600 bg-red-50 px-2 py-1 rounded-full border border-red-100">
-            <span className="relative flex h-2 w-2 mr-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-            </span>
-            Khẩn cấp
-          </span>
-        );
-      case "IMPORTANT":
-        return (
-          <span className="flex items-center text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded-full border border-amber-100">
-            <AlertTriangle className="w-3 h-3 mr-1" /> Quan trọng
-          </span>
-        );
-      case "NORMAL":
-        return (
-          <span className="flex items-center text-xs font-medium text-slate-600 bg-slate-50 px-2 py-1 rounded-full border border-slate-200">
-            Bình thường
-          </span>
-        );
-    }
-  };
-
-  // Calendar View Helpers
-  const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-  const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
-  const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const blanks = Array.from({ length: firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1 }, (_, i) => i);
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const renderCalendar = () => {
-    return (
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-slate-800">
-            Tháng {currentDate.getMonth() + 1}, {currentDate.getFullYear()}
-          </h3>
-          <div className="flex space-x-2">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+          {/* View Mode Toggle */}
+          <div className="flex bg-slate-100 p-1 rounded-xl">
             <button
-              onClick={prevMonth}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+              onClick={() => setViewMode("list")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "list" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+              }`}
             >
-              <ChevronLeft className="w-5 h-5" />
+              <List className="w-3.5 h-3.5" /> Danh sách
             </button>
             <button
-              onClick={nextMonth}
-              className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-600"
+              onClick={() => setViewMode("calendar")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                viewMode === "calendar" ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600"
+              }`}
             >
-              <ChevronRight className="w-5 h-5" />
+              <LayoutGrid className="w-3.5 h-3.5" /> Lịch tháng
             </button>
           </div>
-        </div>
-        <div className="grid grid-cols-7 gap-2 mb-2 text-center text-sm font-medium text-slate-500">
-          <div>T2</div>
-          <div>T3</div>
-          <div>T4</div>
-          <div>T5</div>
-          <div>T6</div>
-          <div>T7</div>
-          <div className="text-red-500">CN</div>
-        </div>
-        <div className="grid grid-cols-7 gap-2">
-          {blanks.map((b) => (
-            <div key={`blank-${b}`} className="h-24 rounded-xl bg-slate-50 border border-slate-100 opacity-50"></div>
-          ))}
-          {days.map((day) => {
-            const dateStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(
-              2,
-              "0"
-            )}-${String(day).padStart(2, "0")}`;
-            const dayEvents = events.filter(
-              (e) => e.date <= dateStr && e.endDate >= dateStr
-            );
 
-            return (
-              <div
-                key={day}
-                className="h-24 rounded-xl border border-slate-100 p-2 hover:border-indigo-200 hover:shadow-sm transition-all relative group overflow-hidden"
-              >
-                <span className="text-sm font-medium text-slate-700">{day}</span>
-                <div className="mt-1 flex flex-col space-y-1">
-                  {dayEvents.slice(0, 2).map((ev) => (
-                    <div
-                      key={ev.id}
-                      className={`text-[10px] leading-tight truncate px-1.5 py-1 rounded border ${getBadgeColor(
-                        ev.type
-                      )}`}
-                      title={ev.title}
-                    >
-                      {ev.title}
-                    </div>
-                  ))}
-                  {dayEvents.length > 2 && (
-                    <div className="text-[10px] text-slate-500 font-medium pl-1">
-                      +{dayEvents.length - 2} thêm
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            Tạo mới
+          </button>
         </div>
       </div>
-    );
-  };
 
-  return (
-    <div className="p-6 max-w-7xl mx-auto flex gap-6">
-      <div className="flex-1">
-        {/* Header & Controls */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800">Sự kiện & Thông báo</h1>
-            <p className="text-slate-500 text-sm mt-1">Quản lý các hoạt động và thông báo của trường</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-sm font-medium text-sm"
-            >
-              <Plus className="w-4 h-4 mr-2" /> Thêm mới
-            </button>
-          </div>
-        </div>
-
-        {/* Filters and View Toggles */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="flex space-x-2">
-            {[
-              { id: "ALL", label: "Tất cả" },
-              { id: "EVENT", label: "Sự kiện" },
-              { id: "ANNOUNCEMENT", label: "Thông báo" },
-              { id: "HOLIDAY", label: "Nghỉ lễ" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id as any)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  activeFilter === tab.id
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="relative flex-1 md:w-64">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+      {/* Main Content Area */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main List / Calendar View (2 cols) */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Search & Type Filter Tabs */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="relative w-full sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Tìm kiếm..."
-                className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Tìm tiêu đề, nội dung..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
               />
             </div>
-            <div className="flex bg-slate-100 p-1 rounded-xl">
+
+            <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
               <button
-                onClick={() => setViewMode("LIST")}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  viewMode === "LIST" ? "bg-white shadow-sm text-indigo-600" : "text-slate-500 hover:text-slate-700"
+                onClick={() => setTypeFilter("ALL")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                  typeFilter === "ALL" ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600"
                 }`}
               >
-                <List className="w-4 h-4" />
+                Tất cả ({events.length})
               </button>
-              <button
-                onClick={() => setViewMode("CALENDAR")}
-                className={`p-1.5 rounded-lg transition-colors ${
-                  viewMode === "CALENDAR" ? "bg-white shadow-sm text-indigo-600" : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                <LayoutGrid className="w-4 h-4" />
-              </button>
+              {(Object.keys(TYPE_MAP) as EventType[]).map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setTypeFilter(type)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all shrink-0 ${
+                    typeFilter === type ? "bg-indigo-600 text-white shadow-sm" : "bg-slate-100 text-slate-600"
+                  }`}
+                >
+                  {TYPE_MAP[type].label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Cards List View */}
+          {viewMode === "list" ? (
+            <div className="space-y-3">
+              {filteredEvents.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-slate-100 text-center text-slate-400 font-medium">
+                  Không tìm thấy thông báo hoặc sự kiện nào.
+                </div>
+              ) : (
+                filteredEvents.map((item) => {
+                  const typeInfo = TYPE_MAP[item.type];
+                  const priorityInfo = PRIORITY_MAP[item.priority];
+                  const Icon = typeInfo.icon;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all space-y-3 relative group"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2.5 rounded-xl ${typeInfo.color}`}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-bold text-slate-800 text-base">{item.title}</h4>
+                              {item.priority === "URGENT" && (
+                                <span className="inline-flex items-center gap-1 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                  <AlertTriangle className="w-3 h-3" /> KHẨN CẤP
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-slate-400 mt-0.5">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+                                {item.date} {item.endDate !== item.date ? `đến ${item.endDate}` : ""}
+                              </span>
+                              <span>•</span>
+                              <span>Tạo bởi: {item.createdBy}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${typeInfo.color}`}>
+                            {typeInfo.label}
+                          </span>
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Xóa"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-slate-600 pl-12 leading-relaxed">{item.description}</p>
+
+                      <div className="pl-12 pt-1 flex items-center justify-between text-xs text-slate-400">
+                        <span className="bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-md font-semibold">
+                          Đối tượng: {item.targetClass || "Toàn trường"}
+                        </span>
+                        <span className={`font-semibold ${priorityInfo.color} px-2 py-0.5 rounded-md border`}>
+                          Ưu tiên: {priorityInfo.label}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            /* Month Calendar Grid View */
+            <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+              <div className="flex justify-between items-center pb-2 border-b border-slate-100">
+                <h3 className="font-bold text-slate-800 text-base">Tháng 9 / 2026</h3>
+                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-indigo-500 rounded-full"/> Sự kiện</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-amber-500 rounded-full"/> Thông báo</span>
+                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 bg-emerald-500 rounded-full"/> Nghỉ lễ</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-2 text-center text-xs font-bold text-slate-400 uppercase py-1">
+                <div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div><div>CN</div>
+              </div>
+
+              <div className="grid grid-cols-7 gap-2">
+                {Array.from({ length: 30 }).map((_, idx) => {
+                  const day = idx + 1;
+                  const dayStr = `2026-09-${day < 10 ? "0" + day : day}`;
+                  const dayEvents = events.filter((e) => e.date === dayStr);
+
+                  return (
+                    <div
+                      key={idx}
+                      className="min-h-[70px] bg-slate-50/70 p-1.5 rounded-xl border border-slate-100 flex flex-col justify-between hover:bg-slate-100 transition-colors"
+                    >
+                      <span className="font-bold text-xs text-slate-700">{day}</span>
+                      <div className="space-y-1">
+                        {dayEvents.map((ev) => (
+                          <div
+                            key={ev.id}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded truncate ${TYPE_MAP[ev.type].color}`}
+                            title={ev.title}
+                          >
+                            {ev.title}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar: Urgent Alerts & Next Upcoming Events (1 col) */}
+        <div className="space-y-6">
+          <div className="bg-gradient-to-br from-indigo-900 to-slate-900 text-white p-6 rounded-2xl shadow-lg space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl">
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base">Thông Báo Nổi Bật</h3>
+                <p className="text-xs text-slate-300">Cập nhật tin tức quan trọng nhất</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              {events
+                .filter((e) => e.priority === "URGENT" || e.priority === "IMPORTANT")
+                .slice(0, 3)
+                .map((e) => (
+                  <div key={e.id} className="bg-white/10 p-3.5 rounded-xl backdrop-blur-sm space-y-1">
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-xs text-amber-300">{e.title}</h4>
+                      <span className="text-[10px] bg-white/20 text-white px-1.5 py-0.5 rounded font-mono">{e.date}</span>
+                    </div>
+                    <p className="text-xs text-slate-300 line-clamp-2">{e.description}</p>
+                  </div>
+                ))}
             </div>
           </div>
         </div>
-
-        {/* Main Content */}
-        {viewMode === "LIST" ? (
-          <div className="space-y-4">
-            {filteredEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 hover:shadow-md transition-shadow group"
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className={`flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${getBadgeColor(
-                        ev.type
-                      )}`}
-                    >
-                      {getTypeIcon(ev.type)}
-                      {getTypeLabel(ev.type)}
-                    </span>
-                    {getPriorityBadge(ev.priority)}
-                  </div>
-                  <button
-                    onClick={() => handleDelete(ev.id)}
-                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <h3 className="text-lg font-semibold text-slate-800 mb-2">{ev.title}</h3>
-                <p className="text-slate-600 text-sm mb-4 line-clamp-2">{ev.description}</p>
-                <div className="flex flex-wrap gap-4 text-sm text-slate-500">
-                  <div className="flex items-center">
-                    <Calendar className="w-4 h-4 mr-1.5 text-slate-400" />
-                    {ev.date === ev.endDate ? ev.date : `${ev.date} - ${ev.endDate}`}
-                  </div>
-                  <div className="flex items-center">
-                    <MapPin className="w-4 h-4 mr-1.5 text-slate-400" />
-                    {ev.targetClass ? ev.targetClass : "Toàn trường"}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {filteredEvents.length === 0 && (
-              <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
-                <Bell className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">Không tìm thấy sự kiện hay thông báo nào.</p>
-              </div>
-            )}
-          </div>
-        ) : (
-          renderCalendar()
-        )}
       </div>
 
-      {/* Sidebar - Upcoming Events */}
-      <div className="w-80 hidden lg:block shrink-0">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 sticky top-6">
-          <h3 className="text-base font-semibold text-slate-800 mb-4 flex items-center">
-            <Clock className="w-5 h-5 mr-2 text-indigo-500" />
-            Sắp diễn ra
-          </h3>
-          <div className="space-y-4">
-            {upcomingEvents.map((ev) => (
-              <div
-                key={ev.id}
-                className="p-3 rounded-xl border border-slate-100 hover:border-indigo-100 hover:bg-slate-50 transition-colors"
-              >
-                <div className="text-xs font-medium text-indigo-600 mb-1">{ev.date}</div>
-                <div className="text-sm font-semibold text-slate-800 line-clamp-1 mb-1">
-                  {ev.title}
-                </div>
-                <div className="text-xs text-slate-500 flex items-center">
-                  <MapPin className="w-3 h-3 mr-1" />
-                  {ev.targetClass || "Toàn trường"}
-                </div>
-              </div>
-            ))}
-            {upcomingEvents.length === 0 && (
-              <p className="text-sm text-slate-500 text-center py-4">Không có sự kiện sắp tới.</p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Add Modal */}
+      {/* Add Event Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800">Thêm mới Sự kiện / Thông báo</h2>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative border border-slate-100 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
+                  <CalendarDays className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-lg">Tạo Thông Báo / Sự Kiện Mới</h3>
+                  <p className="text-xs text-slate-500">Đăng tải lên bảng tin chung hoặc gửi tới lớp học</p>
+                </div>
+              </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 hover:bg-slate-100 p-2 rounded-full transition-colors"
+                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <form onSubmit={handleAddEvent} className="p-6 space-y-4">
+
+            <form onSubmit={handleAddSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tiêu đề *</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Tiêu đề thông báo / sự kiện *</label>
                 <input
-                  required
                   type="text"
-                  className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                  placeholder="Ví dụ: Họp phụ huynh cuối học kỳ I..."
+                  value={addForm.title}
+                  onChange={(e) => setAddForm({ ...addForm, title: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Phân loại</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Phân loại</label>
                   <select
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as EventType })}
+                    value={addForm.type}
+                    onChange={(e) => setAddForm({ ...addForm, type: e.target.value as EventType })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800"
                   >
-                    <option value="EVENT">Sự kiện</option>
-                    <option value="ANNOUNCEMENT">Thông báo</option>
-                    <option value="HOLIDAY">Nghỉ lễ</option>
+                    <option value="EVENT">Sự kiện ngoại khóa</option>
+                    <option value="ANNOUNCEMENT">Thông báo chung</option>
+                    <option value="HOLIDAY">Nghỉ lễ / Nghỉ phép</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Mức độ</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Mức độ ưu tiên</label>
                   <select
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                    value={formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value as Priority })}
+                    value={addForm.priority}
+                    onChange={(e) => setAddForm({ ...addForm, priority: e.target.value as Priority })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800"
                   >
                     <option value="NORMAL">Bình thường</option>
                     <option value="IMPORTANT">Quan trọng</option>
@@ -550,67 +471,53 @@ export default function EventsTab() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày bắt đầu *</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Ngày bắt đầu</label>
                   <input
+                    type="date"
                     required
-                    type="date"
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    value={addForm.date}
+                    onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Ngày kết thúc</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Ngày kết thúc</label>
                   <input
                     type="date"
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                    value={formData.endDate}
-                    onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                    value={addForm.endDate}
+                    onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Đối tượng áp dụng</label>
-                <select
-                  className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  value={formData.targetClass || ""}
-                  onChange={(e) => setFormData({ ...formData, targetClass: e.target.value || null })}
-                >
-                  <option value="">Toàn trường</option>
-                  {classes.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Nội dung</label>
+                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Nội dung chi tiết</label>
                 <textarea
                   rows={3}
-                  className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 resize-none"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                ></textarea>
+                  placeholder="Nhập nội dung thông báo cho phụ huynh và giáo viên..."
+                  value={addForm.description}
+                  onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+              <div className="pt-3 flex gap-3">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl font-medium transition-colors"
+                  className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm"
                 >
-                  Hủy
+                  Hủy bỏ
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-sm font-medium transition-colors"
+                  className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 text-sm"
                 >
-                  Lưu thông tin
+                  Đăng thông báo
                 </button>
               </div>
             </form>
