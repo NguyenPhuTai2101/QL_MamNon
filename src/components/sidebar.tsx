@@ -14,7 +14,11 @@ import {
   UserCheck as TeacherIcon,
   HeartHandshake,
   Menu,
-  X
+  X,
+  UserCog,
+  BarChart3,
+  Wallet,
+  CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +49,10 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: "cost", label: "Chi phí Bếp", icon: TrendingUp, roles: ["ADMIN"] },
     { id: "health", label: "Sức khỏe", icon: HeartPulse, roles: ["ADMIN", "TEACHER", "PARENT"] },
     { id: "students", label: "Học sinh & Lớp", icon: Users, roles: ["ADMIN", "TEACHER"] },
+    { id: "staff", label: "Nhân sự & GV", icon: UserCog, roles: ["ADMIN"] },
+    { id: "reports", label: "Báo cáo", icon: BarChart3, roles: ["ADMIN"] },
+    { id: "finance", label: "Sổ Thu Chi", icon: Wallet, roles: ["ADMIN"] },
+    { id: "events", label: "Sự kiện & TB", icon: CalendarDays, roles: ["ADMIN", "TEACHER", "PARENT"] },
   ];
 
   // Filter items according to the logged-in user's role

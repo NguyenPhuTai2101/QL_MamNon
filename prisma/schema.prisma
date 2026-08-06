@@ -126,3 +126,47 @@ model IngredientCost {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ===== PHASE 7: QUẢN LÝ CHUYÊN SÂU =====
+
+model Staff {
+  id            String   @id @default(uuid())
+  fullName      String
+  phone         String
+  email         String?
+  position      String   // TEACHER, ASSISTANT, COOK, GUARD, ADMIN_STAFF
+  degree        String?  // Bằng cấp chuyên môn
+  startDate     DateTime // Ngày bắt đầu làm việc
+  status        String   @default("ACTIVE") // ACTIVE, ON_LEAVE, RESIGNED
+  assignedClass String?  // Lớp được phân công phụ trách
+  salary        Float?   // Mức lương (VNĐ)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  date        DateTime
+  type        String   // INCOME (Thu), EXPENSE (Chi)
+  category    String   // TUITION, MEAL_FEE, SALARY, KITCHEN, EQUIPMENT, UTILITY, OTHER
+  amount      Float
+  description String
+  createdBy   String?  // Người tạo bút toán
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  type        String   // EVENT (Sự kiện), ANNOUNCEMENT (Thông báo), HOLIDAY (Nghỉ lễ)
+  priority    String   @default("NORMAL") // URGENT, IMPORTANT, NORMAL
+  targetClass String?  // null = toàn trường, hoặc tên lớp cụ thể
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

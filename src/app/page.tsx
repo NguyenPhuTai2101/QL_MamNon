@@ -9,6 +9,10 @@ import VietQRModal from "@/components/vietqr-modal";
 import MenuTab from "@/components/menu-tab";
 import CostTab from "@/components/cost-tab";
 import HealthTab from "@/components/health-tab";
+import StaffTab from "@/components/staff-tab";
+import ReportsTab from "@/components/reports-tab";
+import FinanceTab from "@/components/finance-tab";
+import EventsTab from "@/components/events-tab";
 import { 
   mockStudents, 
   mockWeeklyMenu, 
@@ -615,6 +619,26 @@ export default function Home() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Staff & HR Management Tab */}
+          {activeTab === "staff" && (
+            <StaffTab />
+          )}
+
+          {/* Reports & Charts Tab */}
+          {activeTab === "reports" && (
+            <ReportsTab />
+          )}
+
+          {/* Financial Ledger Tab */}
+          {activeTab === "finance" && (
+            <FinanceTab />
+          )}
+
+          {/* Events & Announcements Tab */}
+          {activeTab === "events" && (
+            <EventsTab />
           )}
         </main>
       </div>
