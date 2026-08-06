@@ -10,26 +10,27 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String   // Mật khẩu mã hóa
-  name      String   // Tên người dùng
-  role      String   // ADMIN, TEACHER, PARENT
+  id        String    @id @default(uuid())
+  username  String    @unique
+  password  String    // Mật khẩu mã hóa
+  name      String    // Tên người dùng
+  role      String    // ADMIN, TEACHER, PARENT
   email     String?
   phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  students  Student[] // Một Phụ huynh có thể có nhiều học sinh (con) theo học
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 }
 
 model Class {
-  id        String    @id @default(uuid())
-  name      String    @unique // Tên lớp, ví dụ: Mầm 1, Chồi 2, Lá 1
-  room      String?   // Phòng học
-  teacher   String    // Giáo viên chủ nhiệm
+  id        String      @id @default(uuid())
+  name      String      @unique // Tên lớp, ví dụ: Mầm 1, Chồi 2, Lá 1
+  room      String?     // Phòng học
+  teacher   String      // Giáo viên chủ nhiệm
   students  Student[]
   menus     DailyMenu[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 model Student {
@@ -39,6 +40,7 @@ model Student {
   birthDate     DateTime
   gender        String         // Nam / Nữ
   parentId      String?
+  parent        User?          @relation(fields: [parentId], references: [id])
   parentName    String
   parentPhone   String
   address       String?
@@ -123,4 +125,48 @@ model IngredientCost {
   notes     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ===== PHASE 7: QUẢN LÝ CHUYÊN SÂU =====
+
+model Staff {
+  id            String   @id @default(uuid())
+  fullName      String
+  phone         String
+  email         String?
+  position      String   // TEACHER, ASSISTANT, COOK, GUARD, ADMIN_STAFF
+  degree        String?  // Bằng cấp chuyên môn
+  startDate     DateTime // Ngày bắt đầu làm việc
+  status        String   @default("ACTIVE") // ACTIVE, ON_LEAVE, RESIGNED
+  assignedClass String?  // Lớp được phân công phụ trách
+  salary        Float?   // Mức lương (VNĐ)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  date        DateTime
+  type        String   // INCOME (Thu), EXPENSE (Chi)
+  category    String   // TUITION, MEAL_FEE, SALARY, KITCHEN, EQUIPMENT, UTILITY, OTHER
+  amount      Float
+  description String
+  createdBy   String?  // Người tạo bút toán
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  endDate     DateTime?
+  type        String   // EVENT (Sự kiện), ANNOUNCEMENT (Thông báo), HOLIDAY (Nghỉ lễ)
+  priority    String   @default("NORMAL") // URGENT, IMPORTANT, NORMAL
+  targetClass String?  // null = toàn trường, hoặc tên lớp cụ thể
+  createdBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

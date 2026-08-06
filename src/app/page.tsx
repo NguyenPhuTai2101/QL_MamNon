@@ -9,6 +9,10 @@ import VietQRModal from "@/components/vietqr-modal";
 import MenuTab from "@/components/menu-tab";
 import CostTab from "@/components/cost-tab";
 import HealthTab from "@/components/health-tab";
+import StaffTab from "@/components/staff-tab";
+import ReportsTab from "@/components/reports-tab";
+import FinanceTab from "@/components/finance-tab";
+import EventsTab from "@/components/events-tab";
 import { 
   mockStudents, 
   mockWeeklyMenu, 
@@ -213,12 +217,13 @@ export default function Home() {
   // Save Edited Menu
   const handleSaveMenu = (e: React.FormEvent) => {
     e.preventDefault();
-    setWeeklyMenu({
-      ...weeklyMenu,
-      [selectedDayMenu]: editMenuForm
-    });
     setShowEditMenuModal(false);
   };
+
+  // Filter display students based on role (Parents only see their own children)
+  const displayStudents = userRole === "PARENT"
+    ? students.filter(s => s.parentName.toLowerCase().includes("triết") || s.parentName.toLowerCase().includes("nguyễn"))
+    : students;
 
   if (!isMounted || !isAuthenticated) {
     return (
@@ -229,7 +234,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen bg-slate-50 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
@@ -239,7 +244,7 @@ export default function Home() {
         <Header />
 
         {/* Dynamic Inner Page Content */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 pb-24 md:pb-8">
           {/* Overview Dashboard Tab */}
           {activeTab === "overview" && (
             <div className="space-y-8 animate-fadeIn">
@@ -370,36 +375,42 @@ export default function Home() {
           {/* Tuition Management Tab */}
           {activeTab === "tuition" && (
             <div className="space-y-8 animate-fadeIn">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Quản lý đóng học phí</h2>
-                  <p className="text-sm text-slate-500 mt-1">Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì.</p>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-800">
+                      {userRole === "PARENT" ? "Học phí & Thanh toán VietQR cho con" : "Quản lý đóng học phí"}
+                    </h2>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {userRole === "PARENT" ? "Tra cứu học phí và quét mã VietQR chuyển khoản 1-click." : "Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì."}
+                    </p>
+                  </div>
+                  {userRole === "ADMIN" && (
+                    <button 
+                      onClick={() => setShowAddStudentModal(true)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      Thêm học sinh mới
+                    </button>
+                  )}
                 </div>
-                <button 
-                  onClick={() => setShowAddStudentModal(true)}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  Thêm học sinh mới
-                </button>
-              </div>
 
-              {/* Student table */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50 border-b border-slate-100">
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên học sinh</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Tên Phụ huynh</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Học phí</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái</th>
-                      <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {students.map((student) => (
+                {/* Student table */}
+                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên học sinh</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Tên Phụ huynh</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Học phí</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái</th>
+                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {displayStudents.map((student) => (
                       <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4 text-sm font-semibold text-slate-800">{student.name}</td>
                         <td className="px-6 py-4 text-sm text-slate-500">{student.className}</td>
@@ -432,21 +443,25 @@ export default function Home() {
                               >
                                 <QrCode className="w-3.5 h-3.5" /> Quét VietQR
                               </button>
-                              <button
-                                onClick={() => handleMarkAsPaid(student.id)}
-                                className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
-                              >
-                                <Check className="w-3.5 h-3.5" /> Đã nộp
-                              </button>
+                              {userRole === "ADMIN" && (
+                                <button
+                                  onClick={() => handleMarkAsPaid(student.id)}
+                                  className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
+                                >
+                                  <Check className="w-3.5 h-3.5" /> Đã nộp
+                                </button>
+                              )}
                             </>
                           )}
-                          <button
-                            onClick={() => handleDeleteStudent(student.id)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Xóa học sinh"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {userRole === "ADMIN" && (
+                            <button
+                              onClick={() => handleDeleteStudent(student.id)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors ml-2"
+                              title="Xóa học sinh"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -529,7 +544,101 @@ export default function Home() {
                   );
                 })}
               </div>
+
+              {/* Detailed Student Directory Table */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden space-y-4 p-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-800">Danh sách Hồ sơ Trẻ theo Lớp</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Tra cứu danh sách trẻ, phụ huynh liên hệ và thông tin học phí.</p>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[650px]">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100">
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ và tên trẻ</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ tên Phụ huynh</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
+                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Trạng thái Học phí</th>
+                        {userRole === "ADMIN" && (
+                          <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {students.map((student) => (
+                        <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 text-sm font-semibold text-slate-800 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                              {student.name.slice(0, 2).toUpperCase()}
+                            </div>
+                            {student.name}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-500">
+                            <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-md">
+                              Lớp {student.className}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-600 font-medium">{student.parentName}</td>
+                          <td className="px-6 py-4 text-sm font-mono text-slate-500">{student.parentPhone}</td>
+                          <td className="px-6 py-4">
+                            {student.tuitionStatus === "PAID" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Đã hoàn thành
+                              </span>
+                            )}
+                            {student.tuitionStatus === "UNPAID" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-100">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Chưa hoàn thành
+                              </span>
+                            )}
+                            {student.tuitionStatus === "OVERDUE" && (
+                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-700 text-xs font-semibold rounded-full border border-rose-100 animate-pulse">
+                                <XCircle className="w-3.5 h-3.5" /> Quá hạn đóng
+                              </span>
+                            )}
+                          </td>
+                          {userRole === "ADMIN" && (
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleDeleteStudent(student.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                                title="Xóa hồ sơ học sinh"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Staff & HR Management Tab */}
+          {activeTab === "staff" && (
+            <StaffTab />
+          )}
+
+          {/* Reports & Charts Tab */}
+          {activeTab === "reports" && (
+            <ReportsTab />
+          )}
+
+          {/* Financial Ledger Tab */}
+          {activeTab === "finance" && (
+            <FinanceTab />
+          )}
+
+          {/* Events & Announcements Tab */}
+          {activeTab === "events" && (
+            <EventsTab />
           )}
         </main>
       </div>
