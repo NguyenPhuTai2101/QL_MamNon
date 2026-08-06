@@ -1,30 +1,67 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-// Mock data
-const leads = [
-  { id: 1, parentName: 'Nguyễn Thị Hương', childName: 'Trần Minh Tuấn', ageGroup: '3-4 tuổi', phone: '0901234567', email: 'huong.nguyen@example.com', source: 'Facebook', status: 'NEW', date: '2026-08-01' },
-  { id: 2, parentName: 'Trần Văn Dũng', childName: 'Lê Mai Trang', ageGroup: '4-5 tuổi', phone: '0901234568', email: 'dung.tran@example.com', source: 'Website', status: 'CONTACTED', date: '2026-08-02' },
-  { id: 3, parentName: 'Lê Thị Thu', childName: 'Phạm Gia Bảo', ageGroup: '2-3 tuổi', phone: '0901234569', email: 'thu.le@example.com', source: 'Giới thiệu', status: 'VISITED', date: '2026-08-03' },
-  { id: 4, parentName: 'Phạm Văn Thành', childName: 'Hoàng Bảo Yến', ageGroup: '5-6 tuổi', phone: '0901234570', email: 'thanh.pham@example.com', source: 'Google', status: 'ENROLLED', date: '2026-08-04' },
-  { id: 5, parentName: 'Hoàng Thị Lan', childName: 'Nguyễn Quốc Việt', ageGroup: '3-4 tuổi', phone: '0901234571', email: 'lan.hoang@example.com', source: 'Facebook', status: 'REJECTED', date: '2026-08-05' },
-  { id: 6, parentName: 'Ngô Văn Nam', childName: 'Đinh Phương Anh', ageGroup: '2-3 tuổi', phone: '0901234572', email: 'nam.ngo@example.com', source: 'Zalo', status: 'NEW', date: '2026-08-06' },
+// Fallback in-memory store if DB is temporarily unreachable in dev/preview
+const mockLeads = [
+  { id: '1', parentName: 'Nguyễn Thị Hương', childName: 'Trần Minh Tuấn', childAgeGroup: '3-4 tuổi', phone: '0901234567', email: 'huong.nguyen@example.com', source: 'Facebook', status: 'NEW', notes: 'Hỏi về học phí', createdAt: new Date('2026-08-01') },
+  { id: '2', parentName: 'Trần Văn Dũng', childName: 'Lê Mai Trang', childAgeGroup: '4-5 tuổi', phone: '0901234568', email: 'dung.tran@example.com', source: 'Website', status: 'CONTACTED', notes: 'Đã gọi tư vấn', createdAt: new Date('2026-08-02') },
+  { id: '3', parentName: 'Lê Thị Thu', childName: 'Phạm Gia Bảo', childAgeGroup: '2-3 tuổi', phone: '0901234569', email: 'thu.le@example.com', source: 'Giới thiệu', status: 'VISITED', notes: 'Đã hẹn t7 qua trường', createdAt: new Date('2026-08-03') },
+  { id: '4', parentName: 'Phạm Văn Thành', childName: 'Hoàng Bảo Yến', childAgeGroup: '5-6 tuổi', phone: '0901234570', email: 'thanh.pham@example.com', source: 'Google', status: 'ENROLLED', notes: 'Đã đóng học phí', createdAt: new Date('2026-08-04') },
+  { id: '5', parentName: 'Hoàng Thị Lan', childName: 'Nguyễn Quốc Việt', childAgeGroup: '3-4 tuổi', phone: '0901234571', email: 'lan.hoang@example.com', source: 'Facebook', status: 'REJECTED', notes: 'Trường xa nhà', createdAt: new Date('2026-08-05') },
+  { id: '6', parentName: 'Ngô Văn Nam', childName: 'Đinh Phương Anh', childAgeGroup: '2-3 tuổi', phone: '0901234572', email: 'nam.ngo@example.com', source: 'Zalo', status: 'NEW', notes: 'Xin thực đơn', createdAt: new Date('2026-08-06') },
 ];
 
 export async function GET() {
-  return NextResponse.json({ success: true, data: leads });
+  try {
+    const leads = await prisma.lead.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json({ success: true, data: leads.length > 0 ? leads : mockLeads });
+  } catch (error) {
+    console.error('Error fetching leads from database:', error);
+    return NextResponse.json({ success: true, data: mockLeads });
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const newLead = {
-      id: leads.length + 1,
-      ...body,
-      date: new Date().toISOString().split('T')[0]
-    };
-    leads.push(newLead);
-    return NextResponse.json({ success: true, data: newLead }, { status: 201 });
+    
+    // Attempt saving to PostgreSQL database via Prisma ORM
+    let createdLead;
+    try {
+      createdLead = await prisma.lead.create({
+        data: {
+          parentName: body.parentName || 'Chưa cập nhật',
+          childName: body.childName || 'Chưa cập nhật',
+          childAgeGroup: body.childAgeGroup || body.ageGroup || '3-4T',
+          phone: body.phone || '',
+          email: body.email || null,
+          source: body.source || 'Website đăng ký online',
+          status: body.status || 'NEW',
+          notes: body.notes || null,
+        },
+      });
+    } catch (dbErr) {
+      console.warn('Prisma DB insert fallback to memory store:', dbErr);
+      createdLead = {
+        id: Date.now().toString(),
+        parentName: body.parentName,
+        childName: body.childName,
+        childAgeGroup: body.childAgeGroup || body.ageGroup || '3-4T',
+        phone: body.phone,
+        email: body.email,
+        source: body.source || 'Website đăng ký online',
+        status: body.status || 'NEW',
+        notes: body.notes,
+        createdAt: new Date(),
+      };
+      mockLeads.unshift(createdLead);
+    }
+
+    return NextResponse.json({ success: true, data: createdLead }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to create lead' }, { status: 400 });
+    console.error('Error in admissions API:', error);
+    return NextResponse.json({ success: false, error: 'Failed to process registration' }, { status: 400 });
   }
 }

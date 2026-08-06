@@ -21,25 +21,50 @@ const STATUSES = {
 };
 
 export default function AdmissionsTab() {
-  const [leads, setLeads] = useState(mockLeads);
+  const [leads, setLeads] = useState<any[]>(mockLeads);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Load leads from API database on mount
+  React.useEffect(() => {
+    fetch('/api/admissions')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          setLeads(data.data);
+        }
+      })
+      .catch(err => console.error('Error loading leads from API:', err));
+  }, []);
 
   // New Lead Form State
   const [formData, setFormData] = useState({
     parentName: '', childName: '', ageGroup: '', phone: '', email: '', source: '', notes: ''
   });
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newLead = {
-      id: leads.length + 1,
-      ...formData,
-      status: 'NEW',
-      date: new Date().toLocaleDateString('vi-VN'),
-    };
-    setLeads([newLead, ...leads]);
+    try {
+      const res = await fetch('/api/admissions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          status: 'NEW',
+        }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setLeads([result.data, ...leads]);
+      } else {
+        const newLead = { id: Date.now(), ...formData, status: 'NEW', date: new Date().toLocaleDateString('vi-VN') };
+        setLeads([newLead, ...leads]);
+      }
+    } catch (err) {
+      const newLead = { id: Date.now(), ...formData, status: 'NEW', date: new Date().toLocaleDateString('vi-VN') };
+      setLeads([newLead, ...leads]);
+    }
     setShowAddModal(false);
     setFormData({ parentName: '', childName: '', ageGroup: '', phone: '', email: '', source: '', notes: '' });
   };
@@ -183,10 +208,10 @@ export default function AdmissionsTab() {
               {filteredLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
                   <td className="p-4">
-                    <div className="font-medium text-slate-800">{lead.parentName}</div>
+                    <div className="font-semibold text-slate-800">{lead.parentName}</div>
                     <div className="text-sm text-slate-500">Bé: {lead.childName}</div>
                   </td>
-                  <td className="p-4 text-slate-600">{lead.ageGroup}</td>
+                  <td className="p-4 text-sm text-slate-600 font-medium">{lead.childAgeGroup || lead.ageGroup}</td>
                   <td className="p-4">
                     <div className="flex items-center gap-1 text-slate-800"><Phone className="w-3 h-3 text-slate-400" /> {lead.phone}</div>
                     <div className="flex items-center gap-1 text-sm text-slate-500"><Mail className="w-3 h-3 text-slate-400" /> {lead.email}</div>
