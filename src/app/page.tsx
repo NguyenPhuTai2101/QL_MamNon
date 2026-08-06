@@ -13,6 +13,9 @@ import StaffTab from "@/components/staff-tab";
 import ReportsTab from "@/components/reports-tab";
 import FinanceTab from "@/components/finance-tab";
 import EventsTab from "@/components/events-tab";
+import AssetsTab from "@/components/assets-tab";
+import AdmissionsTab from "@/components/admissions-tab";
+import EvaluationsTab from "@/components/evaluations-tab";
 import { 
   mockStudents, 
   mockWeeklyMenu, 
@@ -639,6 +642,21 @@ export default function Home() {
           {/* Events & Announcements Tab */}
           {activeTab === "events" && (
             <EventsTab />
+          )}
+
+          {/* Assets & Equipment Management Tab */}
+          {activeTab === "assets" && (
+            <AssetsTab />
+          )}
+
+          {/* Admissions & Student Enrollment Pipeline Tab */}
+          {activeTab === "admissions" && (
+            <AdmissionsTab />
+          )}
+
+          {/* Teacher Evaluations & Performance Tab */}
+          {activeTab === "evaluations" && (
+            <EvaluationsTab />
           )}
         </main>
       </div>
