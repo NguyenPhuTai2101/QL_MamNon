@@ -218,16 +218,49 @@ export default function AdmissionsTab() {
                   </td>
                   <td className="p-4 text-slate-600">{lead.source}</td>
                   <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${STATUSES[lead.status as keyof typeof STATUSES].color}`}>
-                      {STATUSES[lead.status as keyof typeof STATUSES].label}
-                    </span>
+                    <select
+                      value={lead.status}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+                        setLeads(leads.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
+                        try {
+                          await fetch('/api/admissions', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: lead.id, status: newStatus }),
+                          });
+                        } catch (err) {
+                          console.error('Error updating lead status:', err);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer ${STATUSES[lead.status as keyof typeof STATUSES]?.color || 'bg-slate-100 text-slate-700'}`}
+                    >
+                      <option value="NEW">🔵 Hồ sơ mới</option>
+                      <option value="CONTACTED">🟣 Đã tư vấn</option>
+                      <option value="VISITED">🟣 Tham quan</option>
+                      <option value="ENROLLED">🟢 Đã nhập học</option>
+                      <option value="REJECTED">🔴 Từ chối</option>
+                    </select>
                   </td>
-                  <td className="p-4 text-slate-600">{lead.date}</td>
+                  <td className="p-4 text-slate-600 text-xs font-medium">
+                    {lead.createdAt ? new Date(lead.createdAt).toLocaleDateString('vi-VN') : (lead.date || 'Hôm nay')}
+                  </td>
                   <td className="p-4">
-                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Cập nhật trạng thái"><Clock className="w-4 h-4" /></button>
-                      <button className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors" title="Nhập học"><UserCheck className="w-4 h-4" /></button>
-                      <button className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa"><Trash2 className="w-4 h-4" /></button>
+                    <div className="flex justify-end gap-2">
+                      <button 
+                        onClick={async () => {
+                          if (confirm('Bạn có chắc chắn muốn xóa hồ sơ này?')) {
+                            setLeads(leads.filter(l => l.id !== lead.id));
+                            try {
+                              await fetch(`/api/admissions?id=${lead.id}`, { method: 'DELETE' });
+                            } catch (err) {}
+                          }
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" 
+                        title="Xóa hồ sơ"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 </tr>
