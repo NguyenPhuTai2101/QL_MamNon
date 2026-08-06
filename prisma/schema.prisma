@@ -170,3 +170,63 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ===== PHASE 8: QUẢN LÝ NÂNG CAO BAN GIÁM HIỆU =====
+
+model Asset {
+  id          String   @id @default(uuid())
+  code        String   @unique // Mã tài sản (VD: TS-001)
+  name        String   // Tên tài sản (Máy chiếu, Máy điều hòa, Bàn ghế...)
+  category    String   // ELECTRONIC (Điện tử), FURNITURE (Bàn ghế), TOY (Đồ chơi), KITCHEN (Bếp), OTHER
+  location    String   // Phòng/Lớp phân bổ (Lớp Mầm 1, Bếp, Hội trường...)
+  quantity    Int      @default(1)
+  status      String   @default("GOOD") // GOOD (Tốt), MAINTENANCE (Bảo trì), BROKEN (Hỏng)
+  unitPrice   Float?
+  purchaseDate DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MaintenanceRequest {
+  id          String   @id @default(uuid())
+  assetName   String
+  location    String
+  issue       String   // Mô tả hỏng hóc/sự cố
+  requestedBy String
+  priority    String   @default("NORMAL") // URGENT, NORMAL
+  status      String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED
+  cost        Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Lead {
+  id            String   @id @default(uuid())
+  parentName    String
+  childName     String
+  childAgeGroup String   // Mầm (18-36T), Chồi (3-4T), Lá (4-5T)
+  phone         String
+  email         String?
+  status        String   @default("NEW") // NEW (Mới), CONTACTED (Đã tư vấn), VISITED (Tham quan), ENROLLED (Đã nhập học), REJECTED (Từ chối)
+  source        String?  // Facebook, Website, Giới thiệu, Trực tiếp
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Evaluation {
+  id            String   @id @default(uuid())
+  staffId       String
+  staffName     String
+  month         String   // YYYY-MM
+  score         Float    // Điểm đánh giá (0-100)
+  rank          String   // EXCELLENT (Xuất sắc), GOOD (Tốt), FAIR (Khá), POOR (Cần cố gắng)
+  attendancePts Float    @default(100)
+  teachingPts   Float    @default(100)
+  feedbackPts   Float    @default(100)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+

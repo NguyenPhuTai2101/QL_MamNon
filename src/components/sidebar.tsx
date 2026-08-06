@@ -18,7 +18,10 @@ import {
   UserCog,
   BarChart3,
   Wallet,
-  CalendarDays
+  CalendarDays,
+  Building2,
+  UserPlus,
+  Award
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -53,6 +56,9 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
     { id: "reports", label: "Báo cáo", icon: BarChart3, roles: ["ADMIN"] },
     { id: "finance", label: "Sổ Thu Chi", icon: Wallet, roles: ["ADMIN"] },
     { id: "events", label: "Sự kiện & TB", icon: CalendarDays, roles: ["ADMIN", "TEACHER", "PARENT"] },
+    { id: "assets", label: "Cơ sở vật chất", icon: Building2, roles: ["ADMIN"] },
+    { id: "admissions", label: "Tuyển sinh", icon: UserPlus, roles: ["ADMIN"] },
+    { id: "evaluations", label: "Thi đua & Đánh giá", icon: Award, roles: ["ADMIN"] },
   ];
 
   // Filter items according to the logged-in user's role
