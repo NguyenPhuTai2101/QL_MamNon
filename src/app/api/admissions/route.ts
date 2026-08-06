@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 // Fallback in-memory store if DB is temporarily unreachable in dev/preview
-const mockLeads = [
+let mockLeads = [
   { id: '1', parentName: 'Nguyễn Thị Hương', childName: 'Trần Minh Tuấn', childAgeGroup: '3-4 tuổi', phone: '0901234567', email: 'huong.nguyen@example.com', source: 'Facebook', status: 'NEW', notes: 'Hỏi về học phí', createdAt: new Date('2026-08-01') },
   { id: '2', parentName: 'Trần Văn Dũng', childName: 'Lê Mai Trang', childAgeGroup: '4-5 tuổi', phone: '0901234568', email: 'dung.tran@example.com', source: 'Website', status: 'CONTACTED', notes: 'Đã gọi tư vấn', createdAt: new Date('2026-08-02') },
   { id: '3', parentName: 'Lê Thị Thu', childName: 'Phạm Gia Bảo', childAgeGroup: '2-3 tuổi', phone: '0901234569', email: 'thu.le@example.com', source: 'Giới thiệu', status: 'VISITED', notes: 'Đã hẹn t7 qua trường', createdAt: new Date('2026-08-03') },
@@ -27,7 +27,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Attempt saving to PostgreSQL database via Prisma ORM
     let createdLead;
     try {
       createdLead = await prisma.lead.create({
@@ -63,5 +62,45 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error in admissions API:', error);
     return NextResponse.json({ success: false, error: 'Failed to process registration' }, { status: 400 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { id, status } = await request.json();
+    if (!id || !status) {
+      return NextResponse.json({ success: false, error: 'Missing id or status' }, { status: 400 });
+    }
+
+    try {
+      const updatedLead = await prisma.lead.update({
+        where: { id: String(id) },
+        data: { status },
+      });
+      return NextResponse.json({ success: true, data: updatedLead });
+    } catch (dbErr) {
+      mockLeads = mockLeads.map(l => String(l.id) === String(id) ? { ...l, status } : l);
+      const updated = mockLeads.find(l => String(l.id) === String(id));
+      return NextResponse.json({ success: true, data: updated });
+    }
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to update status' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ success: false, error: 'Missing id' }, { status: 400 });
+
+    try {
+      await prisma.lead.delete({ where: { id: String(id) } });
+    } catch (dbErr) {
+      mockLeads = mockLeads.filter(l => String(l.id) !== String(id));
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: 'Failed to delete' }, { status: 500 });
   }
 }
