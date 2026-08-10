@@ -329,7 +329,27 @@ export default function StaffTab() {
                           {statusInfo.label}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => {
+                            setFormData({
+                              fullName: staff.fullName,
+                              phone: staff.phone,
+                              email: staff.email || '',
+                              position: staff.position,
+                              degree: staff.degree || '',
+                              startDate: staff.startDate,
+                              assignedClass: staff.assignedClass || '',
+                              salary: staff.salary,
+                              notes: staff.notes || '',
+                            });
+                            setIsAddModalOpen(true);
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                          title="Chỉnh sửa hồ sơ"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
                         <button
                           onClick={() => handleDelete(staff.id)}
                           className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"

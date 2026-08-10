@@ -313,10 +313,16 @@ export default function EvaluationsTab() {
                   </td>
                   <td className="py-3 px-5">
                     <div className="flex items-center justify-center gap-2">
-                      <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
+                      <button 
+                        onClick={() => {
+                          setShowAddModal(true);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                        title="Sửa phiếu đánh giá"
+                      >
                         <Award className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors">
+                      <button className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors" title="Xóa">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
