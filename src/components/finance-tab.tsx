@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Wallet, 
   Plus, 
@@ -62,12 +62,33 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 ];
 
 export default function FinanceTab() {
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
   const [filterCategory, setFilterCategory] = useState<TransactionCategory | 'ALL'>('ALL');
   const [filterMonth, setFilterMonth] = useState('2026-08');
+
+  // Tải Sổ Thu Chi trực tiếp từ CSDL PostgreSQL Supabase
+  useEffect(() => {
+    fetch('/api/transactions')
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.data) && resData.data.length > 0) {
+          const mapped: Transaction[] = resData.data.map((t: any) => ({
+            id: t.id,
+            date: t.date ? t.date.split('T')[0] : '2026-08-01',
+            type: t.type as TransactionType,
+            category: t.category as TransactionCategory,
+            amount: t.amount || 0,
+            description: t.description,
+            createdBy: t.createdBy || 'Admin',
+          }));
+          setTransactions(mapped);
+        }
+      })
+      .catch((err) => console.error('Lỗi tải Sổ Thu Chi từ DB:', err));
+  }, []);
 
   const [addForm, setAddForm] = useState<{
     date: string;
@@ -106,35 +127,52 @@ export default function FinanceTab() {
   const balance = totalIncome - totalExpense;
   const transactionCount = transactions.filter(t => t.date.startsWith(filterMonth)).length;
 
-  const handleDelete = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa bút toán này?')) {
+  const handleDelete = async (id: string) => {
+    if (confirm('Bạn có chắc chắn muốn xóa bút toán này khỏi CSDL?')) {
       setTransactions(transactions.filter(t => t.id !== id));
+      try {
+        await fetch(`/api/transactions?id=${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Lỗi xóa bút toán:', err);
+      }
     }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.amount || !addForm.description) return;
 
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      date: addForm.date,
-      type: addForm.type,
-      category: addForm.category,
-      amount: parseFloat(addForm.amount),
-      description: addForm.description,
-      createdBy: 'Admin',
-    };
+    try {
+      const newTransaction: Transaction = {
+        id: Date.now().toString(),
+        date: addForm.date,
+        type: addForm.type,
+        category: addForm.category,
+        amount: parseFloat(addForm.amount),
+        description: addForm.description,
+        createdBy: 'Admin',
+      };
 
-    setTransactions([newTransaction, ...transactions]);
-    setIsAddModalOpen(false);
-    setAddForm({
-      date: new Date().toISOString().split('T')[0],
-      type: 'INCOME',
-      category: 'TUITION',
-      amount: '',
-      description: '',
-    });
+      setTransactions([newTransaction, ...transactions]);
+      setIsAddModalOpen(false);
+
+      // Lưu bút toán vào CSDL Supabase
+      await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(addForm),
+      });
+
+      setAddForm({
+        date: new Date().toISOString().split('T')[0],
+        type: 'INCOME',
+        category: 'TUITION',
+        amount: '',
+        description: '',
+      });
+    } catch (err) {
+      console.error('Lỗi thêm bút toán vào DB:', err);
+    }
   };
 
   return (
