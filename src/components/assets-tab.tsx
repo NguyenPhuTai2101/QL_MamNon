@@ -211,7 +211,21 @@ export default function AssetsTab() {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title="Sửa">
+                          <button 
+                            onClick={() => {
+                              setNewAsset({
+                                name: asset.name,
+                                category: asset.category,
+                                location: asset.location,
+                                quantity: asset.quantity,
+                                unitPrice: asset.unitPrice,
+                                status: asset.status,
+                              });
+                              setIsAddModalOpen(true);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" 
+                            title="Chỉnh sửa tài sản"
+                          >
                             <Edit3 className="h-4 w-4" />
                           </button>
                           <button 
