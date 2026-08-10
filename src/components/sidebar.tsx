@@ -72,26 +72,26 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   return (
     <>
       {/* Desktop Sidebar (hidden on mobile) */}
-      <aside className="hidden md:flex w-64 bg-slate-900 text-white flex-col h-full border-r border-slate-800 shadow-xl">
+      <aside className="hidden md:flex w-64 bg-slate-950 text-white flex-col h-full border-r border-slate-800/80 shadow-2xl relative z-20">
         {/* Brand Logo Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-indigo-500 p-2.5 rounded-xl text-white shadow-lg shadow-indigo-500/30">
+        <div className="p-6 border-b border-slate-800/80 flex items-center gap-3.5 bg-slate-900/40">
+          <div className="bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 p-3 rounded-2xl text-white shadow-lg shadow-indigo-500/25 ring-1 ring-white/20">
             <GraduationCap className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="font-bold text-lg leading-tight tracking-wide bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+            <h1 className="font-black text-lg leading-tight tracking-wider bg-gradient-to-r from-white via-slate-100 to-indigo-200 bg-clip-text text-transparent">
               NVSOFT ERP
             </h1>
-            <span className="text-xs text-indigo-400 font-semibold tracking-wider uppercase flex items-center gap-1 mt-0.5">
-              {userRole === "ADMIN" && <><ShieldCheck className="w-3 h-3 text-indigo-400" /> Ban Giám Hiệu</>}
-              {userRole === "TEACHER" && <><TeacherIcon className="w-3 h-3 text-emerald-400" /> Giáo viên</>}
-              {userRole === "PARENT" && <><HeartHandshake className="w-3 h-3 text-pink-400" /> Phụ huynh</>}
+            <span className="text-[11px] text-indigo-400 font-bold tracking-widest uppercase flex items-center gap-1.5 mt-1">
+              {userRole === "ADMIN" && <><ShieldCheck className="w-3.5 h-3.5 text-indigo-400" /> Ban Giám Hiệu</>}
+              {userRole === "TEACHER" && <><TeacherIcon className="w-3.5 h-3.5 text-emerald-400" /> Giáo viên</>}
+              {userRole === "PARENT" && <><HeartHandshake className="w-3.5 h-3.5 text-pink-400" /> Phụ huynh</>}
             </span>
           </div>
         </div>
 
         {/* Nav Menu */}
-        <nav className="flex-1 px-4 py-6 space-y-1.5 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto no-scrollbar">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -100,16 +100,16 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
                 key={item.id}
                 onClick={() => handleTabSelect(item.id)}
                 className={cn(
-                  "w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group relative",
+                  "w-full flex items-center gap-3.5 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-200 group relative cursor-pointer",
                   isActive 
-                    ? "bg-indigo-600 text-white font-semibold shadow-lg shadow-indigo-600/30" 
-                    : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+                    ? "bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-extrabold shadow-lg shadow-indigo-600/30 border border-indigo-500/50" 
+                    : "text-slate-400 hover:text-white hover:bg-slate-900/80"
                 )}
               >
-                <Icon className={cn("w-5 h-5 transition-colors", isActive ? "text-white" : "text-slate-400 group-hover:text-white")} />
+                <Icon className={cn("w-4 h-4 transition-transform duration-200 group-hover:scale-110", isActive ? "text-white" : "text-slate-400 group-hover:text-white")} />
                 <span>{item.label}</span>
                 {isActive && (
-                  <div className="absolute right-0 top-2 bottom-2 w-1 bg-white rounded-l-full shadow-sm" />
+                  <div className="absolute right-0 top-2 bottom-2 w-1.5 bg-indigo-400 rounded-l-full shadow-md shadow-indigo-400/50" />
                 )}
               </button>
             );
@@ -117,8 +117,8 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         </nav>
 
         {/* Role Indicator Footer */}
-        <div className="p-4 border-t border-slate-800 text-xs text-slate-400 text-center">
-          Tài khoản: <strong className="text-white">{userRole}</strong>
+        <div className="p-4 border-t border-slate-800/80 bg-slate-900/40 text-[11px] text-slate-400 text-center font-medium">
+          Hệ thống Quản lý • <strong className="text-indigo-400 font-bold">{userRole}</strong>
         </div>
       </aside>
 

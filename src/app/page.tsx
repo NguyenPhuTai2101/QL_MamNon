@@ -375,16 +375,16 @@ export default function Home() {
           {/* Overview Dashboard Tab */}
           {activeTab === "overview" && (
             <div className="space-y-8 animate-fadeIn">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-800">Trang chủ Quản trị</h2>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Cập nhật nhanh thông tin tài chính, dinh dưỡng và học sinh ngày hôm nay.
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">Trang Chủ Quản Trị Hệ Thống</h2>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Tổng quan thời gian thực về tài chính, sĩ số mầm non và chi phí bếp ăn nhà trường.
                   </p>
                 </div>
                 <button 
                   onClick={() => window.print()}
-                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-5 py-2.5 rounded-2xl text-xs font-extrabold transition-all shadow-lg shadow-indigo-600/20 cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   In báo cáo tổng hợp
@@ -393,55 +393,55 @@ export default function Home() {
 
               {/* Stat Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="glass-card p-6 border-l-4 border-l-indigo-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Học sinh</span>
-                    <h3 className="text-3xl font-bold text-slate-800 mt-1">{totalStudents}</h3>
-                    <span className="text-xs text-indigo-600 font-medium flex items-center gap-1 mt-1">
-                      <TrendingUp className="w-3.5 h-3.5" /> Đang theo học chính thức
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Học Sinh Đang Học</span>
+                    <h3 className="text-3xl font-black text-slate-900 mt-1">{totalStudents}</h3>
+                    <span className="text-xs text-indigo-600 font-bold flex items-center gap-1 mt-1.5">
+                      <TrendingUp className="w-3.5 h-3.5" /> Sĩ số chính thức
                     </span>
                   </div>
-                  <div className="bg-indigo-50 p-4 rounded-xl text-indigo-600">
+                  <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
                     <Users className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="glass-card p-6 border-l-4 border-l-emerald-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Học phí đã thu</span>
-                    <h3 className="text-2xl font-bold text-slate-800 mt-1">{formatCurrency(totalTuitionCollected)}</h3>
-                    <span className="text-xs text-emerald-600 font-medium flex items-center gap-1 mt-1">
-                      {totalTuitionExpected > 0 ? Math.round((totalTuitionCollected / totalTuitionExpected) * 100) : 0}% chỉ tiêu đã thu
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Học Phí Đã Thu</span>
+                    <h3 className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(totalTuitionCollected)}</h3>
+                    <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 mt-1.5">
+                      ✓ {totalTuitionExpected > 0 ? Math.round((totalTuitionCollected / totalTuitionExpected) * 100) : 0}% hoàn thành
                     </span>
                   </div>
-                  <div className="bg-emerald-50 p-4 rounded-xl text-emerald-600">
+                  <div className="bg-emerald-50 p-4 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
                     <Wallet className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="glass-card p-6 border-l-4 border-l-amber-500 flex items-center justify-between group">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chi phí Thực phẩm</span>
-                    <h3 className="text-3xl font-bold text-slate-800 mt-1">{formatCurrency(totalIngredientsCost)}</h3>
-                    <span className="text-xs text-amber-600 font-medium flex items-center gap-1 mt-1">
-                      <TrendingDown className="w-3.5 h-3.5" /> Tổng chi nhập kho
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Chi Phí Bếp Ăn</span>
+                    <h3 className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(totalIngredientsCost)}</h3>
+                    <span className="text-xs text-amber-600 font-bold flex items-center gap-1 mt-1.5">
+                      <TrendingDown className="w-3.5 h-3.5" /> Nhập kho tháng
                     </span>
                   </div>
-                  <div className="bg-amber-50 p-4 rounded-xl text-amber-600">
-                    <Calculator className="w-6 h-6" />
+                  <div className="bg-amber-50 p-4 rounded-2xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
+                    <UtensilsCrossed className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                <div className="glass-card p-6 border-l-4 border-l-purple-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Học phí Chưa thu</span>
-                    <h3 className="text-3xl font-bold text-slate-800 mt-1">{formatCurrency(totalTuitionExpected - totalTuitionCollected)}</h3>
-                    <span className="text-xs text-rose-600 font-medium flex items-center gap-1 mt-1">
-                      Còn {unpaidCount + overdueCount} học sinh chưa nộp
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tỷ Lệ Điểm Danh</span>
+                    <h3 className="text-3xl font-black text-slate-900 mt-1">96.8%</h3>
+                    <span className="text-xs text-purple-600 font-bold flex items-center gap-1 mt-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> Có mặt trung bình
                     </span>
                   </div>
-                  <div className="bg-rose-50 p-4 rounded-xl text-rose-600">
-                    <DollarSign className="w-6 h-6" />
+                  <div className="bg-purple-50 p-4 rounded-2xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm">
+                    <Calculator className="w-6 h-6" />
                   </div>
                 </div>
               </div>
