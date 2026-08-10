@@ -75,10 +75,34 @@ export default function Home() {
       return;
     }
 
-    const savedStudents = localStorage.getItem("app_students");
-    if (savedStudents) {
-      try { setStudents(JSON.parse(savedStudents)); } catch (e) {}
-    }
+    // Fetch danh sách Học Sinh trực tiếp từ PostgreSQL Database Supabase
+    fetch("/api/students")
+      .then((res) => res.json())
+      .then((dbStudents) => {
+        if (Array.isArray(dbStudents) && dbStudents.length > 0) {
+          const mapped: Student[] = dbStudents.map((st: any) => ({
+            id: st.id,
+            name: `${st.lastName} ${st.firstName}`.trim(),
+            className: st.class?.name || "Mầm 1",
+            parentName: st.parentName || "Phụ huynh",
+            parentPhone: st.parentPhone || "0900000000",
+            tuitionStatus: "UNPAID",
+            amount: 3200000,
+          }));
+          setStudents(mapped);
+        } else {
+          const savedStudents = localStorage.getItem("app_students");
+          if (savedStudents) {
+            try { setStudents(JSON.parse(savedStudents)); } catch (e) {}
+          }
+        }
+      })
+      .catch(() => {
+        const savedStudents = localStorage.getItem("app_students");
+        if (savedStudents) {
+          try { setStudents(JSON.parse(savedStudents)); } catch (e) {}
+        }
+      });
     const savedMenu = localStorage.getItem("app_weekly_menu");
     if (savedMenu) {
       try { setWeeklyMenu(JSON.parse(savedMenu)); } catch (e) {}
@@ -161,29 +185,53 @@ export default function Home() {
     setStudents(students.map(s => s.id === studentId ? { ...s, tuitionStatus: "PAID" } : s));
   };
 
-  // Add Student action
-  const handleAddStudent = (e: React.FormEvent) => {
+  // Add Student action (Lưu trực tiếp vào Supabase PostgreSQL DB)
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudent.name || !newStudent.parentName || !newStudent.parentPhone) return;
 
-    const added: Student = {
-      id: (students.length + 1).toString(),
-      name: newStudent.name,
-      className: newStudent.className,
-      parentName: newStudent.parentName,
-      parentPhone: newStudent.parentPhone,
-      tuitionStatus: "UNPAID",
-      amount: Number(newStudent.amount) || 3200000,
-    };
+    try {
+      // 1. Thêm cục bộ giao diện
+      const addedLocal: Student = {
+        id: Date.now().toString(),
+        name: newStudent.name,
+        className: newStudent.className,
+        parentName: newStudent.parentName,
+        parentPhone: newStudent.parentPhone,
+        tuitionStatus: "UNPAID",
+        amount: Number(newStudent.amount) || 3200000,
+      };
+      setStudents([addedLocal, ...students]);
 
-    setStudents([...students, added]);
-    setNewStudent({ name: "", className: "Mầm 1", parentName: "", parentPhone: "", amount: 3200000 });
-    setShowAddStudentModal(false);
+      // 2. Gọi API để lưu vào Database PostgreSQL Supabase
+      await fetch("/api/students", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newStudent.name,
+          parentName: newStudent.parentName,
+          parentPhone: newStudent.parentPhone,
+          className: newStudent.className,
+        }),
+      });
+
+      setNewStudent({ name: "", className: "Mầm 1", parentName: "", parentPhone: "", amount: 3200000 });
+      setShowAddStudentModal(false);
+    } catch (err) {
+      console.error("Lỗi lưu học sinh vào DB:", err);
+    }
   };
 
-  // Delete Student action
-  const handleDeleteStudent = (studentId: string) => {
-    setStudents(students.filter(s => s.id !== studentId));
+  // Delete Student action (Xóa khỏi Supabase PostgreSQL DB)
+  const handleDeleteStudent = async (studentId: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa hồ sơ học sinh này khỏi CSDL?")) {
+      setStudents(students.filter(s => s.id !== studentId));
+      try {
+        await fetch(`/api/students?id=${studentId}`, { method: "DELETE" });
+      } catch (err) {
+        console.error("Lỗi xóa học sinh khỏi DB:", err);
+      }
+    }
   };
 
   // Add Ingredient action

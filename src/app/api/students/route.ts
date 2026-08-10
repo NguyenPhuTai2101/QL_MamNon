@@ -29,23 +29,55 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { firstName, lastName, birthDate, gender, parentName, parentPhone, classId } = body;
+    let { firstName, lastName, name, birthDate, gender, parentName, parentPhone, classId, className, address } = body;
 
-    if (!firstName || !lastName || !parentName || !parentPhone || !classId) {
+    // Tự tách name thành firstName & lastName nếu client truyền `name`
+    if (name && (!firstName || !lastName)) {
+      const parts = name.trim().split(" ");
+      lastName = parts[0] || "Nguyễn";
+      firstName = parts.slice(1).join(" ") || parts[0] || "Học sinh";
+    }
+
+    if (!firstName || !parentName || !parentPhone) {
       return NextResponse.json(
-        { error: "Vui lòng nhập đầy đủ thông tin bắt buộc của học sinh và phụ huynh." },
+        { error: "Vui lòng nhập đầy đủ thông tin tên học sinh và số điện thoại phụ huynh." },
         { status: 400 }
       );
     }
 
+    // Nếu client chỉ truyền className (ví dụ "12 – 24 tháng" hoặc "Mầm 1"), tự động lookup hoặc tạo Class
+    if (!classId) {
+      const targetClassName = className || "12 – 24 tháng";
+      let existingClass = await prisma.class.findFirst({
+        where: { name: { contains: targetClassName } },
+      });
+
+      if (!existingClass) {
+        existingClass = await prisma.class.findFirst();
+      }
+
+      if (!existingClass) {
+        existingClass = await prisma.class.create({
+          data: {
+            name: targetClassName,
+            teacher: "Cô Nguyễn Thị Hương",
+            room: "Phòng 101",
+          },
+        });
+      }
+
+      classId = existingClass.id;
+    }
+
     const newStudent = await prisma.student.create({
       data: {
-        firstName,
-        lastName,
-        birthDate: birthDate ? new Date(birthDate) : new Date("2021-01-01"),
+        firstName: firstName || "Học sinh",
+        lastName: lastName || "Nguyễn",
+        birthDate: birthDate ? new Date(birthDate) : new Date("2022-01-01"),
         gender: gender || "Nam",
         parentName,
         parentPhone,
+        address: address || "TP. Hồ Chí Minh",
         classId,
       },
       include: {
@@ -56,7 +88,7 @@ export async function POST(request: Request) {
     return NextResponse.json(newStudent, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Không thể thêm học sinh mới.", details: error.message },
+      { error: "Không thể thêm học sinh mới vào database.", details: error.message },
       { status: 500 }
     );
   }
