@@ -94,7 +94,7 @@ export async function POST(request: Request) {
   }
 }
 
-// DELETE: Xóa học sinh theo ID
+// DELETE: Xóa học sinh theo ID (Tự động xóa các dữ liệu liên quan: Điểm danh, Sức khỏe, Hóa đơn)
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -104,11 +104,27 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Thiếu ID học sinh cần xóa." }, { status: 400 });
     }
 
+    // 1. Xóa các bản ghi điểm danh liên quan
+    await prisma.attendance.deleteMany({
+      where: { studentId: id },
+    });
+
+    // 2. Xóa các hồ sơ sức khỏe liên quan
+    await prisma.healthRecord.deleteMany({
+      where: { studentId: id },
+    });
+
+    // 3. Xóa các hóa đơn liên quan
+    await prisma.invoice.deleteMany({
+      where: { studentId: id },
+    });
+
+    // 4. Xóa Học sinh chính thức
     await prisma.student.delete({
       where: { id },
     });
 
-    return NextResponse.json({ success: true, message: "Đã xóa học sinh thành công." });
+    return NextResponse.json({ success: true, message: "Đã xóa học sinh và các dữ liệu liên quan thành công." });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Không thể xóa học sinh.", details: error.message },
