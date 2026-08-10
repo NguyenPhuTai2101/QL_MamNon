@@ -77,33 +77,40 @@ export default function VietQRModal({
           </span>
         </div>
 
-        {/* Details Box */}
-        <div className="space-y-2.5 bg-slate-50 p-4 rounded-2xl border border-slate-100 text-xs">
+        {/* Detailed Fee Breakdown Table (Section 3 in demo.docx) */}
+        <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 text-xs space-y-2">
           <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-            <span className="text-slate-500">Học sinh:</span>
-            <span className="font-bold text-slate-800">{studentName}</span>
+            <span className="text-slate-500 font-bold">Học sinh / Lớp:</span>
+            <span className="font-extrabold text-slate-800">{studentName}</span>
           </div>
-          <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-            <span className="text-slate-500">Số tiền học phí:</span>
-            <span className="font-extrabold text-indigo-600 text-sm">{formatCurrency(amount)}</span>
+
+          <div className="space-y-1 pt-1 text-[11px]">
+            <div className="flex justify-between text-slate-600"><span>• Học phí cơ bản:</span><span>1.620.000 đ</span></div>
+            <div className="flex justify-between text-slate-600"><span>• Tiền ăn (30k/ngày):</span><span>780.000 đ</span></div>
+            <div className="flex justify-between text-slate-600"><span>• Phí bán trú:</span><span>400.000 đ</span></div>
+            <div className="flex justify-between text-slate-600"><span>• Anh văn mầm non:</span><span>150.000 đ</span></div>
+            <div className="flex justify-between text-slate-600"><span>• Toán tư duy:</span><span>100.000 đ</span></div>
+            <div className="flex justify-between text-slate-600"><span>• Nhịp điệu & Múa:</span><span>150.000 đ</span></div>
+            <div className="flex justify-between text-emerald-600 font-bold"><span>• Miễn giảm tháng đầu (10%):</span><span>-180.000 đ</span></div>
+            <div className="flex justify-between text-purple-600 font-bold"><span>• Quà tặng:</span><span>1 Bộ Đồng phục</span></div>
           </div>
-          <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-            <span className="text-slate-500">Tài khoản thụ hưởng:</span>
-            <span className="font-semibold text-slate-700">{bankAccountNo} ({accountName})</span>
+
+          <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+            <span className="text-slate-700 font-bold">Tổng thanh toán:</span>
+            <span className="font-extrabold text-indigo-600 text-base">{formatCurrency(amount)}</span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Nội dung chuyển khoản:</span>
-            <button 
-              onClick={handleCopyMemo}
-              className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono font-bold bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all"
-            >
-              {memo}
-              <Copy className="w-3 h-3 text-indigo-600" />
-            </button>
-          </div>
-          {copied && (
-            <p className="text-[10px] text-emerald-600 font-semibold text-right">Đã sao chép nội dung!</p>
-          )}
+        </div>
+
+        {/* Copy memo section */}
+        <div className="flex justify-between items-center bg-indigo-50/60 p-2.5 rounded-xl border border-indigo-100 text-xs">
+          <span className="text-slate-600 font-medium">Nội dung CK:</span>
+          <button 
+            onClick={handleCopyMemo}
+            className="flex items-center gap-1 text-indigo-600 hover:text-indigo-800 font-mono font-bold bg-white px-2 py-1 rounded-md transition-all shadow-sm"
+          >
+            {memo}
+            <Copy className="w-3 h-3 text-indigo-600" />
+          </button>
         </div>
 
         {/* Actions */}
