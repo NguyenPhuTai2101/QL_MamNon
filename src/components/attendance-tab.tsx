@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CheckCircle2, XCircle, AlertCircle, Calendar as CalendarIcon, Save, Filter, CheckCheck, Search, Printer } from "lucide-react";
 
 interface AttendanceRecord {
@@ -14,21 +14,32 @@ interface AttendanceRecord {
 
 export default function AttendanceTab() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-  const [selectedClass, setSelectedClass] = useState("Mầm 1");
+  const [selectedClass, setSelectedClass] = useState("12 – 24 tháng");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
 
-  const availableClasses = ["Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"];
+  const availableClasses = ["12 – 24 tháng", "24 – 36 tháng", "3 – 5 tuổi (Chồi - Lá)", "Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"];
 
-  // Mock initial attendance list grouped by class
-  const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([
-    { studentId: "1", studentName: "Nguyễn Minh Khang", className: "Mầm 1", status: "PRESENT", pickupPerson: "Bố Triết", notes: "Sức khỏe bình thường" },
-    { studentId: "4", studentName: "Phạm Mai Chi", className: "Mầm 1", status: "PRESENT", pickupPerson: "Bố Nghĩa", notes: "" },
-    { studentId: "6", studentName: "Trần Đức Anh", className: "Mầm 1", status: "PRESENT", pickupPerson: "Mẹ Mai", notes: "" },
-    { studentId: "2", studentName: "Lê Vy Anh", className: "Chồi 2", status: "PRESENT", pickupPerson: "Mẹ Nam", notes: "" },
-    { studentId: "5", studentName: "Đỗ Gia Huy", className: "Chồi 1", status: "ABSENT_NO_PERMIT", pickupPerson: "", notes: "Chưa thấy phụ huynh báo" },
-    { studentId: "3", studentName: "Trần Bảo Nam", className: "Lá 1", status: "ABSENT_PERMIT", pickupPerson: "Bà Nội", notes: "Sốt nhẹ nghỉ ở nhà" },
-  ]);
+  // Tải danh sách Học Sinh trực tiếp từ PostgreSQL Supabase để có thể điểm danh ngay lập tức khi thêm mới
+  useEffect(() => {
+    fetch("/api/students")
+      .then((res) => res.json())
+      .then((dbStudents) => {
+        if (Array.isArray(dbStudents) && dbStudents.length > 0) {
+          const list: AttendanceRecord[] = dbStudents.map((st: any) => ({
+            studentId: st.id,
+            studentName: `${st.lastName} ${st.firstName}`.trim(),
+            className: st.class?.name || "12 – 24 tháng",
+            status: "PRESENT",
+            pickupPerson: st.parentName || "Phụ huynh",
+            notes: "",
+          }));
+          setAttendanceList(list);
+        }
+      })
+      .catch((err) => console.error("Lỗi tải DS điểm danh:", err));
+  }, []);
 
   // Filter list by selected class and search query
   const filteredStudents = attendanceList
