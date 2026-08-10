@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Calculator, 
   Plus, 
@@ -34,25 +34,8 @@ export default function CostTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [showAddModal, setShowAddModal] = useState(false);
-
-  // Exact dataset matching demo.docx table + additional features
-  const [ingredients, setIngredients] = useState<IngredientCost[]>([
-    { id: "1", code: "TP001", name: "Gạo ST25", quantity: 100, unit: "kg", unitPrice: 22000, total: 2200000, supplier: "Cửa hàng A", date: "2026-08-01", category: "Gia vị & Lương thực" },
-    { id: "2", code: "TP002", name: "Thịt heo nạc", quantity: 50, unit: "kg", unitPrice: 130000, total: 6500000, supplier: "Cửa hàng B", date: "2026-08-01", category: "Thịt & Thức ăn chính" },
-    { id: "3", code: "TP003", name: "Thịt gà ta", quantity: 40, unit: "kg", unitPrice: 95000, total: 3800000, supplier: "Cửa hàng B", date: "2026-08-02", category: "Thịt & Thức ăn chính" },
-    { id: "4", code: "TP004", name: "Cá lóc tươi", quantity: 30, unit: "kg", unitPrice: 85000, total: 2550000, supplier: "Cửa hàng C", date: "2026-08-02", category: "Thịt & Thức ăn chính" },
-    { id: "5", code: "TP005", name: "Tôm sú tươi", quantity: 20, unit: "kg", unitPrice: 180000, total: 3600000, supplier: "Hải sản D", date: "2026-08-03", category: "Thịt & Thức ăn chính" },
-    { id: "6", code: "TP006", name: "Trứng gà tươi", quantity: 300, unit: "Quả", unitPrice: 3000, total: 900000, supplier: "Trang trại E", date: "2026-08-03", category: "Thịt & Thức ăn chính" },
-    { id: "7", code: "TP007", name: "Sữa tươi TH True Milk", quantity: 250, unit: "Hộp", unitPrice: 8000, total: 2000000, supplier: "Vinamilk", date: "2026-08-03", category: "Sữa & Bữa phụ" },
-    { id: "8", code: "TP008", name: "Cà rốt Đà Lạt", quantity: 30, unit: "kg", unitPrice: 20000, total: 600000, supplier: "Chợ đầu mối", date: "2026-08-04", category: "Rau củ quả" },
-    { id: "9", code: "TP009", name: "Khoai tây", quantity: 40, unit: "kg", unitPrice: 25000, total: 1000000, supplier: "Chợ đầu mối", date: "2026-08-04", category: "Rau củ quả" },
-    { id: "10", code: "TP010", name: "Rau cải xanh", quantity: 35, unit: "kg", unitPrice: 18000, total: 630000, supplier: "Nông trại F", date: "2026-08-04", category: "Rau củ quả" },
-    { id: "11", code: "TP011", name: "Bí đỏ", quantity: 30, unit: "kg", unitPrice: 18000, total: 540000, supplier: "Nông trại F", date: "2026-08-04", category: "Rau củ quả" },
-    { id: "12", code: "TP012", name: "Chuối chín", quantity: 30, unit: "kg", unitPrice: 28000, total: 840000, supplier: "Chợ đầu mối", date: "2026-08-04", category: "Sữa & Bữa phụ" },
-    { id: "13", code: "TP013", name: "Táo Mỹ", quantity: 25, unit: "kg", unitPrice: 60000, total: 1500000, supplier: "Siêu thị", date: "2026-08-05", category: "Sữa & Bữa phụ" },
-    { id: "14", code: "TP014", name: "Dầu ăn Tường An", quantity: 20, unit: "Chai", unitPrice: 55000, total: 1100000, supplier: "Nhà phân phối", date: "2026-08-05", category: "Gia vị & Lương thực" },
-    { id: "15", code: "TP015", name: "Nước mắm Nam Ngư", quantity: 15, unit: "Chai", unitPrice: 40000, total: 600000, supplier: "Nhà phân phối", date: "2026-08-05", category: "Gia vị & Lương thực" },
-  ]);
+  const [ingredients, setIngredients] = useState<IngredientCost[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [newIngredient, setNewIngredient] = useState({
     code: "",
@@ -65,25 +48,55 @@ export default function CostTab() {
     date: new Date().toISOString().split("T")[0],
   });
 
+  // Fetch dữ liệu nguyên liệu thực tế trực tiếp từ Supabase PostgreSQL CSDL
+  useEffect(() => {
+    setIsLoading(true);
+    fetch("/api/ingredients")
+      .then((res) => res.json())
+      .then((dbData) => {
+        if (Array.isArray(dbData)) {
+          const mapped: IngredientCost[] = dbData.map((item: any) => {
+            let code = item.name.match(/\[(.*?)\]/)?.[1] || `TP0${item.id}`;
+            let cleanName = item.name.replace(/\[.*?\]/, "").trim();
+            let supplier = item.notes?.replace("Nhà cung cấp:", "").trim() || "Chợ đầu mối";
+            return {
+              id: item.id,
+              code: code,
+              name: cleanName || item.name,
+              quantity: item.quantity,
+              unit: item.unit,
+              unitPrice: item.unitPrice,
+              total: item.totalCost,
+              supplier: supplier,
+              date: item.date ? item.date.split("T")[0] : "2026-08-03",
+              category: "Thịt & Thức ăn chính",
+            };
+          });
+          setIngredients(mapped);
+        }
+      })
+      .catch((err) => console.error("Lỗi tải thực phẩm từ DB:", err))
+      .finally(() => setIsLoading(false));
+  }, []);
+
   // Filter ingredients based on Month, Search query, and Category
   const filteredIngredients = ingredients.filter((item) => {
-    const matchesMonth = item.date.startsWith(selectedMonth);
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           (item.code && item.code.toLowerCase().includes(searchQuery.toLowerCase())) ||
                           (item.supplier && item.supplier.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCategory = selectedCategory === "ALL" || item.category === selectedCategory;
-    return matchesMonth && matchesSearch && matchesCategory;
+    return matchesSearch && matchesCategory;
   });
 
   // Aggregated totals for report
   const totalCost = filteredIngredients.reduce((acc, curr) => acc + curr.total, 0);
 
-  const handleAddIngredient = (e: React.FormEvent) => {
+  const handleAddIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIngredient.name || newIngredient.quantity <= 0 || newIngredient.unitPrice <= 0) return;
 
     const added: IngredientCost = {
-      id: (ingredients.length + 1).toString(),
+      id: Date.now().toString(),
       code: newIngredient.code || `TP0${ingredients.length + 1}`,
       name: newIngredient.name,
       quantity: Number(newIngredient.quantity),
@@ -96,12 +109,37 @@ export default function CostTab() {
     };
 
     setIngredients([added, ...ingredients]);
-    setNewIngredient({ code: "", name: "", quantity: 0, unit: "kg", unitPrice: 0, supplier: "Cửa hàng A", category: "Thịt & Thức ăn chính", date: new Date().toISOString().split("T")[0] });
     setShowAddModal(false);
+
+    try {
+      await fetch("/api/ingredients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `[${added.code}] ${added.name}`,
+          quantity: added.quantity,
+          unit: added.unit,
+          unitPrice: added.unitPrice,
+          notes: `Nhà cung cấp: ${added.supplier}`,
+          date: added.date,
+        }),
+      });
+    } catch (err) {
+      console.error("Lỗi lưu thực phẩm vào DB:", err);
+    }
+
+    setNewIngredient({ code: "", name: "", quantity: 0, unit: "kg", unitPrice: 0, supplier: "Cửa hàng A", category: "Thịt & Thức ăn chính", date: new Date().toISOString().split("T")[0] });
   };
 
-  const handleDeleteIngredient = (id: string) => {
-    setIngredients(ingredients.filter((item) => item.id !== id));
+  const handleDeleteIngredient = async (id: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa thực phẩm này khỏi CSDL?")) {
+      setIngredients(ingredients.filter((item) => item.id !== id));
+      try {
+        await fetch(`/api/ingredients?id=${id}`, { method: "DELETE" });
+      } catch (err) {
+        console.error("Lỗi xóa thực phẩm khỏi DB:", err);
+      }
+    }
   };
 
   return (
