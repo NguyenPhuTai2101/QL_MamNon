@@ -229,6 +229,21 @@ export default function AdmissionsTab() {
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ id: lead.id, status: newStatus }),
                           });
+
+                          // TỰ ĐỘNG TẠO HỌC SINH VÀO DANH SÁCH CHÍNH KHI ĐÃ NHẬP HỌC
+                          if (newStatus === 'ENROLLED') {
+                            await fetch('/api/students', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                name: lead.childName,
+                                parentName: lead.parentName,
+                                parentPhone: lead.phone,
+                                className: lead.childAgeGroup || '12 – 24 tháng',
+                              }),
+                            });
+                            alert(`🎉 Đã tự động tạo Hồ sơ Học sinh cho bé "${lead.childName}" vào Danh sách Học sinh chính!`);
+                          }
                         } catch (err) {
                           console.error('Error updating lead status:', err);
                         }
