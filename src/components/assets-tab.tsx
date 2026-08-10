@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, Plus, Search, Filter, Wrench, AlertTriangle, CheckCircle2, Trash2, Edit3, ShieldAlert, PackageCheck, DollarSign, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -17,15 +17,6 @@ interface Asset {
   status: AssetStatus;
 }
 
-const mockAssets: Asset[] = [
-  { id: 'TS001', name: 'Máy chiếu Panasonic', category: 'ELECTRONIC', location: 'Phòng học Mầm 1', quantity: 1, unitPrice: 15000000, status: 'GOOD' },
-  { id: 'TS002', name: 'Điều hòa Daikin 12000BTU', category: 'ELECTRONIC', location: 'Phòng học Chồi 2', quantity: 3, unitPrice: 12000000, status: 'MAINTENANCE' },
-  { id: 'TS003', name: 'Bộ bàn ghế mầm non', category: 'FURNITURE', location: 'Kho tổng', quantity: 30, unitPrice: 800000, status: 'GOOD' },
-  { id: 'TS004', name: 'Bộ đồ chơi lắp ráp cỡ lớn', category: 'TOY', location: 'Sân chơi trong nhà', quantity: 5, unitPrice: 2500000, status: 'BROKEN' },
-  { id: 'TS005', name: 'Tủ đông Sanaky 400L', category: 'KITCHEN', location: 'Nhà bếp', quantity: 1, unitPrice: 8500000, status: 'GOOD' },
-  { id: 'TS006', name: 'Loa kéo trợ giảng', category: 'ELECTRONIC', location: 'Phòng Âm nhạc', quantity: 4, unitPrice: 3000000, status: 'GOOD' },
-];
-
 const categoryLabels: Record<AssetCategory, string> = {
   ELECTRONIC: 'Điện tử',
   FURNITURE: 'Bàn ghế',
@@ -41,10 +32,31 @@ const statusConfig: Record<AssetStatus, { label: string; icon: any; colorClass: 
 };
 
 export default function AssetsTab() {
-  const [assets, setAssets] = useState<Asset[]>(mockAssets);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<AssetCategory | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Tải danh sách Tài sản trực tiếp từ PostgreSQL Supabase
+  useEffect(() => {
+    fetch('/api/assets')
+      .then((res) => res.json())
+      .then((dbAssets) => {
+        if (Array.isArray(dbAssets) && dbAssets.length > 0) {
+          const mapped: Asset[] = dbAssets.map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            category: a.category as AssetCategory,
+            location: a.location || 'Kho trường',
+            quantity: a.quantity || 1,
+            unitPrice: a.unitPrice || 0,
+            status: a.status as AssetStatus,
+          }));
+          setAssets(mapped);
+        }
+      })
+      .catch((err) => console.error('Lỗi tải tài sản từ DB:', err));
+  }, []);
 
   // New Asset Form State
   const [newAsset, setNewAsset] = useState<Partial<Asset>>({
@@ -67,17 +79,34 @@ export default function AssetsTab() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleAddAsset = (e: React.FormEvent) => {
+  const handleAddAsset = async (e: React.FormEvent) => {
     e.preventDefault();
-    const id = `TS${String(assets.length + 1).padStart(3, '0')}`;
-    setAssets([...assets, { ...newAsset, id } as Asset]);
-    setIsAddModalOpen(false);
-    setNewAsset({ name: '', category: 'ELECTRONIC', location: '', quantity: 1, unitPrice: 0, status: 'GOOD' });
+    try {
+      const id = `TS${String(assets.length + 1).padStart(3, '0')}`;
+      const addedLocal = { ...newAsset, id } as Asset;
+      setAssets([addedLocal, ...assets]);
+      setIsAddModalOpen(false);
+
+      await fetch('/api/assets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAsset),
+      });
+
+      setNewAsset({ name: '', category: 'ELECTRONIC', location: '', quantity: 1, unitPrice: 0, status: 'GOOD' });
+    } catch (err) {
+      console.error('Lỗi thêm tài sản vào DB:', err);
+    }
   };
 
-  const handleDeleteAsset = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa tài sản này?')) {
+  const handleDeleteAsset = async (id: string) => {
+    if (confirm('Bạn có chắc chắn muốn xóa tài sản này khỏi CSDL?')) {
       setAssets(assets.filter(a => a.id !== id));
+      try {
+        await fetch(`/api/assets?id=${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Lỗi xóa tài sản khỏi DB:', err);
+      }
     }
   };
 

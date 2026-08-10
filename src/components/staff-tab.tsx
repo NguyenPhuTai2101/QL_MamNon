@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   UserCog, 
   Plus, 
@@ -61,10 +61,35 @@ const STATUS_MAP: Record<Status, { label: string; color: string }> = {
 };
 
 export default function StaffTab() {
-  const [staffList, setStaffList] = useState<Staff[]>(mockData);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  // Tải danh sách Nhân viên trực tiếp từ Supabase PostgreSQL CSDL
+  useEffect(() => {
+    fetch('/api/staff')
+      .then((res) => res.json())
+      .then((dbStaff) => {
+        if (Array.isArray(dbStaff) && dbStaff.length > 0) {
+          const mapped: Staff[] = dbStaff.map((s: any) => ({
+            id: s.id,
+            fullName: s.fullName,
+            position: s.position as Position,
+            phone: s.phone,
+            email: s.email || '',
+            degree: s.degree || '',
+            startDate: s.startDate ? s.startDate.split('T')[0] : '2024-09-01',
+            assignedClass: s.assignedClass || '',
+            status: s.status as Status,
+            salary: s.salary || 8000000,
+            notes: s.notes || '',
+          }));
+          setStaffList(mapped);
+        }
+      })
+      .catch((err) => console.error('Lỗi tải nhân sự từ DB:', err));
+  }, []);
 
   const [formData, setFormData] = useState<Partial<Staff>>({
     fullName: '',
@@ -87,34 +112,51 @@ export default function StaffTab() {
       .toUpperCase();
   };
 
-  const handleAddStaff = (e: React.FormEvent) => {
+  const handleAddStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.phone) return;
 
-    const newStaff: Staff = {
-      ...formData,
-      id: Date.now().toString(),
-      status: 'ACTIVE',
-    } as Staff;
-    
-    setStaffList([newStaff, ...staffList]);
-    setIsAddModalOpen(false);
-    setFormData({
-      fullName: '',
-      phone: '',
-      email: '',
-      position: 'TEACHER',
-      degree: '',
-      startDate: new Date().toISOString().split('T')[0],
-      assignedClass: '',
-      salary: 8000000,
-      notes: '',
-    });
+    try {
+      const newStaff: Staff = {
+        ...formData,
+        id: Date.now().toString(),
+        status: 'ACTIVE',
+      } as Staff;
+      
+      setStaffList([newStaff, ...staffList]);
+      setIsAddModalOpen(false);
+
+      // Lưu trực tiếp vào Database Supabase
+      await fetch('/api/staff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      setFormData({
+        fullName: '',
+        phone: '',
+        email: '',
+        position: 'TEACHER',
+        degree: '',
+        startDate: new Date().toISOString().split('T')[0],
+        assignedClass: '',
+        salary: 8000000,
+        notes: '',
+      });
+    } catch (err) {
+      console.error('Lỗi lưu nhân viên vào DB:', err);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa hồ sơ nhân viên này?')) {
+  const handleDelete = async (id: string) => {
+    if (confirm('Bạn có chắc chắn muốn xóa hồ sơ nhân viên này khỏi CSDL?')) {
       setStaffList(staffList.filter((item) => item.id !== id));
+      try {
+        await fetch(`/api/staff?id=${id}`, { method: 'DELETE' });
+      } catch (err) {
+        console.error('Lỗi xóa nhân viên khỏi DB:', err);
+      }
     }
   };
 
