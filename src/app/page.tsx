@@ -155,19 +155,57 @@ export default function Home() {
   const [selectedDayMenu, setSelectedDayMenu] = useState("Thứ Hai");
   const [editMenuForm, setEditMenuForm] = useState<MenuItem>({ breakfast: "", lunch: "", snack: "", cost: 35000 });
 
-  const handleAddClass = (e: React.FormEvent) => {
+  // Tải danh sách Lớp học trực tiếp từ PostgreSQL Supabase
+  useEffect(() => {
+    fetch("/api/classes")
+      .then((res) => res.json())
+      .then((dbClasses) => {
+        if (Array.isArray(dbClasses) && dbClasses.length > 0) {
+          const mapped = dbClasses.map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            ageGroup: c.name.includes("12") ? "12 - 24 tháng" : c.name.includes("24") ? "24 - 36 tháng" : "3 - 5 tuổi",
+            teacherName: c.teacher || "Cô Nguyễn Thị Hương",
+            capacity: 25,
+          }));
+          setClassList(mapped);
+        }
+      })
+      .catch((err) => console.error("Lỗi tải lớp học từ DB:", err));
+  }, []);
+
+  const handleAddClass = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newClass.name || !newClass.teacherName) return;
-    const addedClass = {
-      id: (classList.length + 1).toString(),
-      name: newClass.name,
-      ageGroup: newClass.ageGroup,
-      teacherName: newClass.teacherName,
-      capacity: Number(newClass.capacity) || 25,
-    };
-    setClassList([...classList, addedClass]);
-    setNewClass({ name: "", ageGroup: "3 - 4 tuổi", teacherName: "", capacity: 25 });
-    setShowAddClassModal(false);
+
+    try {
+      const addedClass = {
+        id: Date.now().toString(),
+        name: newClass.name,
+        ageGroup: newClass.ageGroup,
+        teacherName: newClass.teacherName,
+        capacity: Number(newClass.capacity) || 25,
+      };
+
+      setClassList([...classList, addedClass]);
+
+      // Lưu trực tiếp vào Database PostgreSQL Supabase
+      await fetch("/api/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newClass.name,
+          teacher: newClass.teacherName,
+          room: `Phòng ${newClass.name}`,
+        }),
+      });
+
+      setNewClass({ name: "", ageGroup: "3 - 4 tuổi", teacherName: "", capacity: 25 });
+      setShowAddClassModal(false);
+      alert(`🎉 Đã mở Lớp học mới "${newClass.name}" thành công vào Database!`);
+    } catch (err) {
+      console.error("Lỗi thêm lớp học mới:", err);
+    }
   };
 
   // Quick stats
