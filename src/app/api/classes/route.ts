@@ -51,3 +51,48 @@ export async function POST(request: Request) {
     );
   }
 }
+
+// PUT: Cập nhật thông tin Lớp học
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name, room, teacher } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID lớp học" }, { status: 400 });
+    }
+
+    const updatedClass = await prisma.class.update({
+      where: { id },
+      data: {
+        ...(name ? { name } : {}),
+        ...(room ? { room } : {}),
+        ...(teacher ? { teacher } : {}),
+      },
+    });
+
+    return NextResponse.json(updatedClass);
+  } catch (error: any) {
+    return NextResponse.json({ error: "Lỗi cập nhật lớp học", details: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Xóa Lớp học khỏi CSDL
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID lớp học" }, { status: 400 });
+    }
+
+    await prisma.class.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: "Đã xóa lớp học thành công" });
+  } catch (error: any) {
+    return NextResponse.json({ error: "Không thể xóa lớp học do còn học sinh hoặc ràng buộc CSDL", details: error.message }, { status: 500 });
+  }
+}
