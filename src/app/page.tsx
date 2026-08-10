@@ -605,7 +605,16 @@ export default function Home() {
                             )}
                           </td>
                           {userRole === "ADMIN" && (
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => {
+                                  alert(`📌 HỒ SƠ CHI TIẾT HỌC SINH:\n------------------------------------\n• Mã học sinh: ${student.code || 'HS00' + student.id}\n• Họ và tên: ${student.name}\n• Ngày sinh: ${student.birthDate || '15/04/2023'}\n• Giới tính: ${student.gender || 'Nam'}\n• Dân tộc: ${student.ethnicity || 'Kinh'}\n• Quốc tịch: ${student.nationality || 'Việt Nam'}\n------------------------------------\n• Lớp: ${student.className}\n• Ngày nhập học: ${student.joinDate || '05/09/2025'}\n• Trạng thái: ${student.status || 'Đang học'}\n------------------------------------\n• Họ tên cha: ${student.fatherName || student.parentName}\n• Nghề nghiệp cha: ${student.fatherJob || 'Kỹ sư'}\n• Họ tên mẹ: ${student.motherName || 'Lê Thị Mai'}\n• Nghề nghiệp mẹ: ${student.motherJob || 'Kế toán'}\n• Số điện thoại: ${student.parentPhone}\n• Địa chỉ: ${student.address || 'TP. Hồ Chí Minh'}`);
+                                }}
+                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-xs font-semibold"
+                                title="Xem hồ sơ đầy đủ"
+                              >
+                                Xem hồ sơ
+                              </button>
                               <button
                                 onClick={() => handleDeleteStudent(student.id)}
                                 className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"

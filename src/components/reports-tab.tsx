@@ -8,64 +8,59 @@ import {
   DollarSign, 
   Printer, 
   Users, 
-  Utensils, 
-  PieChart, 
-  Calendar,
-  CheckCircle2,
-  AlertCircle
+  FileText, 
+  Wallet,
+  AlertCircle,
+  CreditCard,
+  Building
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 export default function ReportsTab() {
-  const [timeFilter, setTimeFilter] = useState('Tháng này');
-  const filters = ['Tuần này', 'Tháng này', 'Quý này', 'Năm học'];
+  const [timeFilter, setTimeFilter] = useState('Tháng 8/2026');
+  const filters = ['Tháng 7/2026', 'Tháng 8/2026', 'Quý III/2026', 'Năm học 2026'];
 
   const handlePrint = () => {
     window.print();
   };
 
-  // Mock data
-  const revenueData = [
-    { label: 'Tháng 3', total: 130000000, collected: 125000000 },
-    { label: 'Tháng 4', total: 125000000, collected: 115000000 },
-    { label: 'Tháng 5', total: 140000000, collected: 135000000 },
-    { label: 'Tháng 6', total: 135000000, collected: 120000000 },
-    { label: 'Tháng 7', total: 145000000, collected: 138000000 },
-    { label: 'Tháng 8', total: 150000000, collected: 142000000 },
-  ];
-  const maxRev = Math.max(...revenueData.map(d => d.total));
-
-  const attendanceData = [
-    { label: 'T2', value: 95 },
-    { label: 'T3', value: 98 },
-    { label: 'T4', value: 92 },
-    { label: 'T5', value: 88 },
-    { label: 'T6', value: 94 },
-    { label: 'T7', value: 90 },
-    { label: 'CN', value: 96 },
+  // Mock data strictly following BÁO CÁO DOANH THU HÀNG THÁNG MẦM NON ĐỘC LẬP ÁNH BÌNH MINH in demo.docx
+  const servicesRevenue = [
+    { name: "Học phí", amount: 137700000, percentage: 50.3 },
+    { name: "Tiền ăn", amount: 66300000, percentage: 24.2 },
+    { name: "Bán trú", amount: 34000000, percentage: 12.4 },
+    { name: "Anh văn", amount: 12500000, percentage: 4.6 },
+    { name: "Toán tư duy", amount: 8400000, percentage: 3.1 },
+    { name: "Nhịp điệu", amount: 7200000, percentage: 2.6 },
+    { name: "Đồng phục", amount: 5600000, percentage: 2.0 },
+    { name: "Khác", amount: 2100000, percentage: 0.8 },
   ];
 
-  const kitchenCategories = [
-    { name: 'Thịt & Hải sản', percentage: 40, color: 'bg-rose-500', value: 16000000 },
-    { name: 'Sữa & Bữa phụ', percentage: 25, color: 'bg-amber-500', value: 10000000 },
-    { name: 'Rau củ quả', percentage: 20, color: 'bg-emerald-500', value: 8000000 },
-    { name: 'Gia vị & Khác', percentage: 15, color: 'bg-indigo-500', value: 6000000 },
+  const classRevenue = [
+    { className: "12 – 24 tháng", count: 10, amount: 64500000 },
+    { className: "24 – 36 tháng", count: 10, amount: 71800000 },
+    { className: "3 – 4 tuổi", count: 18, amount: 55200000 },
+    { className: "4 – 5 tuổi", count: 15, amount: 45700000 },
+    { className: "5 – 6 tuổi", count: 10, amount: 36600000 },
   ];
 
-  const classSizes = [
-    { label: 'Mầm 1', current: 22, max: 25, color: 'bg-indigo-500' },
-    { label: 'Chồi 1', current: 28, max: 30, color: 'bg-purple-500' },
-    { label: 'Chồi 2', current: 26, max: 30, color: 'bg-sky-500' },
-    { label: 'Lá 1', current: 32, max: 35, color: 'bg-emerald-500' },
+  const debtList = [
+    { name: "Nguyễn A", className: "12 – 24 tháng", amount: 2800000 },
+    { name: "Trần B", className: "24 – 36 tháng", amount: 2638000 },
+    { name: "Lê C", className: "3 – 4 tuổi", amount: 2450000 },
   ];
+
+  const totalServicesRevenue = servicesRevenue.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
     <div className="space-y-8 animate-fadeIn">
-      {/* Header controls */}
+      {/* Printable Header Section */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Báo cáo & Thống kê Tổng quan</h2>
-          <p className="text-sm text-slate-500 mt-1">Trực quan hóa dữ liệu tài chính, học phí, điểm danh và chi phí bếp ăn nhà trường.</p>
+          <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">
+            BÁO CÁO DOANH THU HÀNG THÁNG - MẦM NON ĐỘC LẬP ÁNH BÌNH MINH
+          </h2>
+          <p className="text-sm text-slate-500 mt-1">Báo cáo doanh thu tài chính theo từng khoản thu, theo lớp và công nợ thực tế.</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
@@ -87,236 +82,181 @@ export default function ReportsTab() {
 
           <button
             onClick={handlePrint}
-            className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 px-3.5 py-2 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors shadow-sm"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
           >
-            <Printer className="h-4 w-4 text-slate-500" />
-            <span className="hidden sm:inline">In Báo cáo</span>
+            <Printer className="h-4 w-4" />
+            <span>In Báo Cáo Chuẩn</span>
           </button>
         </div>
       </div>
 
-      {/* Top Summary Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Doanh Thu</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{formatCurrency(150000000)}</h3>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <TrendingUp className="w-5 h-5" />
-            </div>
+      {/* MỤC I: TỔNG QUAN */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-indigo-600">
+          I. TỔNG QUAN NHÓM TRẺ
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-5">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span className="text-xs font-bold text-slate-500 uppercase block">Tổng số học sinh</span>
+            <span className="text-2xl font-extrabold text-slate-800">85 <span className="text-xs font-normal text-slate-500">trẻ</span></span>
           </div>
-          <div className="mt-3 flex items-center text-xs">
-            <span className="text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded-md">+12.5%</span>
-            <span className="text-slate-400 ml-2">so với tháng trước</span>
-          </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-rose-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Chi Phí</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{formatCurrency(68000000)}</h3>
-            </div>
-            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
-              <TrendingDown className="w-5 h-5" />
-            </div>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span className="text-xs font-bold text-slate-500 uppercase block">Học sinh nghỉ</span>
+            <span className="text-2xl font-extrabold text-amber-600">2 <span className="text-xs font-normal text-slate-500">trẻ</span></span>
           </div>
-          <div className="mt-3 flex items-center text-xs">
-            <span className="text-rose-600 font-bold bg-rose-50 px-1.5 py-0.5 rounded-md">+4.2%</span>
-            <span className="text-slate-400 ml-2">bếp & vận hành</span>
-          </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Lợi Nhuận Ròng</p>
-              <h3 className="text-2xl font-bold text-indigo-600 mt-1">{formatCurrency(82000000)}</h3>
-            </div>
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-              <DollarSign className="w-5 h-5" />
-            </div>
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <span className="text-xs font-bold text-slate-500 uppercase block">Số phiếu thu / biên lai</span>
+            <span className="text-2xl font-extrabold text-indigo-600">83 <span className="text-xs font-normal text-slate-500">phiếu</span></span>
           </div>
-          <div className="mt-3 flex items-center text-xs">
-            <span className="text-indigo-600 font-bold bg-indigo-50 px-1.5 py-0.5 rounded-md">54.6%</span>
-            <span className="text-slate-400 ml-2">tỷ suất lợi nhuận</span>
-          </div>
-        </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-sky-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tỷ Lệ Thu Học Phí</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">94.6%</h3>
-            </div>
-            <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-center text-xs">
-            <span className="text-sky-600 font-bold bg-sky-50 px-1.5 py-0.5 rounded-md">Đạt mục tiêu</span>
-            <span className="text-slate-400 ml-2">tháng 8</span>
+          <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 text-white p-4 rounded-xl shadow-md">
+            <span className="text-xs font-bold text-indigo-200 uppercase block">Tổng Doanh Thu Tháng</span>
+            <span className="text-xl font-extrabold">{formatCurrency(totalServicesRevenue)}</span>
           </div>
         </div>
       </div>
 
-      {/* Main Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Column Bar Chart: Revenue Trend (2 cols) */}
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Biểu đồ Thu Học Phí theo Tháng</h3>
-              <p className="text-xs text-slate-400 mt-0.5">So sánh Học phí Thực tế thu được vs Chỉ tiêu kỳ vọng</p>
-            </div>
-            <div className="flex items-center gap-4 text-xs font-semibold">
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 bg-indigo-600 rounded-sm" />
-                <span className="text-slate-600">Đã thu</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-3 h-3 bg-slate-200 rounded-sm" />
-                <span className="text-slate-400">Dự kiến</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bar Chart Visual */}
-          <div className="h-64 flex items-end justify-between gap-3 pt-6 pb-2 border-b border-slate-100">
-            {revenueData.map((d, idx) => {
-              const totalHeight = Math.round((d.total / maxRev) * 100);
-              const collectedHeight = Math.round((d.collected / maxRev) * 100);
-              return (
-                <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                  <div className="text-[10px] font-bold text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {(d.collected / 1000000).toFixed(0)}M
-                  </div>
-                  <div className="w-full max-w-[48px] bg-slate-100 rounded-t-xl h-full flex items-end p-1 relative overflow-hidden">
-                    {/* Background Bar (Total) */}
-                    <div 
-                      className="w-full bg-slate-200/80 rounded-t-lg transition-all duration-500"
-                      style={{ height: `${totalHeight}%` }}
-                    />
-                    {/* Foreground Bar (Collected) */}
-                    <div 
-                      className="w-full bg-gradient-to-t from-indigo-600 to-indigo-500 rounded-t-lg absolute bottom-0 left-0 right-0 transition-all duration-500 shadow-md"
-                      style={{ height: `${collectedHeight}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600">{d.label}</span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
-            <span>Trung bình thu: <strong className="text-slate-800">131.6 triệu VNĐ / tháng</strong></span>
-            <span className="text-indigo-600 font-semibold cursor-pointer hover:underline">Xem chi tiết báo cáo →</span>
-          </div>
-        </div>
-
-        {/* Donut Chart: Kitchen Costs Breakdown (1 col) */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Cơ Cấu Chi Phí Bếp Ăn</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Phân bổ thực phẩm tháng này ({formatCurrency(40000000)})</p>
-          </div>
-
-          {/* Visual Donut representation */}
-          <div className="flex justify-center py-2">
-            <div className="relative w-40 h-40 rounded-full flex items-center justify-center bg-gradient-to-tr from-rose-500 via-amber-500 to-emerald-500 p-3 shadow-inner">
-              <div className="w-28 h-28 bg-white rounded-full flex flex-col items-center justify-center shadow-md">
-                <span className="text-xs font-bold text-slate-400 uppercase">Tổng chi</span>
-                <span className="text-base font-extrabold text-slate-800">40 Triệu</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Category List */}
-          <div className="space-y-2.5">
-            {kitchenCategories.map((item, idx) => (
-              <div key={idx} className="flex items-center justify-between text-xs p-2 rounded-xl hover:bg-slate-50 transition-colors">
-                <div className="flex items-center gap-2.5">
-                  <span className={`w-3 h-3 rounded-full ${item.color}`} />
-                  <span className="font-semibold text-slate-700">{item.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-800">{formatCurrency(item.value)}</span>
-                  <span className="text-[11px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                    {item.percentage}%
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Secondary Charts Grid */}
+      {/* MỤC II & MỤC III: DOANH THU THEO DỊCH VỤ VÀ THEO LỚP */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Attendance Trend Line/Dots */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Tỷ Lệ Chuyên Cần Trong Tuần</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Tỷ lệ đi học thực tế theo từng ngày</p>
-            </div>
-            <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full border border-emerald-200">
-              TB: 93.3%
-            </span>
-          </div>
+        {/* MỤC II: DOANH THU THEO DỊCH VỤ */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-indigo-600">
+            II. DOANH THU THEO DỊCH VỤ
+          </h3>
 
-          <div className="h-44 flex items-end justify-between gap-2 px-4 pt-4 pb-2">
-            {attendanceData.map((item, idx) => (
-              <div key={idx} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                  {item.value}%
-                </span>
-                <div className="w-full bg-slate-100 rounded-t-xl h-full flex items-end p-1">
-                  <div 
-                    className="w-full bg-indigo-500 rounded-t-lg transition-all duration-300 shadow-sm"
-                    style={{ height: `${item.value}%` }}
-                  />
-                </div>
-                <span className="text-xs font-bold text-slate-600">{item.label}</span>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                  <th className="py-2.5 px-3">Khoản thu</th>
+                  <th className="py-2.5 px-3 text-right">Doanh thu (đ)</th>
+                  <th className="py-2.5 px-3 text-right">Tỷ trọng</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {servicesRevenue.map((item, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="py-2.5 px-3 font-semibold text-slate-700">{item.name}</td>
+                    <td className="py-2.5 px-3 font-bold text-slate-800 text-right">{formatCurrency(item.amount)}</td>
+                    <td className="py-2.5 px-3 text-right text-xs font-bold text-indigo-600 bg-indigo-50/50 rounded-lg">{item.percentage}%</td>
+                  </tr>
+                ))}
+                <tr className="bg-indigo-50/80 font-extrabold text-indigo-900">
+                  <td className="py-3 px-3">TỔNG DOANH THU</td>
+                  <td className="py-3 px-3 text-right text-base">{formatCurrency(totalServicesRevenue)}</td>
+                  <td className="py-3 px-3 text-right">100%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
 
-        {/* Class Capacity Horizontal Progress Bars */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-6">
-          <div>
-            <h3 className="text-lg font-bold text-slate-800">Tỷ Lệ Lấp Đầy Sĩ Số Lớp</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Số lượng trẻ hiện tại / Sức chứa tối đa từng lớp</p>
+        {/* MỤC III: DOANH THU THEO LỚP */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-indigo-600">
+            III. DOANH THU THEO LỚP HỌC
+          </h3>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
+                  <th className="py-2.5 px-3">Lớp học</th>
+                  <th className="py-2.5 px-3 text-center">Sĩ số</th>
+                  <th className="py-2.5 px-3 text-right">Doanh thu (đ)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {classRevenue.map((cls, idx) => (
+                  <tr key={idx} className="hover:bg-slate-50/50">
+                    <td className="py-2.5 px-3 font-semibold text-slate-800">Lớp {cls.className}</td>
+                    <td className="py-2.5 px-3 text-center font-bold text-slate-600">{cls.count} trẻ</td>
+                    <td className="py-2.5 px-3 font-extrabold text-indigo-600 text-right">{formatCurrency(cls.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          <div className="space-y-4 pt-2">
-            {classSizes.map((cls, idx) => {
-              const percent = Math.round((cls.current / cls.max) * 100);
-              return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-slate-800">Lớp {cls.label}</span>
-                    <span className="text-slate-500">
-                      <strong className="text-indigo-600">{cls.current}</strong> / {cls.max} trẻ ({percent}%)
-                    </span>
-                  </div>
-                  <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                    <div 
-                      className={`h-full rounded-full transition-all duration-500 ${cls.color}`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
+          {/* MỤC VI: HÌNH THỨC THANH TOÁN */}
+          <div className="pt-4 border-t border-slate-100 space-y-3">
+            <h4 className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">VI. Doanh Thu Theo Hình Thức Thanh Toán</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex justify-between items-center">
+                <span className="text-xs text-slate-600 font-bold">💵 Tiền mặt:</span>
+                <span className="text-sm font-extrabold text-slate-800">{formatCurrency(82000000)}</span>
+              </div>
+              <div className="bg-indigo-50 p-3 rounded-xl border border-indigo-200 flex justify-between items-center">
+                <span className="text-xs text-indigo-700 font-bold">💳 Chuyển khoản / VietQR:</span>
+                <span className="text-sm font-extrabold text-indigo-700">{formatCurrency(191800000)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MỤC IV, V & VII: CÔNG NỢ, GIẢM GIÁ & TOP NỢ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* MỤC IV: CÔNG NỢ */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-indigo-600">
+            IV. CÔNG NỢ TÀI CHÍNH
+          </h3>
+          <div className="space-y-2.5 text-xs">
+            <div className="flex justify-between p-2.5 bg-slate-50 rounded-xl">
+              <span className="font-semibold text-slate-600">Công nợ đầu tháng:</span>
+              <span className="font-bold text-slate-800">{formatCurrency(25600000)}</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-emerald-50 rounded-xl text-emerald-800">
+              <span className="font-semibold">Thu nợ cũ trong tháng:</span>
+              <span className="font-bold">{formatCurrency(18900000)}</span>
+            </div>
+            <div className="flex justify-between p-2.5 bg-amber-50 rounded-xl text-amber-800">
+              <span className="font-semibold">Nợ phát sinh mới:</span>
+              <span className="font-bold">{formatCurrency(7400000)}</span>
+            </div>
+            <div className="flex justify-between p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 font-extrabold text-sm">
+              <span>CÔNG NỢ CUỐI THÁNG:</span>
+              <span>{formatCurrency(14100000)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MỤC V: GIẢM GIÁ & HOÀN TIỀN */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-indigo-600">
+            V. GIẢM GIÁ & HOÀN TIỀN
+          </h3>
+          <div className="space-y-3 text-xs">
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+              <span className="font-bold text-amber-800 block">Miễn giảm học phí (10% tháng đầu):</span>
+              <span className="text-lg font-extrabold text-amber-900 block mt-1">{formatCurrency(4250000)}</span>
+            </div>
+
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+              <span className="font-bold text-emerald-800 block">Hoàn tiền ăn (trẻ nghỉ có phép 30k/ngày):</span>
+              <span className="text-lg font-extrabold text-emerald-900 block mt-1">{formatCurrency(1900000)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MỤC VII: TOP HỌC SINH CÒN CÔNG NỢ */}
+        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+          <h3 className="text-base font-extrabold text-slate-800 border-b border-slate-100 pb-2 uppercase tracking-wider text-rose-600">
+            VII. TOP HỌC SINH CÒN CÔNG NỢ
+          </h3>
+          <div className="space-y-2.5">
+            {debtList.map((st, idx) => (
+              <div key={idx} className="flex justify-between items-center p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                <div>
+                  <span className="font-bold text-slate-800 block">{st.name}</span>
+                  <span className="text-[11px] text-slate-500">Lớp {st.className}</span>
                 </div>
-              );
-            })}
+                <span className="font-extrabold text-rose-600 text-sm">{formatCurrency(st.amount)}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>

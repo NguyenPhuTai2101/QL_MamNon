@@ -73,8 +73,8 @@ export default function AttendanceTab() {
       {/* Header controls */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-800">Điểm danh lớp học</h2>
-          <p className="text-sm text-slate-500 mt-1">Giáo viên chọn lớp và thực hiện điểm danh danh sách học sinh theo ngày.</p>
+          <h2 className="text-2xl font-bold text-slate-800">Điểm Danh & Tự Động Hoàn Tiền Ăn</h2>
+          <p className="text-sm text-slate-500 mt-1">Giáo viên điểm danh theo ngày. Trẻ vắng có phép tự động được hoàn 30.000đ/ngày tiền ăn vào hóa đơn kỳ sau.</p>
         </div>
 
         <div className="flex items-center gap-3">
