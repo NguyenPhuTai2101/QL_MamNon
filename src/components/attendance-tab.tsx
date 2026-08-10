@@ -14,15 +14,27 @@ interface AttendanceRecord {
 
 export default function AttendanceTab() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-  const [selectedClass, setSelectedClass] = useState("12 – 24 tháng");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [classList, setClassList] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
 
-  const availableClasses = ["12 – 24 tháng", "24 – 36 tháng", "3 – 5 tuổi (Chồi - Lá)", "Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"];
-
-  // Tải danh sách Học Sinh trực tiếp từ PostgreSQL Supabase để có thể điểm danh ngay lập tức khi thêm mới
+  // Tải danh sách Lớp học thực tế & Học sinh trực tiếp từ CSDL PostgreSQL Supabase
   useEffect(() => {
+    // 1. Tải danh sách các Lớp học đang tồn tại trong DB
+    fetch("/api/classes")
+      .then((res) => res.json())
+      .then((dbClasses) => {
+        if (Array.isArray(dbClasses) && dbClasses.length > 0) {
+          const classNames = dbClasses.map((c: any) => c.name);
+          setClassList(classNames);
+          setSelectedClass(classNames[0]);
+        }
+      })
+      .catch((err) => console.error("Lỗi tải DS lớp:", err));
+
+    // 2. Tải danh sách Học sinh
     fetch("/api/students")
       .then((res) => res.json())
       .then((dbStudents) => {
@@ -30,7 +42,7 @@ export default function AttendanceTab() {
           const list: AttendanceRecord[] = dbStudents.map((st: any) => ({
             studentId: st.id,
             studentName: `${st.lastName} ${st.firstName}`.trim(),
-            className: st.class?.name || "12 – 24 tháng",
+            className: st.className || st.class?.name || "",
             status: "PRESENT",
             pickupPerson: st.parentName || "Phụ huynh",
             notes: "",
@@ -129,7 +141,7 @@ export default function AttendanceTab() {
           <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
             <Filter className="w-3.5 h-3.5" /> Chọn lớp:
           </span>
-          {availableClasses.map((cls) => (
+          {classList.map((cls) => (
             <button
               key={cls}
               onClick={() => setSelectedClass(cls)}
