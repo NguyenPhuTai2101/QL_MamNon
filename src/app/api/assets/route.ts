@@ -1,28 +1,62 @@
 import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
-let assets = [
-  { id: 'TS001', name: 'Máy chiếu Panasonic', category: 'ELECTRONIC', location: 'Phòng học Mầm 1', quantity: 1, unitPrice: 15000000, status: 'GOOD' },
-  { id: 'TS002', name: 'Điều hòa Daikin 12000BTU', category: 'ELECTRONIC', location: 'Phòng học Chồi 2', quantity: 3, unitPrice: 12000000, status: 'MAINTENANCE' },
-  { id: 'TS003', name: 'Bộ bàn ghế mầm non', category: 'FURNITURE', location: 'Kho tổng', quantity: 30, unitPrice: 800000, status: 'GOOD' },
-  { id: 'TS004', name: 'Bộ đồ chơi lắp ráp cỡ lớn', category: 'TOY', location: 'Sân chơi trong nhà', quantity: 5, unitPrice: 2500000, status: 'BROKEN' },
-  { id: 'TS005', name: 'Tủ đông Sanaky 400L', category: 'KITCHEN', location: 'Nhà bếp', quantity: 1, unitPrice: 8500000, status: 'GOOD' },
-  { id: 'TS006', name: 'Loa kéo trợ giảng', category: 'ELECTRONIC', location: 'Phòng Âm nhạc', quantity: 4, unitPrice: 3000000, status: 'GOOD' },
-];
-
+// GET: Lấy danh sách tài sản từ PostgreSQL Supabase
 export async function GET() {
-  return NextResponse.json(assets);
+  try {
+    const assets = await prisma.asset.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    return NextResponse.json(assets);
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Lỗi tải danh sách tài sản từ CSDL', details: error.message }, { status: 500 });
+  }
 }
 
+// POST: Thêm tài sản mới vào Supabase DB
 export async function POST(request: Request) {
   try {
-    const data = await request.json();
-    const newAsset = {
-      id: `TS00${assets.length + 1}`,
-      ...data,
-    };
-    assets.push(newAsset);
+    const body = await request.json();
+    const { name, category, location, quantity, unitPrice, status } = body;
+
+    if (!name || !category) {
+      return NextResponse.json({ error: 'Thiếu tên tài sản hoặc loại tài sản.' }, { status: 400 });
+    }
+
+    const newAsset = await prisma.asset.create({
+      data: {
+        code: `TS${Date.now().toString().slice(-4)}`,
+        name,
+        category,
+        location: location || 'Kho trường',
+        quantity: quantity ? parseInt(quantity) : 1,
+        unitPrice: unitPrice ? parseFloat(unitPrice) : 0,
+        status: status || 'GOOD',
+      },
+    });
+
     return NextResponse.json(newAsset, { status: 201 });
-  } catch (error) {
-    return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Không thể thêm tài sản vào CSDL', details: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Xóa tài sản khỏi CSDL Supabase
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID tài sản' }, { status: 400 });
+    }
+
+    await prisma.asset.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Đã xóa tài sản khỏi CSDL' });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Không thể xóa tài sản khỏi CSDL', details: error.message }, { status: 500 });
   }
 }
