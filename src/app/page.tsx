@@ -661,24 +661,22 @@ export default function Home() {
                           <span className="text-xs bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-full">
                             {cls.ageGroup}
                           </span>
-                          {userRole === "ADMIN" && (
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={() => setEditingClass(cls)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                                title="Sửa lớp học"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteClass(cls.id, cls.name)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Xóa lớp học"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => setEditingClass(cls)}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Sửa lớp học"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteClass(cls.id, cls.name)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Xóa lớp học"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="flex justify-between items-center mt-6 pt-4 border-t border-slate-100">
@@ -748,7 +746,6 @@ export default function Home() {
                               </span>
                             )}
                           </td>
-                          {userRole === "ADMIN" && (
                             <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
                               <button
                                 onClick={() => setSelectedStudentDetail(student)}
@@ -765,7 +762,6 @@ export default function Home() {
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </td>
-                          )}
                         </tr>
                       ))}
                     </tbody>
