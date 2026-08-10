@@ -1,27 +1,61 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-const mockTransactions = [
-  { id: "1", date: "2026-08-01", type: "INCOME", category: "TUITION", amount: 15000000, description: "Học phí tháng 8 Lớp Mầm 1", createdBy: "Admin" },
-  { id: "2", date: "2026-08-02", type: "EXPENSE", category: "KITCHEN", amount: 2500000, description: "Mua thực phẩm tuần 1", createdBy: "Thủ quỹ" },
-  { id: "3", date: "2026-08-03", type: "INCOME", category: "MEAL_FEE", amount: 5000000, description: "Phí bán trú tháng 8 Lớp Mầm 1", createdBy: "Admin" },
-  { id: "4", date: "2026-08-04", type: "EXPENSE", category: "EQUIPMENT", amount: 1200000, description: "Mua văn phòng phẩm", createdBy: "Thủ quỹ" },
-  { id: "5", date: "2026-08-05", type: "EXPENSE", category: "UTILITY", amount: 3500000, description: "Thanh toán tiền điện nước tháng 7", createdBy: "Kế toán" },
-];
-
+// GET: Lấy danh sách Sổ Thu Chi từ PostgreSQL Supabase
 export async function GET() {
-  return NextResponse.json({ success: true, data: mockTransactions });
+  try {
+    const transactions = await prisma.transaction.findMany({
+      orderBy: { date: "desc" },
+    });
+    return NextResponse.json({ success: true, data: transactions });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Lỗi tải Sổ thu chi từ CSDL", details: error.message }, { status: 500 });
+  }
 }
 
+// POST: Thêm bút toán Thu/Chi mới vào Supabase DB
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const newTransaction = {
-      id: Math.random().toString(36).substring(7),
-      ...body,
-      createdBy: "Admin"
-    };
-    return NextResponse.json({ success: true, data: newTransaction });
-  } catch (error) {
-    return NextResponse.json({ success: false, message: "Invalid data" }, { status: 400 });
+    const { date, type, category, amount, description, createdBy } = body;
+
+    if (!amount || !description) {
+      return NextResponse.json({ success: false, message: "Vui lòng nhập số tiền và nội dung bút toán." }, { status: 400 });
+    }
+
+    const newTransaction = await prisma.transaction.create({
+      data: {
+        date: date ? new Date(date) : new Date(),
+        type: type || "INCOME",
+        category: category || "OTHER",
+        amount: parseFloat(amount),
+        description,
+        createdBy: createdBy || "Admin",
+      },
+    });
+
+    return NextResponse.json({ success: true, data: newTransaction }, { status: 201 });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: "Không thể lưu bút toán vào CSDL", details: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Xóa bút toán khỏi CSDL Supabase
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Thiếu ID bút toán" }, { status: 400 });
+    }
+
+    await prisma.transaction.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: "Đã xóa bút toán khỏi CSDL" });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Không thể xóa bút toán khỏi CSDL", details: error.message }, { status: 500 });
   }
 }
