@@ -42,7 +42,8 @@ import {
   Edit,
   UserPlus,
   Check,
-  QrCode
+  QrCode,
+  X
 } from "lucide-react";
 
 export default function Home() {
@@ -138,6 +139,7 @@ export default function Home() {
   const [showAddIngredientModal, setShowAddIngredientModal] = useState(false);
   const [showEditMenuModal, setShowEditMenuModal] = useState(false);
   const [selectedQRStudent, setSelectedQRStudent] = useState<Student | null>(null);
+  const [selectedStudentDetail, setSelectedStudentDetail] = useState<Student | null>(null);
 
   // Class list state
   const [classList, setClassList] = useState([
@@ -655,10 +657,8 @@ export default function Home() {
                           {userRole === "ADMIN" && (
                             <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
                               <button
-                                onClick={() => {
-                                  alert(`📌 HỒ SƠ CHI TIẾT HỌC SINH:\n------------------------------------\n• Mã học sinh: ${student.code || 'HS00' + student.id}\n• Họ và tên: ${student.name}\n• Ngày sinh: ${student.birthDate || '15/04/2023'}\n• Giới tính: ${student.gender || 'Nam'}\n• Dân tộc: ${student.ethnicity || 'Kinh'}\n• Quốc tịch: ${student.nationality || 'Việt Nam'}\n------------------------------------\n• Lớp: ${student.className}\n• Ngày nhập học: ${student.joinDate || '05/09/2025'}\n• Trạng thái: ${student.status || 'Đang học'}\n------------------------------------\n• Họ tên cha: ${student.fatherName || student.parentName}\n• Nghề nghiệp cha: ${student.fatherJob || 'Kỹ sư'}\n• Họ tên mẹ: ${student.motherName || 'Lê Thị Mai'}\n• Nghề nghiệp mẹ: ${student.motherJob || 'Kế toán'}\n• Số điện thoại: ${student.parentPhone}\n• Địa chỉ: ${student.address || 'TP. Hồ Chí Minh'}`);
-                                }}
-                                className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors text-xs font-semibold"
+                                onClick={() => setSelectedStudentDetail(student)}
+                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors text-xs font-bold border border-indigo-200"
                                 title="Xem hồ sơ đầy đủ"
                               >
                                 Xem hồ sơ
@@ -1050,6 +1050,119 @@ export default function Home() {
             setSelectedQRStudent(null);
           }}
         />
+      )}
+
+      {/* FULL STUDENT PROFILE MODAL (Trang Chi Tiết Hồ Sơ Học Sinh Chuẩn demo.docx) */}
+      {selectedStudentDetail && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl space-y-6 relative border border-slate-100 max-h-[90vh] overflow-y-auto">
+            {/* Header Modal */}
+            <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                  {selectedStudentDetail.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-slate-800 text-xl">{selectedStudentDetail.name}</h3>
+                    <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-full border border-indigo-100">
+                      {selectedStudentDetail.code || `HS00${selectedStudentDetail.id}`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">Lớp phụ trách: <strong className="text-indigo-600">Lớp {selectedStudentDetail.className}</strong> • Nhóm trẻ độc lập Ánh Bình Minh</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedStudentDetail(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Sections Content */}
+            <div className="space-y-6 text-sm">
+              {/* Section 1: Thông tin cá nhân trẻ */}
+              <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                <h4 className="font-extrabold text-indigo-700 text-xs uppercase tracking-wider">I. Thông Tin Cá Nhân Của Trẻ</h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="text-slate-400 block font-medium">Họ và tên:</span>
+                    <span className="font-bold text-slate-800">{selectedStudentDetail.name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Ngày sinh:</span>
+                    <span className="font-semibold text-slate-700">{selectedStudentDetail.birthDate || '15/04/2023'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Giới tính:</span>
+                    <span className="font-semibold text-slate-700">{selectedStudentDetail.gender || 'Nam'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Dân tộc:</span>
+                    <span className="font-semibold text-slate-700">{selectedStudentDetail.ethnicity || 'Kinh'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Quốc tịch:</span>
+                    <span className="font-semibold text-slate-700">{selectedStudentDetail.nationality || 'Việt Nam'}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-medium">Trạng thái:</span>
+                    <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{selectedStudentDetail.status || 'Đang học'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 2: Thông tin Phụ huynh & Nghề nghiệp */}
+              <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100 space-y-3">
+                <h4 className="font-extrabold text-indigo-700 text-xs uppercase tracking-wider">II. Thông Tin Phụ Huynh Liên Hệ (Theo demo.docx)</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="bg-white p-3 rounded-xl border border-indigo-100 space-y-1">
+                    <span className="font-bold text-slate-800 block text-sm">👨 Họ tên Cha: {selectedStudentDetail.fatherName || selectedStudentDetail.parentName}</span>
+                    <span className="text-slate-600 block">Nghề nghiệp: <strong>{selectedStudentDetail.fatherJob || 'Kỹ sư phần mềm'}</strong></span>
+                    <span className="text-slate-600 block">Số điện thoại: <strong className="text-indigo-600 font-mono">{selectedStudentDetail.parentPhone}</strong></span>
+                  </div>
+
+                  <div className="bg-white p-3 rounded-xl border border-indigo-100 space-y-1">
+                    <span className="font-bold text-slate-800 block text-sm">👩 Họ tên Mẹ: {selectedStudentDetail.motherName || 'Lê Thị Mai'}</span>
+                    <span className="text-slate-600 block">Nghề nghiệp: <strong>{selectedStudentDetail.motherJob || 'Kế toán tài chính'}</strong></span>
+                    <span className="text-slate-600 block">Số điện thoại: <strong className="text-indigo-600 font-mono">{selectedStudentDetail.parentPhone}</strong></span>
+                  </div>
+                </div>
+
+                <div className="pt-1 text-xs">
+                  <span className="text-slate-500 font-medium">Địa chỉ hộ khẩu / Thường trú: </span>
+                  <span className="font-semibold text-slate-800">{selectedStudentDetail.address || '123 Nguyễn Trãi, Phường 2, Quận 5, TP. Hồ Chí Minh'}</span>
+                </div>
+              </div>
+
+              {/* Section 3: Học phí & Miễn giảm */}
+              <div className="bg-emerald-50/50 p-4 rounded-2xl border border-emerald-100 space-y-2 text-xs">
+                <h4 className="font-extrabold text-emerald-700 text-xs uppercase tracking-wider">III. Tình Trạng Học Phí & Ưu Đãi</h4>
+                <div className="flex justify-between items-center bg-white p-3 rounded-xl border border-emerald-100">
+                  <div>
+                    <span className="text-slate-500 block">Học phí định kỳ tháng:</span>
+                    <span className="font-extrabold text-slate-800 text-base">3.200.000 VNĐ</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-500 block">Ưu đãi miễn giảm:</span>
+                    <span className="font-bold text-emerald-600">✓ Giảm 10% tháng đầu + Tặng 1 Bộ đồng phục</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-2 flex justify-end gap-3">
+              <button
+                onClick={() => setSelectedStudentDetail(null)}
+                className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl transition-colors text-xs"
+              >
+                Đóng cửa sổ
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
