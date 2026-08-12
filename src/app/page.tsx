@@ -17,6 +17,8 @@ import EventsTab from "@/components/events-tab";
 import AssetsTab from "@/components/assets-tab";
 import AdmissionsTab from "@/components/admissions-tab";
 import EvaluationsTab from "@/components/evaluations-tab";
+import AccountsTab from "@/components/accounts-tab";
+import ParentPortalTab from "@/components/parent-portal-tab";
 import { 
   mockStudents, 
   mockWeeklyMenu, 
@@ -76,7 +78,12 @@ export default function Home() {
     
     try {
       const parsed = JSON.parse(session);
-      if (parsed.role) setUserRole(parsed.role);
+      if (parsed.role) {
+        setUserRole(parsed.role);
+        if (parsed.role === "PARENT") {
+          setActiveTab("parent_portal");
+        }
+      }
       setIsAuthenticated(true);
     } catch (e) {
       router.push("/login");
@@ -522,105 +529,105 @@ export default function Home() {
               </div>
 
               {/* Stat Cards Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="glass-card p-6 border-l-4 border-l-indigo-600 flex items-center justify-between group">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="glass-card p-5 border-l-4 border-l-indigo-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Học Sinh Đang Học</span>
-                    <h3 className="text-3xl font-black text-slate-900 mt-1">{totalStudents}</h3>
-                    <span className="text-xs text-indigo-600 font-bold flex items-center gap-1 mt-1.5">
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Học Sinh Đang Học</span>
+                    <h3 className="text-3xl font-black text-slate-900 mt-1">{totalStudents} <span className="text-xs font-bold text-slate-400">trẻ</span></h3>
+                    <div className="text-[11px] text-indigo-600 font-bold flex items-center gap-1 mt-2 bg-indigo-50 px-2 py-0.5 rounded-md w-fit">
                       <TrendingUp className="w-3.5 h-3.5" /> Sĩ số chính thức
-                    </span>
+                    </div>
                   </div>
-                  <div className="bg-indigo-50 p-4 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                  <div className="bg-indigo-50/80 p-3.5 rounded-2xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
                     <Users className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="glass-card p-6 border-l-4 border-l-emerald-600 flex items-center justify-between group">
+                <div className="glass-card p-5 border-l-4 border-l-emerald-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Học Phí Đã Thu</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Học Phí Đã Thu</span>
                     <h3 className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(totalTuitionCollected)}</h3>
-                    <span className="text-xs text-emerald-600 font-bold flex items-center gap-1 mt-1.5">
+                    <div className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 mt-2 bg-emerald-50 px-2 py-0.5 rounded-md w-fit">
                       ✓ {totalTuitionExpected > 0 ? Math.round((totalTuitionCollected / totalTuitionExpected) * 100) : 0}% hoàn thành
-                    </span>
+                    </div>
                   </div>
-                  <div className="bg-emerald-50 p-4 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
+                  <div className="bg-emerald-50/80 p-3.5 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
                     <Wallet className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="glass-card p-6 border-l-4 border-l-amber-500 flex items-center justify-between group">
+                <div className="glass-card p-5 border-l-4 border-l-amber-500 flex items-center justify-between group">
                   <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Chi Phí Bếp Ăn</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Chi Phí Bếp Ăn</span>
                     <h3 className="text-2xl font-black text-slate-900 mt-1">{formatCurrency(totalIngredientsCost)}</h3>
-                    <span className="text-xs text-amber-600 font-bold flex items-center gap-1 mt-1.5">
+                    <div className="text-[11px] text-amber-600 font-bold flex items-center gap-1 mt-2 bg-amber-50 px-2 py-0.5 rounded-md w-fit">
                       <TrendingDown className="w-3.5 h-3.5" /> Nhập kho tháng
-                    </span>
+                    </div>
                   </div>
-                  <div className="bg-amber-50 p-4 rounded-2xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
+                  <div className="bg-amber-50/80 p-3.5 rounded-2xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all shadow-sm">
                     <UtensilsCrossed className="w-6 h-6" />
                   </div>
                 </div>
 
-                <div className="glass-card p-6 border-l-4 border-l-purple-600 flex items-center justify-between group">
+                <div className="glass-card p-5 border-l-4 border-l-purple-600 flex items-center justify-between group">
                   <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Tỷ Lệ Điểm Danh</span>
+                    <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Tỷ Lệ Điểm Danh</span>
                     <h3 className="text-3xl font-black text-slate-900 mt-1">96.8%</h3>
-                    <span className="text-xs text-purple-600 font-bold flex items-center gap-1 mt-1.5">
+                    <div className="text-[11px] text-purple-600 font-bold flex items-center gap-1 mt-2 bg-purple-50 px-2 py-0.5 rounded-md w-fit">
                       <CheckCircle2 className="w-3.5 h-3.5" /> Có mặt trung bình
-                    </span>
+                    </div>
                   </div>
-                  <div className="bg-purple-50 p-4 rounded-2xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm">
+                  <div className="bg-purple-50/80 p-3.5 rounded-2xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-sm">
                     <Calculator className="w-6 h-6" />
                   </div>
                 </div>
               </div>
 
               {/* Secondary Layout Sections */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left: Quick Menu list */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm lg:col-span-2">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <div className="glass-card p-6 lg:col-span-2 space-y-4">
+                  <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
                     <UtensilsCrossed className="w-5 h-5 text-indigo-600" /> Thực đơn ngày hôm nay (Thứ Ba)
                   </h3>
-                  <div className="bg-slate-50 p-6 rounded-xl border border-slate-100 space-y-4">
-                    <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                      <span className="text-sm font-semibold text-slate-700">Bữa Sáng</span>
-                      <span className="text-sm text-slate-600">{weeklyMenu["Thứ Ba"]?.breakfast}</span>
+                  <div className="bg-slate-50/80 p-5 rounded-2xl border border-slate-200/80 space-y-3.5">
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+                      <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Bữa Sáng</span>
+                      <span className="text-sm font-bold text-indigo-900">{weeklyMenu["Thứ Ba"]?.breakfast}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-3 border-b border-slate-200">
-                      <span className="text-sm font-semibold text-slate-700">Bữa Trưa</span>
-                      <span className="text-sm text-slate-600">{weeklyMenu["Thứ Ba"]?.lunch}</span>
+                    <div className="flex justify-between items-center pb-3 border-b border-slate-200/60">
+                      <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Bữa Trưa</span>
+                      <span className="text-sm font-bold text-indigo-900">{weeklyMenu["Thứ Ba"]?.lunch}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-semibold text-slate-700">Bữa Xế (Phụ)</span>
-                      <span className="text-sm text-slate-600">{weeklyMenu["Thứ Ba"]?.snack}</span>
+                      <span className="text-xs font-extrabold text-slate-700 uppercase tracking-wider">Bữa Xế (Phụ)</span>
+                      <span className="text-sm font-bold text-indigo-900">{weeklyMenu["Thứ Ba"]?.snack}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Right: Quick Tuition Progress */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4">Trạng thái Tiền học</h3>
+                <div className="glass-card p-6 space-y-4">
+                  <h3 className="text-base font-extrabold text-slate-900">Trạng thái Tiến độ Thu Học Phí</h3>
                   <div className="space-y-4">
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-xs font-bold">
                       <span className="text-slate-500">Đã thu ({paidCount}/{totalStudents})</span>
-                      <span className="font-semibold text-slate-800">{formatCurrency(totalTuitionCollected)}</span>
+                      <span className="text-indigo-600 font-extrabold">{formatCurrency(totalTuitionCollected)}</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5 border border-slate-200/60">
                       <div 
-                        className="bg-indigo-600 h-full rounded-full transition-all duration-500" 
+                        className="bg-gradient-to-r from-indigo-500 to-indigo-600 h-full rounded-full transition-all duration-500 shadow-sm" 
                         style={{ width: `${totalTuitionExpected > 0 ? (totalTuitionCollected / totalTuitionExpected) * 100 : 0}%` }}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mt-6 pt-4 border-t border-slate-100 text-xs">
-                      <div>
-                        <span className="text-rose-500 font-bold block text-sm">{overdueCount} Trẻ</span>
-                        <span className="text-slate-400">Trễ hạn đóng</span>
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-slate-100 text-xs">
+                      <div className="bg-rose-50/80 p-3 rounded-xl border border-rose-100">
+                        <span className="text-rose-600 font-extrabold block text-sm">{overdueCount} Trẻ</span>
+                        <span className="text-rose-500 text-[11px] font-semibold">Trễ hạn đóng</span>
                       </div>
-                      <div>
-                        <span className="text-amber-500 font-bold block text-sm">{unpaidCount} Trẻ</span>
-                        <span className="text-slate-400">Chờ thu học phí</span>
+                      <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-100">
+                        <span className="text-amber-700 font-extrabold block text-sm">{unpaidCount} Trẻ</span>
+                        <span className="text-amber-600 text-[11px] font-semibold">Chờ thu học phí</span>
                       </div>
                     </div>
                   </div>
@@ -631,108 +638,145 @@ export default function Home() {
 
           {/* Tuition Management Tab */}
           {activeTab === "tuition" && (
-            <div className="space-y-8 animate-fadeIn">
+            <div className="space-y-6 animate-fadeIn">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                  <div>
-                    <h2 className="text-2xl font-bold text-slate-800">
-                      {userRole === "PARENT" ? "Học phí & Thanh toán VietQR cho con" : "Quản lý đóng học phí"}
-                    </h2>
-                    <p className="text-sm text-slate-500 mt-1">
-                      {userRole === "PARENT" ? "Tra cứu học phí và quét mã VietQR chuyển khoản 1-click." : "Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì."}
-                    </p>
-                  </div>
-                  {userRole === "ADMIN" && (
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <button 
-                        onClick={handleExportTuitionExcel}
-                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-                        title="Xuất danh sách học phí ra file Excel CSV"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Excel</span>
-                      </button>
-                      <button 
-                        onClick={handleExportTuitionPDF}
-                        className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-                        title="In PDF danh sách học phí"
-                      >
-                        <Printer className="w-4 h-4 text-slate-600" />
-                        <span>In PDF</span>
-                      </button>
-                      <button 
-                        onClick={() => setShowAddStudentModal(true)}
-                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        <span>Thêm học sinh mới</span>
-                      </button>
-                    </div>
-                  )}
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+                    {userRole === "PARENT" ? "Học phí & Thanh toán VietQR cho con" : "Quản lý Học phí & Thu tiền Trẻ"}
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    {userRole === "PARENT" ? "Tra cứu học phí và quét mã VietQR chuyển khoản 1-click." : "Danh sách chi tiết học phí và nút xác nhận đóng tiền tức thì."}
+                  </p>
                 </div>
+                {userRole === "ADMIN" && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button 
+                      onClick={handleExportTuitionExcel}
+                      className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-sm cursor-pointer"
+                      title="Xuất danh sách học phí ra file Excel CSV"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Excel</span>
+                    </button>
+                    <button 
+                      onClick={handleExportTuitionPDF}
+                      className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-xl text-xs font-extrabold transition-all shadow-2xs cursor-pointer"
+                      title="In PDF danh sách học phí"
+                    >
+                      <Printer className="w-3.5 h-3.5 text-slate-600" />
+                      <span>In PDF</span>
+                    </button>
+                    <button 
+                      onClick={() => setShowAddStudentModal(true)}
+                      className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-colors shadow-md shadow-indigo-600/20 cursor-pointer"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" />
+                      <span>Thêm học sinh mới</span>
+                    </button>
+                  </div>
+                )}
+              </div>
 
-                {/* Student table */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <table className="w-full text-left border-collapse">
+              {/* Student Tuition Data Table UI-UX PRO MAX */}
+              <div className="table-pro-container">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <span className="text-xs font-bold text-slate-600">
+                    Hiển thị <strong className="text-indigo-600">{displayStudents.length}</strong> học sinh trong danh sách
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="badge-pill badge-pill-emerald"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> Đã thu: {paidCount}</span>
+                    <span className="badge-pill badge-pill-amber"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Chờ thu: {unpaidCount}</span>
+                    <span className="badge-pill badge-pill-rose"><span className="w-1.5 h-1.5 rounded-full bg-rose-500" /> Quá hạn: {overdueCount}</span>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="table-pro">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên học sinh</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Tên Phụ huynh</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Học phí</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái</th>
-                        <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                      <tr>
+                        <th>Học sinh</th>
+                        <th>Lớp học</th>
+                        <th>Phụ huynh liên hệ</th>
+                        <th>Số điện thoại</th>
+                        <th>Số tiền Học phí</th>
+                        <th>Trạng thái</th>
+                        <th className="text-right">Thao tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {displayStudents.map((student) => (
-                      <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                        <td className="px-6 py-4 text-sm font-semibold text-slate-800">{student.name}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{student.className}</td>
-                        <td className="px-6 py-4 text-sm text-slate-600">{student.parentName}</td>
-                        <td className="px-6 py-4 text-sm text-slate-500">{student.parentPhone}</td>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-800">{formatCurrency(student.amount)}</td>
-                        <td className="px-6 py-4">
-                          {student.tuitionStatus === "PAID" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Đã đóng
-                            </span>
-                          )}
-                          {student.tuitionStatus === "UNPAID" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-100">
-                              <AlertTriangle className="w-3.5 h-3.5" /> Chưa đóng
-                            </span>
-                          )}
-                          {student.tuitionStatus === "OVERDUE" && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 text-xs font-semibold rounded-full border border-rose-100 animate-pulse">
-                              <XCircle className="w-3.5 h-3.5" /> Trễ hạn
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right space-x-2">
-                          {student.tuitionStatus !== "PAID" && (
-                            <>
-                              <button
-                                onClick={() => setSelectedQRStudent(student)}
-                                className="inline-flex items-center gap-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
-                              >
-                                <QrCode className="w-3.5 h-3.5" /> Quét VietQR
-                              </button>
-                              {userRole === "ADMIN" && (
-                                <button
-                                  onClick={() => handleMarkAsPaid(student.id)}
-                                  className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition-colors shadow-sm"
-                                >
-                                  <Check className="w-3.5 h-3.5" /> Đã nộp
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    <tbody>
+                      {displayStudents.length === 0 ? (
+                        <tr>
+                          <td colSpan={7} className="text-center py-12 text-slate-400">
+                            Chưa có dữ liệu học sinh nào trong danh sách.
+                          </td>
+                        </tr>
+                      ) : (
+                        displayStudents.map((student) => {
+                          const initials = student.name ? student.name.split(" ").slice(-2).map(n => n[0]).join("").toUpperCase() : "HS";
+                          return (
+                            <tr key={student.id}>
+                              <td>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-xs shadow-sm ring-2 ring-indigo-50">
+                                    {initials}
+                                  </div>
+                                  <div>
+                                    <div className="font-bold text-slate-900">{student.name}</div>
+                                    <span className="text-[10px] text-slate-400 font-medium">Mã: HS0{student.id.slice(-3)}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <span className="inline-block bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-slate-200/60">
+                                  Lớp {student.className}
+                                </span>
+                              </td>
+                              <td className="font-medium text-slate-700">{student.parentName}</td>
+                              <td className="text-slate-500 font-mono text-xs">{student.parentPhone}</td>
+                              <td className="font-black text-slate-900">{formatCurrency(student.amount)}</td>
+                              <td>
+                                {student.tuitionStatus === "PAID" && (
+                                  <span className="badge-pill badge-pill-emerald">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Đã đóng
+                                  </span>
+                                )}
+                                {student.tuitionStatus === "UNPAID" && (
+                                  <span className="badge-pill badge-pill-amber">
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Chưa đóng
+                                  </span>
+                                )}
+                                {student.tuitionStatus === "OVERDUE" && (
+                                  <span className="badge-pill badge-pill-rose animate-pulse">
+                                    <XCircle className="w-3.5 h-3.5" /> Trễ hạn
+                                  </span>
+                                )}
+                              </td>
+                              <td className="text-right whitespace-nowrap">
+                                {student.tuitionStatus !== "PAID" && (
+                                  <div className="flex items-center justify-end gap-2.5">
+                                    <button
+                                      onClick={() => setSelectedQRStudent(student)}
+                                      className="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-600/20 cursor-pointer shrink-0"
+                                    >
+                                      <QrCode className="w-3.5 h-3.5" /> VietQR
+                                    </button>
+                                    {userRole === "ADMIN" && (
+                                      <button
+                                        onClick={() => handleMarkAsPaid(student.id)}
+                                        className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all shadow-sm cursor-pointer shrink-0"
+                                      >
+                                        <Check className="w-3.5 h-3.5" /> Xác nhận
+                                      </button>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -830,79 +874,92 @@ export default function Home() {
               </div>
 
               {/* Detailed Student Directory Table */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden space-y-4 p-6">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="table-pro-container">
+                <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div>
-                    <h3 className="text-lg font-bold text-slate-800">Danh sách Hồ sơ Trẻ theo Lớp</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Tra cứu danh sách trẻ, phụ huynh liên hệ và thông tin học phí.</p>
+                    <h3 className="text-sm font-extrabold text-slate-900">Danh sách Hồ sơ Trẻ theo Lớp</h3>
+                    <p className="text-[11px] text-slate-500 font-medium">Tra cứu danh sách trẻ, thông tin phụ huynh liên hệ và tình trạng học phí.</p>
                   </div>
+                  <span className="text-xs font-extrabold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-lg border border-indigo-100">
+                    Tổng số: {students.length} em
+                  </span>
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[650px]">
+                  <table className="table-pro">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ và tên trẻ</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Lớp học</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Họ tên Phụ huynh</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Số điện thoại</th>
-                        <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase">Trạng thái Học phí</th>
+                      <tr>
+                        <th>Học sinh</th>
+                        <th>Lớp học</th>
+                        <th>Phụ huynh liên hệ</th>
+                        <th>Số điện thoại</th>
+                        <th>Trạng thái Học phí</th>
                         {userRole === "ADMIN" && (
-                          <th className="px-6 py-3.5 text-xs font-semibold text-slate-400 uppercase text-right">Thao tác</th>
+                          <th className="text-right">Thao tác</th>
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {students.map((student) => (
-                        <tr key={student.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 text-sm font-semibold text-slate-800 flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                              {student.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            {student.name}
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-500">
-                            <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-md">
-                              Lớp {student.className}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-600 font-medium">{student.parentName}</td>
-                          <td className="px-6 py-4 text-sm font-mono text-slate-500">{student.parentPhone}</td>
-                          <td className="px-6 py-4">
-                            {student.tuitionStatus === "PAID" && (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full border border-emerald-100">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Đã hoàn thành
-                              </span>
-                            )}
-                            {student.tuitionStatus === "UNPAID" && (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full border border-amber-100">
-                                <AlertTriangle className="w-3.5 h-3.5" /> Chưa hoàn thành
-                              </span>
-                            )}
-                            {student.tuitionStatus === "OVERDUE" && (
-                              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 text-rose-700 text-xs font-semibold rounded-full border border-rose-100 animate-pulse">
-                                <XCircle className="w-3.5 h-3.5" /> Quá hạn đóng
-                              </span>
-                            )}
-                          </td>
-                            <td className="px-6 py-4 text-right flex items-center justify-end gap-1">
-                              <button
-                                onClick={() => setSelectedStudentDetail(student)}
-                                className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors text-xs font-bold border border-indigo-200"
-                                title="Xem hồ sơ đầy đủ"
-                              >
-                                Xem hồ sơ
-                              </button>
-                              <button
-                                onClick={() => handleDeleteStudent(student.id)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                                title="Xóa hồ sơ học sinh"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                    <tbody>
+                      {students.map((student) => {
+                        const initials = student.name ? student.name.split(" ").slice(-2).map(n => n[0]).join("").toUpperCase() : "HS";
+                        return (
+                          <tr key={student.id}>
+                            <td>
+                              <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-extrabold text-xs shadow-sm ring-2 ring-indigo-50">
+                                  {initials}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-slate-900">{student.name}</div>
+                                  <span className="text-[10px] text-slate-400 font-medium">Mã: HS0{student.id.slice(-3)}</span>
+                                </div>
+                              </div>
                             </td>
-                        </tr>
-                      ))}
+                            <td>
+                              <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-indigo-100/60">
+                                Lớp {student.className}
+                              </span>
+                            </td>
+                            <td className="font-semibold text-slate-700">{student.parentName}</td>
+                            <td className="font-mono text-xs text-slate-500">{student.parentPhone}</td>
+                            <td>
+                              {student.tuitionStatus === "PAID" && (
+                                <span className="badge-pill badge-pill-emerald">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Đã hoàn tất
+                                </span>
+                              )}
+                              {student.tuitionStatus === "UNPAID" && (
+                                <span className="badge-pill badge-pill-amber">
+                                  <AlertTriangle className="w-3.5 h-3.5" /> Chờ thu
+                                </span>
+                              )}
+                              {student.tuitionStatus === "OVERDUE" && (
+                                <span className="badge-pill badge-pill-rose animate-pulse">
+                                  <XCircle className="w-3.5 h-3.5" /> Quá hạn
+                                </span>
+                              )}
+                            </td>
+                            {userRole === "ADMIN" && (
+                              <td className="text-right space-x-1">
+                                <button
+                                  onClick={() => setSelectedStudentDetail(student)}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Xem hồ sơ chi tiết"
+                                >
+                                  <BookOpen className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteStudent(student.id)}
+                                  className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Xóa học sinh"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -938,6 +995,16 @@ export default function Home() {
           {/* Admissions & Student Enrollment Pipeline Tab */}
           {activeTab === "admissions" && (
             <AdmissionsTab />
+          )}
+
+          {/* Account Management Tab */}
+          {activeTab === "accounts" && (
+            <AccountsTab />
+          )}
+
+          {/* Dedicated Parent Portal Tab */}
+          {activeTab === "parent_portal" && (
+            <ParentPortalTab />
           )}
 
           {/* Teacher Evaluations & Performance Tab */}

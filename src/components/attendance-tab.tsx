@@ -273,88 +273,112 @@ export default function AttendanceTab() {
       </div>
 
       {/* Attendance table filtered by class */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div className="table-pro-container">
+        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <span className="text-xs font-bold text-slate-600">
+            Sĩ số Lớp <strong className="text-indigo-600">{selectedClass}</strong>: {filteredList.length} trẻ
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="badge-pill badge-pill-emerald">Có mặt: {presentCount}</span>
+            <span className="badge-pill badge-pill-amber">Có phép: {absentPermitCount}</span>
+            <span className="badge-pill badge-pill-rose">Không phép: {absentNoPermitCount}</span>
+          </div>
+        </div>
+
         {filteredList.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[600px]">
+            <table className="table-pro">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Họ và tên trẻ</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Lớp</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Trạng thái điểm danh</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Người đưa / đón trẻ</th>
-                  <th className="px-6 py-4 text-xs font-semibold text-slate-400 uppercase">Ghi chú sức khỏe</th>
+                <tr>
+                  <th>Họ và tên trẻ</th>
+                  <th>Lớp học</th>
+                  <th>Trạng thái điểm danh</th>
+                  <th>Người đưa / đón trẻ</th>
+                  <th>Ghi chú sức khỏe</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredList.map((item: AttendanceRecord) => (
-                  <tr key={item.studentId} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-slate-800">{item.studentName}</td>
-                    <td className="px-6 py-4 text-sm text-slate-500">
-                      <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-md">
-                        Lớp {item.className}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="inline-flex gap-1.5 bg-slate-100 p-1 rounded-xl">
-                        <button
-                          onClick={() => handleStatusChange(item.studentId, "PRESENT")}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            item.status === "PRESENT"
-                              ? "bg-emerald-600 text-white shadow-sm"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
-                        >
-                          Có mặt
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(item.studentId, "ABSENT_PERMIT")}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            item.status === "ABSENT_PERMIT"
-                              ? "bg-amber-500 text-white shadow-sm"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
-                        >
-                          Có phép
-                        </button>
-                        <button
-                          onClick={() => handleStatusChange(item.studentId, "ABSENT_NO_PERMIT")}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${
-                            item.status === "ABSENT_NO_PERMIT"
-                              ? "bg-rose-600 text-white shadow-sm"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
-                        >
-                          Vắng K.Phép
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <input 
-                        type="text" 
-                        value={item.pickupPerson} 
-                        onChange={(e) => handlePickupChange(item.studentId, e.target.value)}
-                        placeholder="Nhập tên người đón..."
-                        className="bg-white text-slate-900 px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-36 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
-                    </td>
-                    <td className="px-6 py-4">
-                      <input 
-                        type="text" 
-                        value={item.notes} 
-                        onChange={(e) => handleNotesChange(item.studentId, e.target.value)}
-                        placeholder="Thêm ghi chú..."
-                        className="bg-white text-slate-900 px-3 py-1.5 border border-slate-200 rounded-lg text-xs w-48 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                      />
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {filteredList.map((item: AttendanceRecord) => {
+                  const initials = item.studentName ? item.studentName.split(" ").slice(-2).map(n => n[0]).join("").toUpperCase() : "HS";
+                  return (
+                    <tr key={item.studentId}>
+                      <td>
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-xs shadow-sm ring-2 ring-indigo-50">
+                            {initials}
+                          </div>
+                          <div>
+                            <div className="font-bold text-slate-900">{item.studentName}</div>
+                            <span className="text-[10px] text-slate-400 font-medium">Mã: HS0{item.studentId.slice(-3)}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-indigo-100/60">
+                          Lớp {item.className}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="inline-flex gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/60">
+                          <button
+                            onClick={() => handleStatusChange(item.studentId, "PRESENT")}
+                            className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                              item.status === "PRESENT"
+                                ? "bg-emerald-600 text-white shadow-sm"
+                                : "text-slate-600 hover:text-emerald-700"
+                            }`}
+                          >
+                            ✓ Có mặt
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(item.studentId, "ABSENT_PERMIT")}
+                            className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                              item.status === "ABSENT_PERMIT"
+                                ? "bg-amber-500 text-white shadow-sm"
+                                : "text-slate-600 hover:text-amber-700"
+                            }`}
+                          >
+                            Có phép
+                          </button>
+                          <button
+                            onClick={() => handleStatusChange(item.studentId, "ABSENT_NO_PERMIT")}
+                            className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+                              item.status === "ABSENT_NO_PERMIT"
+                                ? "bg-rose-600 text-white shadow-sm"
+                                : "text-slate-600 hover:text-rose-700"
+                            }`}
+                          >
+                            Không phép
+                          </button>
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={item.pickupPerson}
+                          onChange={(e) => handlePickupChange(item.studentId, e.target.value)}
+                          placeholder="Người đón..."
+                          className="w-36 px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-indigo-500 transition-all"
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          value={item.notes}
+                          onChange={(e) => handleNotesChange(item.studentId, e.target.value)}
+                          placeholder="Ghi chú sức khỏe..."
+                          className="w-48 px-3 py-1 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-indigo-500 transition-all"
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         ) : (
-          <div className="p-8 text-center text-slate-500 text-sm">
-            Không tìm thấy trẻ nào thuộc {selectedClass} phù hợp với từ khóa tìm kiếm.
+          <div className="p-12 text-center text-slate-400 font-medium">
+            Không tìm thấy trẻ nào thuộc lớp {selectedClass} phù hợp với tìm kiếm.
           </div>
         )}
       </div>
