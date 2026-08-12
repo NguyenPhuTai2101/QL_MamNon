@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Portal from "@/components/portal";
 import { Building2, Plus, Search, Filter, Wrench, AlertTriangle, CheckCircle2, Trash2, Edit3, ShieldAlert, PackageCheck, DollarSign, X } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
@@ -178,7 +179,7 @@ export default function AssetsTab() {
             <input
               type="text"
               placeholder="Tìm kiếm theo mã, tên tài sản..."
-              className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -283,114 +284,121 @@ export default function AssetsTab() {
 
       {/* Add Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fadeIn">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h3 className="text-xl font-bold text-slate-800">Thêm tài sản mới</h3>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddAsset} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Tên tài sản <span className="text-rose-500">*</span></label>
-                <input 
-                  required
-                  type="text" 
-                  value={newAsset.name}
-                  onChange={e => setNewAsset({...newAsset, name: e.target.value})}
-                  className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Nhập tên tài sản..."
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Loại tài sản</label>
-                  <select 
-                    value={newAsset.category}
-                    onChange={e => setNewAsset({...newAsset, category: e.target.value as AssetCategory})}
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {(Object.keys(categoryLabels) as AssetCategory[]).map(cat => (
-                      <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-                    ))}
-                  </select>
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
+
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Thêm Tài Sản Mới</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Khai báo tài sản, thiết bị học tập và cơ sở vật chất mới</p>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Trạng thái</label>
-                  <select 
-                    value={newAsset.status}
-                    onChange={e => setNewAsset({...newAsset, status: e.target.value as AssetStatus})}
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="GOOD">Tốt</option>
-                    <option value="MAINTENANCE">Bảo trì</option>
-                    <option value="BROKEN">Hỏng</option>
-                  </select>
-                </div>
+                <button 
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Vị trí phân bổ</label>
-                <input 
-                  type="text" 
-                  value={newAsset.location}
-                  onChange={e => setNewAsset({...newAsset, location: e.target.value})}
-                  className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="VD: Phòng học Mầm 1, Kho tổng..."
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
+              <form onSubmit={handleAddAsset} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Số lượng <span className="text-rose-500">*</span></label>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Tên tài sản <span className="text-rose-500">*</span></label>
                   <input 
                     required
-                    type="number" 
-                    min="1"
-                    value={newAsset.quantity}
-                    onChange={e => setNewAsset({...newAsset, quantity: parseInt(e.target.value) || 1})}
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    type="text" 
+                    value={newAsset.name}
+                    onChange={e => setNewAsset({...newAsset, name: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    placeholder="Nhập tên tài sản..."
                   />
                 </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Loại tài sản</label>
+                    <select 
+                      value={newAsset.category}
+                      onChange={e => setNewAsset({...newAsset, category: e.target.value as AssetCategory})}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      {(Object.keys(categoryLabels) as AssetCategory[]).map(cat => (
+                        <option key={cat} value={cat}>{categoryLabels[cat]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Trạng thái</label>
+                    <select 
+                      value={newAsset.status}
+                      onChange={e => setNewAsset({...newAsset, status: e.target.value as AssetStatus})}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="GOOD">Tốt</option>
+                      <option value="MAINTENANCE">Bảo trì</option>
+                      <option value="BROKEN">Hỏng</option>
+                    </select>
+                  </div>
+                </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Đơn giá (VNĐ)</label>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Vị trí phân bổ</label>
                   <input 
-                    type="number" 
-                    min="0"
-                    step="1000"
-                    value={newAsset.unitPrice}
-                    onChange={e => setNewAsset({...newAsset, unitPrice: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    type="text" 
+                    value={newAsset.location}
+                    onChange={e => setNewAsset({...newAsset, location: e.target.value})}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    placeholder="VD: Phòng học Mầm 1, Kho tổng..."
                   />
                 </div>
-              </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số lượng <span className="text-rose-500">*</span></label>
+                    <input 
+                      required
+                      type="number" 
+                      min="1"
+                      value={newAsset.quantity}
+                      onChange={e => setNewAsset({...newAsset, quantity: parseInt(e.target.value) || 1})}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Đơn giá (VNĐ)</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="1000"
+                      value={newAsset.unitPrice}
+                      onChange={e => setNewAsset({...newAsset, unitPrice: parseInt(e.target.value) || 0})}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
 
-              <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button 
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors font-medium"
-                >
-                  Hủy
-                </button>
-                <button 
-                  type="submit"
-                  className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors font-medium flex items-center gap-2"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  Lưu tài sản
-                </button>
-              </div>
-            </form>
+                <div className="pt-2">
+                  <button 
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Lưu tài sản mới
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
 }
+

@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
-import { UtensilsCrossed, Calendar, ChevronLeft, ChevronRight, Edit, Copy, Check, Calculator, Scale } from "lucide-react";
+import Portal from "@/components/portal";
+import { UtensilsCrossed, Calendar, ChevronLeft, ChevronRight, Edit, Copy, Check, Calculator, Scale, X, Printer, Download } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
 
 interface MenuItem {
   breakfast: string;
@@ -36,65 +38,89 @@ export default function MenuTab() {
       "Thứ Năm": { breakfast: "Phở gà, Sữa bắp", lunch: "Cơm trắng, Trứng đúc thịt, Canh cải thảo tôm khô", snack: "Bánh pudding, Chuối chín", cost: 30000 },
       "Thứ Sáu": { breakfast: "Mì Ý sốt bò băm, Nước ép dứa", lunch: "Cơm trắng, Gà chiên nước mắm, Canh chua cá lóc", snack: "Váng sữa, Nho đen", cost: 30000 },
     },
-    "week-30": {
-      "Thứ Hai": { breakfast: "Cháo thịt bằm, Sữa tươi", lunch: "Cơm, Thịt kho, Canh bí đỏ, Rau cải", snack: "Chuối chín, Sữa đậu nành", cost: 30000 },
-      "Thứ Ba": { breakfast: "Bún mọc heo, Sữa tươi", lunch: "Cơm trắng, Thịt gà kho gừng, Canh bí đỏ thịt băm", snack: "Sữa chua nếp cẩm", cost: 30000 },
-      "Thứ Tư": { breakfast: "Súp hải sản, Sữa hạt điều", lunch: "Cơm trắng, Cá lóc kho tộ, Canh rêu bắp cải", snack: "Bánh flan, Nước dưa hấu", cost: 30000 },
-      "Thứ Năm": { breakfast: "Cháo lươn Thanh Hóa, Sữa bắp", lunch: "Cơm trắng, Bò xào củ quả, Canh chua tôm", snack: "Chè hạt sen, Thanh long", cost: 30000 },
-      "Thứ Sáu": { breakfast: "Phở bò truyền thống, Nước ép táo", lunch: "Cơm trắng, Sườn xào chua ngọt, Canh tôm mồng mồng", snack: "Váng sữa Monte", cost: 30000 },
-    },
   });
 
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingDay, setEditingDay] = useState("Thứ Hai");
-  const [editForm, setEditForm] = useState<MenuItem>({ breakfast: "", lunch: "", snack: "", cost: 30000 });
-
   const currentWeekInfo = weeksList[selectedWeekIndex];
-  const currentWeekMenu = menuHistory[currentWeekInfo.id] || {};
-
-  const handleCopyPreviousWeek = () => {
-    if (selectedWeekIndex < weeksList.length - 1) {
-      const prevWeekId = weeksList[selectedWeekIndex + 1].id;
-      const prevMenu = menuHistory[prevWeekId];
-      if (prevMenu) {
-        setMenuHistory({
-          ...menuHistory,
-          [currentWeekInfo.id]: JSON.parse(JSON.stringify(prevMenu))
-        });
-        setCopiedNotification(true);
-        setTimeout(() => setCopiedNotification(false), 3000);
-      }
-    }
+  const currentMenu = menuHistory[currentWeekInfo.id] || {
+    "Thứ Hai": { breakfast: "Cháo gà, Sữa tươi", lunch: "Cơm, Thịt bằm kho, Canh mồng tơi", snack: "Bánh bông lan, Sữa", cost: 30000 },
+    "Thứ Ba": { breakfast: "Súp hải sản, Sữa tươi", lunch: "Cơm, Trứng chiên thịt, Canh rau ngót", snack: "Sữa chua, Táo", cost: 30000 },
+    "Thứ Tư": { breakfast: "Bún riêu cua, Sữa đậu nành", lunch: "Cơm, Cá sốt cà, Canh bí xanh", snack: "Chè hạt sen", cost: 30000 },
+    "Thứ Năm": { breakfast: "Phở bò, Sữa hạt", lunch: "Cơm, Thịt kho tàu, Canh cải cúc", snack: "Bánh quy, Dưa hấu", cost: 30000 },
+    "Thứ Sáu": { breakfast: "Cháo tôm bí đỏ, Sữa tươi", lunch: "Cơm, Đậu phụ dồn thịt, Canh chua", snack: "Váng sữa, Cam", cost: 30000 },
   };
 
-  const handleOpenEdit = (day: string) => {
+  const daysOfWeek = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu"];
+
+  // Modal edit meal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDay, setEditingDay] = useState("");
+  const [editForm, setEditForm] = useState<MenuItem>({ breakfast: "", lunch: "", snack: "", cost: 30000 });
+
+  const handleOpenEditModal = (day: string) => {
     setEditingDay(day);
-    setEditForm(currentWeekMenu[day] || { breakfast: "", lunch: "", snack: "", cost: 30000 });
+    setEditForm(currentMenu[day] || { breakfast: "", lunch: "", snack: "", cost: 30000 });
     setShowEditModal(true);
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
+    const updatedWeek = {
+      ...currentMenu,
+      [editingDay]: editForm,
+    };
     setMenuHistory({
       ...menuHistory,
-      [currentWeekInfo.id]: {
-        ...currentWeekMenu,
-        [editingDay]: editForm
-      }
+      [currentWeekInfo.id]: updatedWeek,
     });
     setShowEditModal(false);
   };
 
-  // Portion Calculation Logic (Exact formula from demo.docx Section 6)
-  // Base for 1 child: Gạo: 85g (0.085kg), Thịt: 50g (0.05kg), Tôm: 15g (0.015kg), Rau cải: 20g (0.02kg), Bí đỏ: 30g (0.03kg), Chuối: 40g (0.04kg), Sữa: 360ml (0.36L)
-  const calcIngredients = {
-    gao: (portionStudentCount * 0.085).toFixed(1),
-    thit: (portionStudentCount * 0.05).toFixed(1),
-    tom: (portionStudentCount * 15).toFixed(0), // in grams
-    rauCai: (portionStudentCount * 20).toFixed(0), // in grams
-    biDo: (portionStudentCount * 30).toFixed(0), // in grams
+  const handleCopyPreviousWeek = () => {
+    const prevWeekId = weeksList[selectedWeekIndex + 1]?.id || "week-31";
+    const sourceMenu = menuHistory[prevWeekId] || menuHistory["week-31"];
+    setMenuHistory({
+      ...menuHistory,
+      [currentWeekInfo.id]: { ...sourceMenu },
+    });
+    setCopiedNotification(true);
+    setTimeout(() => setCopiedNotification(false), 3000);
+  };
+
+  // Calculated proportions for 20 kids (or dynamic count)
+  const proportions = {
+    gao: (portionStudentCount * 0.08).toFixed(1), // in kg
+    thit: (portionStudentCount * 0.07).toFixed(1), // in kg
+    rau: (portionStudentCount * 0.1).toFixed(1), // in kg
     chuoi: (portionStudentCount * 40).toFixed(0), // in grams
     sua: (portionStudentCount * 0.36).toFixed(1), // in Liters
+  };
+
+  const handleExportExcel = () => {
+    const headers = ["Ngày", "Bữa sáng", "Bữa trưa chính", "Bữa xế (bữa phụ)", "Định mức (VNĐ/trẻ)"];
+    const rows = daysOfWeek.map((day) => [
+      day,
+      currentMenu[day]?.breakfast || "---",
+      currentMenu[day]?.lunch || "---",
+      currentMenu[day]?.snack || "---",
+      currentMenu[day]?.cost || 30000
+    ]);
+    exportToExcel(`Thuc_Don_Tuan_${currentWeekInfo.id}`, headers, rows);
+  };
+
+  const handleExportPDF = () => {
+    const headers = ["Ngày", "Bữa sáng", "Bữa trưa chính", "Bữa xế (bữa phụ)", "Định mức"];
+    const rows = daysOfWeek.map((day) => [
+      day,
+      currentMenu[day]?.breakfast || "---",
+      currentMenu[day]?.lunch || "---",
+      currentMenu[day]?.snack || "---",
+      formatCurrency(currentMenu[day]?.cost || 30000)
+    ]);
+    const summary = [
+      { label: "Thời gian áp dụng", value: currentWeekInfo.label },
+      { label: "Định lượng tính cho", value: `${portionStudentCount} trẻ (${portionAgeGroup})` }
+    ];
+    exportToPDF(`THỰC ĐƠN BÁN TRÚ TOÀN TRƯỜNG - ${currentWeekInfo.label.toUpperCase()}`, headers, rows, summary);
   };
 
   return (
@@ -106,12 +132,22 @@ export default function MenuTab() {
           <p className="text-sm text-slate-500 mt-1">Lên lịch thực đơn tuần, in thực đơn và tự động tính định lượng nguyên liệu theo sĩ số trẻ đi học.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => window.print()}
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+            title="Xuất file Excel CSV"
           >
-            In Thực đơn
+            <Download className="w-4 h-4" />
+            Excel
+          </button>
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-sm"
+            title="In PDF thực đơn"
+          >
+            <Printer className="w-4 h-4 text-slate-500" />
+            In PDF
           </button>
           <button
             onClick={handleCopyPreviousWeek}
@@ -174,12 +210,12 @@ export default function MenuTab() {
 
       {/* Weekly Menu Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        {Object.entries(currentWeekMenu).map(([day, menu]) => (
+        {Object.entries(currentMenu).map(([day, menu]: [string, MenuItem]) => (
           <div key={day} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group">
             <div className="bg-slate-900 text-white p-3 text-center flex justify-between items-center">
               <span className="font-bold text-sm tracking-wide">{day}</span>
               <button
-                onClick={() => handleOpenEdit(day)}
+                onClick={() => handleOpenEditModal(day)}
                 className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
                 title="Chỉnh sửa bữa ăn"
               >
@@ -226,21 +262,21 @@ export default function MenuTab() {
         {/* Step 1 & 2 Inputs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase">Bước 1: Chọn ngày</label>
+            <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bước 1: Chọn ngày</label>
             <input
               type="date"
               value={portionDate}
               onChange={(e) => setPortionDate(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none"
+              className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
             />
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase">Chọn nhóm lớp</label>
+            <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Chọn nhóm lớp</label>
             <select
               value={portionAgeGroup}
               onChange={(e) => setPortionAgeGroup(e.target.value)}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:outline-none"
+              className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold cursor-pointer transition-all shadow-sm"
             >
               <option value="12-24T">Lớp 12 - 24 tháng (Nhà trẻ)</option>
               <option value="24-36T">Lớp 24 - 36 tháng</option>
@@ -250,14 +286,14 @@ export default function MenuTab() {
           </div>
 
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase">Trẻ đi học thực tế (Sĩ số)</label>
+            <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Trẻ đi học thực tế (Sĩ số)</label>
             <input
               type="number"
               min="1"
               max="100"
               value={portionStudentCount}
               onChange={(e) => setPortionStudentCount(Number(e.target.value))}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-extrabold text-indigo-600 focus:outline-none"
+              className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-indigo-600 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-extrabold transition-all shadow-sm"
             />
           </div>
         </div>
@@ -271,31 +307,23 @@ export default function MenuTab() {
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             <div className="bg-indigo-50/60 p-3 rounded-xl border border-indigo-100 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Gạo</span>
-              <span className="text-lg font-extrabold text-indigo-700">{calcIngredients.gao} kg</span>
+              <span className="text-lg font-extrabold text-indigo-700">{proportions.gao} kg</span>
             </div>
             <div className="bg-rose-50/60 p-3 rounded-xl border border-rose-100 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Thịt</span>
-              <span className="text-lg font-extrabold text-rose-700">{calcIngredients.thit} kg</span>
+              <span className="text-lg font-extrabold text-rose-700">{proportions.thit} kg</span>
             </div>
             <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-100 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Tôm</span>
-              <span className="text-lg font-extrabold text-amber-700">{calcIngredients.tom} g</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase block">Rau củ</span>
+              <span className="text-lg font-extrabold text-amber-700">{proportions.rau} kg</span>
             </div>
             <div className="bg-emerald-50/60 p-3 rounded-xl border border-emerald-100 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Rau cải</span>
-              <span className="text-lg font-extrabold text-emerald-700">{calcIngredients.rauCai} g</span>
-            </div>
-            <div className="bg-orange-50/60 p-3 rounded-xl border border-orange-100 text-center">
-              <span className="text-[11px] font-bold text-slate-500 uppercase block">Bí đỏ</span>
-              <span className="text-lg font-extrabold text-orange-700">{calcIngredients.biDo} g</span>
-            </div>
-            <div className="bg-yellow-50/60 p-3 rounded-xl border border-yellow-100 text-center">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Chuối</span>
-              <span className="text-lg font-extrabold text-yellow-700">{calcIngredients.chuoi} g</span>
+              <span className="text-lg font-extrabold text-emerald-700">{proportions.chuoi} g</span>
             </div>
             <div className="bg-sky-50/60 p-3 rounded-xl border border-sky-100 text-center col-span-2 sm:col-span-1">
               <span className="text-[11px] font-bold text-slate-500 uppercase block">Sữa</span>
-              <span className="text-lg font-extrabold text-sky-700">{calcIngredients.sua} lít</span>
+              <span className="text-lg font-extrabold text-sky-700">{proportions.sua} lít</span>
             </div>
           </div>
         </div>
@@ -303,64 +331,80 @@ export default function MenuTab() {
 
       {/* Edit Meal Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-100">
-            <h3 className="font-bold text-slate-800 text-base border-b border-slate-100 pb-3">
-              Cập nhật Thực Đơn - {editingDay} ({currentWeekInfo.label.split(" ")[0]})
-            </h3>
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
 
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Bữa sáng</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.breakfast}
-                  onChange={(e) => setEditForm({ ...editForm, breakfast: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Bữa trưa</label>
-                <textarea
-                  rows={2}
-                  required
-                  value={editForm.lunch}
-                  onChange={(e) => setEditForm({ ...editForm, lunch: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-700 block mb-1">Bữa xế (phụ)</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.snack}
-                  onChange={(e) => setEditForm({ ...editForm, snack: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 font-medium"
-                />
-              </div>
-
-              <div className="pt-2 flex gap-3">
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <UtensilsCrossed className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Cập Nhật Thực Đơn</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{editingDay} ({currentWeekInfo.label.split(" ")[0]})</p>
+                  </div>
+                </div>
                 <button
-                  type="button"
                   onClick={() => setShowEditModal(false)}
-                  className="w-1/2 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md text-xs"
-                >
-                  Lưu thực đơn
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveEdit} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bữa sáng</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.breakfast}
+                    onChange={(e) => setEditForm({ ...editForm, breakfast: e.target.value })}
+                    placeholder="Cháo thịt bằm, Sữa tươi..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bữa trưa chính</label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={editForm.lunch}
+                    onChange={(e) => setEditForm({ ...editForm, lunch: e.target.value })}
+                    placeholder="Cơm, Thịt kho trứng, Canh bí đỏ..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bữa xế (bữa phụ)</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.snack}
+                    onChange={(e) => setEditForm({ ...editForm, snack: e.target.value })}
+                    placeholder="Chuối, Sữa đậu nành..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <UtensilsCrossed className="w-4 h-4" />
+                    Lưu thay đổi thực đơn
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );

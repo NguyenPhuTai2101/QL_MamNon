@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { CheckCircle2, XCircle, AlertCircle, Calendar as CalendarIcon, Save, Filter, CheckCheck, Search, Printer } from "lucide-react";
+import { CheckCircle2, XCircle, AlertCircle, Calendar as CalendarIcon, Save, Filter, CheckCheck, Search, Printer, Download } from "lucide-react";
+import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
 
 interface AttendanceRecord {
   studentId: string;
@@ -39,41 +40,41 @@ export default function AttendanceTab() {
       .then((res) => res.json())
       .then((dbStudents) => {
         if (Array.isArray(dbStudents) && dbStudents.length > 0) {
-          const list: AttendanceRecord[] = dbStudents.map((st: any) => ({
+          const mappedList: AttendanceRecord[] = dbStudents.map((st: any) => ({
             studentId: st.id,
             studentName: `${st.lastName} ${st.firstName}`.trim(),
-            className: st.className || st.class?.name || "",
+            className: st.class?.name || "Mầm 1",
             status: "PRESENT",
-            pickupPerson: st.parentName || "Phụ huynh",
-            notes: "",
+            pickupPerson: "Bố / Mẹ",
+            notes: "Bình thường",
           }));
-          setAttendanceList(list);
+          setAttendanceList(mappedList);
         }
       })
-      .catch((err) => console.error("Lỗi tải DS điểm danh:", err));
+      .catch((err) => console.error("Lỗi tải DS học sinh:", err));
   }, []);
 
-  // Filter list by selected class and search query
-  const filteredStudents = attendanceList
-    .filter(s => s.className === selectedClass)
-    .filter(s => s.studentName.toLowerCase().includes(searchQuery.toLowerCase()) || s.pickupPerson.toLowerCase().includes(searchQuery.toLowerCase()));
-
   const handleStatusChange = (studentId: string, status: "PRESENT" | "ABSENT_PERMIT" | "ABSENT_NO_PERMIT") => {
-    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, status } : item));
-    setSavedSuccess(false);
-  };
-
-  const handlePickupChange = (studentId: string, pickupPerson: string) => {
-    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, pickupPerson } : item));
+    setAttendanceList(attendanceList.map(item => 
+      item.studentId === studentId ? { ...item, status } : item
+    ));
     setSavedSuccess(false);
   };
 
   const handleNotesChange = (studentId: string, notes: string) => {
-    setAttendanceList(attendanceList.map(item => item.studentId === studentId ? { ...item, notes } : item));
+    setAttendanceList(attendanceList.map(item => 
+      item.studentId === studentId ? { ...item, notes } : item
+    ));
     setSavedSuccess(false);
   };
 
-  // Quick action: Mark all students in current class as PRESENT
+  const handlePickupChange = (studentId: string, pickupPerson: string) => {
+    setAttendanceList(attendanceList.map(item => 
+      item.studentId === studentId ? { ...item, pickupPerson } : item
+    ));
+    setSavedSuccess(false);
+  };
+
   const handleMarkAllPresent = () => {
     setAttendanceList(attendanceList.map(item => 
       item.className === selectedClass ? { ...item, status: "PRESENT" } : item
@@ -91,6 +92,54 @@ export default function AttendanceTab() {
   const absentPermitCount = currentClassAll.filter(a => a.status === "ABSENT_PERMIT").length;
   const absentNoPermitCount = currentClassAll.filter(a => a.status === "ABSENT_NO_PERMIT").length;
 
+  const filteredList = currentClassAll.filter(item => 
+    item.studentName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleExportExcel = () => {
+    const headers = ["STT", "Họ và tên học sinh", "Lớp", "Trạng thái điểm danh", "Người đưa/đón", "Ghi chú sức khỏe"];
+    const statusMap = {
+      PRESENT: "Có mặt",
+      ABSENT_PERMIT: "Vắng có phép",
+      ABSENT_NO_PERMIT: "Vắng không phép"
+    };
+    const rows = filteredList.map((item, idx) => [
+      idx + 1,
+      item.studentName,
+      item.className,
+      statusMap[item.status] || item.status,
+      item.pickupPerson || "Bố/Mẹ",
+      item.notes || "Bình thường"
+    ]);
+    exportToExcel(`Diem_Danh_Lop_${selectedClass}_Ngay_${selectedDate}`, headers, rows);
+  };
+
+  const handleExportPDF = () => {
+    const headers = ["STT", "Họ và tên học sinh", "Lớp", "Trạng thái", "Người đưa/đón", "Ghi chú"];
+    const statusMap = {
+      PRESENT: "Có mặt",
+      ABSENT_PERMIT: "Vắng có phép (Hoàn tiền ăn)",
+      ABSENT_NO_PERMIT: "Vắng không phép"
+    };
+    const rows = filteredList.map((item, idx) => [
+      idx + 1,
+      item.studentName,
+      item.className,
+      statusMap[item.status] || item.status,
+      item.pickupPerson || "Bố/Mẹ",
+      item.notes || "Bình thường"
+    ]);
+    const summary = [
+      { label: "Ngày điểm danh", value: selectedDate },
+      { label: "Lớp học", value: selectedClass },
+      { label: "Tổng số sĩ số", value: `${currentClassAll.length} học sinh` },
+      { label: "Có mặt", value: `${presentCount} trẻ (${Math.round((presentCount / (currentClassAll.length || 1)) * 100)}%)` },
+      { label: "Vắng có phép", value: `${absentPermitCount} trẻ` },
+      { label: "Vắng không phép", value: `${absentNoPermitCount} trẻ` }
+    ];
+    exportToPDF(`BẢNG ĐIỂM DANH HỌC SINH LỚP ${selectedClass.toUpperCase()} - NGÀY ${selectedDate}`, headers, rows, summary);
+  };
+
   return (
     <div className="space-y-8 animate-fadeIn">
       {/* Header controls */}
@@ -100,7 +149,7 @@ export default function AttendanceTab() {
           <p className="text-sm text-slate-500 mt-1">Giáo viên điểm danh theo ngày. Trẻ vắng có phép tự động được hoàn 30.000đ/ngày tiền ăn vào hóa đơn kỳ sau.</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-2 bg-white px-3 py-2 border border-slate-200 rounded-xl text-sm shadow-sm">
             <CalendarIcon className="w-4 h-4 text-indigo-600" />
             <input 
@@ -110,14 +159,25 @@ export default function AttendanceTab() {
               className="focus:outline-none text-slate-700 bg-transparent font-medium"
             />
           </div>
+
           <button 
-            onClick={() => window.print()}
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
+            title="Xuất file Excel CSV"
+          >
+            <Download className="w-4 h-4" />
+            Excel
+          </button>
+
+          <button 
+            onClick={handleExportPDF}
             className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-            title="In sổ điểm danh"
+            title="In PDF sổ điểm danh"
           >
             <Printer className="w-4 h-4 text-slate-600" />
-            In sổ
+            In PDF
           </button>
+
           <button 
             onClick={handleSaveAttendance}
             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
@@ -165,7 +225,7 @@ export default function AttendanceTab() {
               placeholder="Tìm tên trẻ / phụ huynh..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
             />
           </div>
 
@@ -214,7 +274,7 @@ export default function AttendanceTab() {
 
       {/* Attendance table filtered by class */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {filteredStudents.length > 0 ? (
+        {filteredList.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[600px]">
               <thead>
@@ -227,7 +287,7 @@ export default function AttendanceTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredStudents.map((item) => (
+                {filteredList.map((item: AttendanceRecord) => (
                   <tr key={item.studentId} className="hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4 text-sm font-semibold text-slate-800">{item.studentName}</td>
                     <td className="px-6 py-4 text-sm text-slate-500">

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Portal from "@/components/portal";
 import {
   CalendarDays,
   Plus,
@@ -119,11 +120,41 @@ const PRIORITY_MAP: Record<Priority, { label: string; color: string }> = {
 };
 
 export default function EventsTab() {
-  const [events, setEvents] = useState<SchoolEvent[]>(initialEvents);
+  const [events, setEvents] = useState<SchoolEvent[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState<EventType | "ALL">("ALL");
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Tải danh sách sự kiện & thông báo từ CSDL PostgreSQL qua API
+  const loadEvents = () => {
+    setLoading(true);
+    fetch("/api/events")
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.data)) {
+          const mapped: SchoolEvent[] = resData.data.map((item: any) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description || "",
+            date: item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0],
+            endDate: item.endDate ? item.endDate.split("T")[0] : item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0],
+            type: item.type as EventType,
+            priority: item.priority as Priority,
+            targetClass: item.targetClass || null,
+            createdBy: item.createdBy || "Ban Giám Hiệu",
+          }));
+          setEvents(mapped);
+        }
+      })
+      .catch((err) => console.error("Lỗi khi tải sự kiện từ DB:", err))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => {
+    loadEvents();
+  }, []);
 
   const [addForm, setAddForm] = useState({
     title: "",
@@ -138,45 +169,68 @@ export default function EventsTab() {
   const filteredEvents = events.filter((e) => {
     const matchSearch =
       e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.description.toLowerCase().includes(searchTerm.toLowerCase());
+      (e.description && e.description.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchType = typeFilter === "ALL" || e.type === typeFilter;
     return matchSearch && matchType;
   });
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa sự kiện / thông báo này?")) {
-      setEvents(events.filter((item) => item.id !== id));
+      try {
+        const res = await fetch(`/api/events?id=${id}`, { method: "DELETE" });
+        const result = await res.json();
+        if (result.success) {
+          setEvents(events.filter((item) => item.id !== id));
+        } else {
+          alert("Không thể xóa sự kiện: " + result.error);
+        }
+      } catch (err) {
+        console.error("Lỗi khi xóa sự kiện:", err);
+      }
     }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!addForm.title) return;
 
-    const newEvent: SchoolEvent = {
-      id: Date.now().toString(),
-      title: addForm.title,
-      description: addForm.description,
-      date: addForm.date,
-      endDate: addForm.endDate || addForm.date,
-      type: addForm.type,
-      priority: addForm.priority,
-      targetClass: addForm.targetClass || null,
-      createdBy: "Admin",
-    };
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: addForm.title,
+          description: addForm.description,
+          date: addForm.date,
+          endDate: addForm.endDate || addForm.date,
+          type: addForm.type,
+          priority: addForm.priority,
+          targetClass: addForm.targetClass || null,
+          createdBy: "Ban Giám Hiệu",
+        }),
+      });
 
-    setEvents([newEvent, ...events]);
-    setIsAddModalOpen(false);
-    setAddForm({
-      title: "",
-      description: "",
-      date: new Date().toISOString().split("T")[0],
-      endDate: new Date().toISOString().split("T")[0],
-      type: "EVENT",
-      priority: "NORMAL",
-      targetClass: "",
-    });
+      const result = await res.json();
+      if (result.success) {
+        loadEvents();
+        setIsAddModalOpen(false);
+        setAddForm({
+          title: "",
+          description: "",
+          date: new Date().toISOString().split("T")[0],
+          endDate: new Date().toISOString().split("T")[0],
+          type: "EVENT",
+          priority: "NORMAL",
+          targetClass: "",
+        });
+      } else {
+        alert("Lỗi khi tạo sự kiện: " + result.error);
+      }
+    } catch (err) {
+      console.error("Lỗi khi tạo sự kiện:", err);
+    }
   };
+
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -231,7 +285,7 @@ export default function EventsTab() {
                 placeholder="Tìm tiêu đề, nội dung..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
               />
             </div>
 
@@ -410,120 +464,120 @@ export default function EventsTab() {
 
       {/* Add Event Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative border border-slate-100 overflow-hidden max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
-                  <CalendarDays className="w-6 h-6" />
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
+
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <CalendarDays className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Tạo Thông Báo / Sự Kiện Mới</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Đăng tải tin tức lên bảng tin chung hoặc phân gửi theo nhóm lớp</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">Tạo Thông Báo / Sự Kiện Mới</h3>
-                  <p className="text-xs text-slate-500">Đăng tải lên bảng tin chung hoặc gửi tới lớp học</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Tiêu đề thông báo / sự kiện *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Họp phụ huynh cuối học kỳ I..."
-                  value={addForm.title}
-                  onChange={(e) => setAddForm({ ...addForm, title: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold text-slate-800"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Phân loại</label>
-                  <select
-                    value={addForm.type}
-                    onChange={(e) => setAddForm({ ...addForm, type: e.target.value as EventType })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800"
-                  >
-                    <option value="EVENT">Sự kiện ngoại khóa</option>
-                    <option value="ANNOUNCEMENT">Thông báo chung</option>
-                    <option value="HOLIDAY">Nghỉ lễ / Nghỉ phép</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Mức độ ưu tiên</label>
-                  <select
-                    value={addForm.priority}
-                    onChange={(e) => setAddForm({ ...addForm, priority: e.target.value as Priority })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800"
-                  >
-                    <option value="NORMAL">Bình thường</option>
-                    <option value="IMPORTANT">Quan trọng</option>
-                    <option value="URGENT">Khẩn cấp</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Ngày bắt đầu</label>
-                  <input
-                    type="date"
-                    required
-                    value={addForm.date}
-                    onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Ngày kết thúc</label>
-                  <input
-                    type="date"
-                    value={addForm.endDate}
-                    onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Nội dung chi tiết</label>
-                <textarea
-                  rows={3}
-                  placeholder="Nhập nội dung thông báo cho phụ huynh và giáo viên..."
-                  value={addForm.description}
-                  onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex gap-3">
                 <button
-                  type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm"
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 text-sm"
-                >
-                  Đăng thông báo
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleAddSubmit} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Tiêu đề thông báo / sự kiện *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Ví dụ: Họp phụ huynh đầu năm học mới..."
+                    value={addForm.title}
+                    onChange={(e) => setAddForm({ ...addForm, title: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Phân loại</label>
+                    <select
+                      value={addForm.type}
+                      onChange={(e) => setAddForm({ ...addForm, type: e.target.value as EventType })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="EVENT">Sự kiện ngoại khóa</option>
+                      <option value="ANNOUNCEMENT">Thông báo chung</option>
+                      <option value="HOLIDAY">Nghỉ lễ / Nghỉ phép</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Mức độ ưu tiên</label>
+                    <select
+                      value={addForm.priority}
+                      onChange={(e) => setAddForm({ ...addForm, priority: e.target.value as Priority })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="NORMAL">Bình thường</option>
+                      <option value="IMPORTANT">Quan trọng</option>
+                      <option value="URGENT">Khẩn cấp</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày bắt đầu</label>
+                    <input
+                      type="date"
+                      required
+                      value={addForm.date}
+                      onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày kết thúc</label>
+                    <input
+                      type="date"
+                      value={addForm.endDate}
+                      onChange={(e) => setAddForm({ ...addForm, endDate: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nội dung chi tiết</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Nhập nội dung thông báo cho phụ huynh và giáo viên..."
+                    value={addForm.description}
+                    onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    Lưu & Đăng thông báo
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
+
     </div>
   );
 }

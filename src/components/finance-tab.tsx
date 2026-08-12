@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Portal from "@/components/portal";
 import { 
   Wallet, 
   Plus, 
@@ -14,9 +15,12 @@ import {
   DollarSign, 
   TrendingUp, 
   TrendingDown, 
-  CheckCircle2 
+  CheckCircle2,
+  Download,
+  Printer
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 
 type TransactionType = 'INCOME' | 'EXPENSE';
 type IncomeCategory = 'TUITION' | 'MEAL_FEE' | 'PARENT_FUND' | 'OTHER_INCOME';
@@ -160,19 +164,60 @@ export default function FinanceTab() {
       await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(addForm),
-      });
-
-      setAddForm({
-        date: new Date().toISOString().split('T')[0],
-        type: 'INCOME',
-        category: 'TUITION',
-        amount: '',
-        description: '',
+        body: JSON.stringify({
+          date: newTransaction.date,
+          type: newTransaction.type,
+          category: newTransaction.category,
+          amount: newTransaction.amount,
+          description: newTransaction.description,
+          createdBy: newTransaction.createdBy,
+        }),
       });
     } catch (err) {
-      console.error('Lỗi thêm bút toán vào DB:', err);
+      console.error('Lỗi tạo bút toán:', err);
     }
+
+    setAddForm({
+      date: new Date().toISOString().split('T')[0],
+      type: 'INCOME',
+      category: 'TUITION',
+      amount: '',
+      description: '',
+    });
+  };
+
+  const handleExportExcel = () => {
+    const headers = ["STT", "Ngày giao dịch", "Loại", "Danh mục", "Số tiền (VNĐ)", "Nội dung bút toán", "Người tạo"];
+    const rows = filteredTransactions.map((t, idx) => [
+      idx + 1,
+      t.date,
+      t.type === 'INCOME' ? 'Thu (+)' : 'Chi (-)',
+      CATEGORY_LABELS[t.category] || t.category,
+      t.type === 'INCOME' ? t.amount : -t.amount,
+      t.description,
+      t.createdBy
+    ]);
+    exportToExcel(`So_Thu_Chi_Tai_Chinh_${filterMonth}`, headers, rows);
+  };
+
+  const handleExportPDF = () => {
+    const headers = ["STT", "Ngày", "Loại", "Danh mục", "Số tiền", "Nội dung", "Người tạo"];
+    const rows = filteredTransactions.map((t, idx) => [
+      idx + 1,
+      t.date,
+      t.type === 'INCOME' ? 'THU' : 'CHI',
+      CATEGORY_LABELS[t.category] || t.category,
+      formatCurrency(t.amount),
+      t.description,
+      t.createdBy
+    ]);
+    const summary = [
+      { label: "Kỳ báo cáo", value: filterMonth },
+      { label: "Tổng Thu", value: formatCurrency(totalIncome) },
+      { label: "Tổng Chi", value: formatCurrency(totalExpense) },
+      { label: "Số Dư Quỹ", value: formatCurrency(balance) }
+    ];
+    exportToPDF(`SỔ QUỸ VÀ BÚT TOÁN THU CHI - THÁNG ${filterMonth}`, headers, rows, summary);
   };
 
   return (
@@ -184,13 +229,33 @@ export default function FinanceTab() {
           <p className="text-sm text-slate-500 mt-1">Quản lý toàn bộ dòng tiền vào - ra, thu học phí và các khoản chi phí vận hành.</p>
         </div>
 
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-        >
-          <Plus className="w-4 h-4" />
-          Tạo bút toán mới
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button 
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
+            title="Xuất file Excel CSV"
+          >
+            <Download className="w-4 h-4" />
+            <span>Excel</span>
+          </button>
+
+          <button 
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
+            title="In PDF sổ quỹ thu chi"
+          >
+            <Printer className="w-4 h-4 text-slate-600" />
+            <span>In PDF</span>
+          </button>
+
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tạo bút toán mới</span>
+          </button>
+        </div>
       </div>
 
       {/* Top Stat Cards */}
@@ -260,7 +325,7 @@ export default function FinanceTab() {
               type="month"
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
-              className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500 w-full sm:w-auto"
+              className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold text-slate-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 w-full sm:w-auto transition-all"
             />
 
             {/* Type Toggle Tabs */}
@@ -301,7 +366,7 @@ export default function FinanceTab() {
                 placeholder="Tìm nội dung thu chi..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
               />
             </div>
           </div>
@@ -380,132 +445,132 @@ export default function FinanceTab() {
 
       {/* Add Transaction Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-6 relative border border-slate-100 overflow-hidden">
-            <div className="flex justify-between items-center pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
-                  <Wallet className="w-6 h-6" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg">Tạo Bút Toán Thu Chi Mới</h3>
-                  <p className="text-xs text-slate-500">Ghi chép giao dịch tài chính phát sinh vào quỹ</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
 
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Loại giao dịch</label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setAddForm({ ...addForm, type: 'INCOME', category: 'TUITION' })}
-                    className={`py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${
-                      addForm.type === 'INCOME'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-500/20'
-                        : 'bg-slate-50 text-slate-600 border-slate-200'
-                    }`}
-                  >
-                    <ArrowUpRight className="w-4 h-4" /> Bút Toán Thu (+)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAddForm({ ...addForm, type: 'EXPENSE', category: 'KITCHEN' })}
-                    className={`py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 border transition-all ${
-                      addForm.type === 'EXPENSE'
-                        ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-500/20'
-                        : 'bg-slate-50 text-slate-600 border-slate-200'
-                    }`}
-                  >
-                    <ArrowDownRight className="w-4 h-4" /> Bút Toán Chi (-)
-                  </button>
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <Wallet className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Tạo Bút Toán Thu Chi Mới</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Ghi nhận giao dịch vào sổ quỹ tài chính nhà trường</p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleAddSubmit} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Ngày giao dịch</label>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Loại giao dịch</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setAddForm({ ...addForm, type: 'INCOME', category: 'TUITION' })}
+                      className={`py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border transition-all shadow-sm ${
+                        addForm.type === 'INCOME'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-500/20'
+                          : 'bg-slate-50/80 text-slate-600 border-slate-200/80'
+                      }`}
+                    >
+                      <ArrowUpRight className="w-4 h-4" /> Bút Toán Thu (+)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddForm({ ...addForm, type: 'EXPENSE', category: 'KITCHEN' })}
+                      className={`py-3 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 border transition-all shadow-sm ${
+                        addForm.type === 'EXPENSE'
+                          ? 'bg-rose-50 text-rose-700 border-rose-300 ring-2 ring-rose-500/20'
+                          : 'bg-slate-50/80 text-slate-600 border-slate-200/80'
+                      }`}
+                    >
+                      <ArrowDownRight className="w-4 h-4" /> Bút Toán Chi (-)
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày giao dịch</label>
+                    <input
+                      type="date"
+                      required
+                      value={addForm.date}
+                      onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Danh mục</label>
+                    <select
+                      value={addForm.category}
+                      onChange={(e) => setAddForm({ ...addForm, category: e.target.value as TransactionCategory })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      {addForm.type === 'INCOME'
+                        ? INCOME_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {CATEGORY_LABELS[cat]}
+                            </option>
+                          ))
+                        : EXPENSE_CATEGORIES.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {CATEGORY_LABELS[cat]}
+                            </option>
+                          ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số tiền (VNĐ) *</label>
                   <input
-                    type="date"
+                    type="number"
                     required
-                    value={addForm.date}
-                    onChange={(e) => setAddForm({ ...addForm, date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                    placeholder="Ví dụ: 1500000"
+                    value={addForm.amount}
+                    onChange={(e) => setAddForm({ ...addForm, amount: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Danh mục</label>
-                  <select
-                    value={addForm.category}
-                    onChange={(e) => setAddForm({ ...addForm, category: e.target.value as TransactionCategory })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium text-slate-800"
-                  >
-                    {addForm.type === 'INCOME'
-                      ? INCOME_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {CATEGORY_LABELS[cat]}
-                          </option>
-                        ))
-                      : EXPENSE_CATEGORIES.map((cat) => (
-                          <option key={cat} value={cat}>
-                            {CATEGORY_LABELS[cat]}
-                          </option>
-                        ))}
-                  </select>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Diễn giải / Nội dung *</label>
+                  <textarea
+                    rows={2}
+                    required
+                    placeholder="Ghi rõ nội dung thu hoặc chi..."
+                    value={addForm.description}
+                    onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                  />
                 </div>
-              </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Số tiền (VNĐ) *</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="Ví dụ: 1500000"
-                  value={addForm.amount}
-                  onChange={(e) => setAddForm({ ...addForm, amount: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold text-slate-800"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1 uppercase tracking-wider">Diễn giải / Nội dung *</label>
-                <textarea
-                  rows={2}
-                  required
-                  placeholder="Ghi rõ nội dung thu hoặc chi..."
-                  value={addForm.description}
-                  onChange={(e) => setAddForm({ ...addForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="pt-3 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="w-1/2 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl transition-colors text-sm"
-                >
-                  Hủy bỏ
-                </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 text-sm"
-                >
-                  Lưu giao dịch
-                </button>
-              </div>
-            </form>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Lưu giao dịch tài chính
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
+
     </div>
   );
 }

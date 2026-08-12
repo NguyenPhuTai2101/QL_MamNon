@@ -213,7 +213,7 @@ export default function RegistrationPage() {
                         placeholder="Ví dụ: Nguyễn Văn Nam"
                         value={form.parentName}
                         onChange={(e) => setForm({ ...form, parentName: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                       />
                     </div>
 
@@ -225,7 +225,7 @@ export default function RegistrationPage() {
                         placeholder="0901234567"
                         value={form.phone}
                         onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                       />
                     </div>
                   </div>
@@ -237,7 +237,7 @@ export default function RegistrationPage() {
                       placeholder="phuhuynh@gmail.com"
                       value={form.email}
                       onChange={(e) => setForm({ ...form, email: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -257,7 +257,7 @@ export default function RegistrationPage() {
                         placeholder="Ví dụ: Nguyễn Minh Khang"
                         value={form.childName}
                         onChange={(e) => setForm({ ...form, childName: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                       />
                     </div>
 
@@ -266,7 +266,7 @@ export default function RegistrationPage() {
                       <select
                         value={form.ageGroup}
                         onChange={(e) => setForm({ ...form, ageGroup: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-bold text-slate-800"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-bold text-slate-800 transition-all shadow-sm"
                       >
                         <option value="18-36T">Nhà trẻ (18 - 36 tháng)</option>
                         <option value="3-4T">Lớp Mầm (3 - 4 tuổi)</option>
@@ -283,7 +283,7 @@ export default function RegistrationPage() {
                         type="date"
                         value={form.childBirthDate}
                         onChange={(e) => setForm({ ...form, childBirthDate: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                       />
                     </div>
 
@@ -293,7 +293,7 @@ export default function RegistrationPage() {
                         type="date"
                         value={form.desiredStartDate}
                         onChange={(e) => setForm({ ...form, desiredStartDate: e.target.value })}
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-medium"
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none font-medium transition-all shadow-sm"
                       />
                     </div>
                   </div>
@@ -305,7 +305,7 @@ export default function RegistrationPage() {
                       placeholder="Dặn dò về thói quen ăn uống, mong muốn đặc biệt khi gửi trẻ..."
                       value={form.notes}
                       onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none transition-all shadow-sm"
                     />
                   </div>
                 </div>

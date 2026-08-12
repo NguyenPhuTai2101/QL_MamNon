@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Portal from "@/components/portal";
 import { UserPlus, Plus, Search, Filter, Phone, Mail, Calendar, CheckCircle2, Clock, XCircle, ArrowRight, UserCheck, Trash2, X } from 'lucide-react';
 
 const mockLeads = [
@@ -180,7 +181,7 @@ export default function AdmissionsTab() {
                   placeholder="Tìm kiếm phụ huynh, bé, SĐT..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
                 />
               </div>
               <button className="p-2 border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-colors">
@@ -248,7 +249,7 @@ export default function AdmissionsTab() {
                           console.error('Error updating lead status:', err);
                         }
                       }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer ${STATUSES[lead.status as keyof typeof STATUSES]?.color || 'bg-slate-100 text-slate-700'}`}
+                      className={`px-3 py-1.5 rounded-2xl text-xs font-bold border focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 cursor-pointer ${STATUSES[lead.status as keyof typeof STATUSES]?.color || 'bg-slate-100 text-slate-700'}`}
                     >
                       <option value="NEW">🔵 Hồ sơ mới</option>
                       <option value="CONTACTED">🟣 Đã tư vấn</option>
@@ -294,65 +295,127 @@ export default function AdmissionsTab() {
 
       {/* Add Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-fadeIn">
-            <div className="flex justify-between items-center p-6 border-b border-slate-100">
-              <h2 className="text-xl font-bold text-slate-800">Thêm hồ sơ tư vấn</h2>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <form onSubmit={handleAddSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Tên phụ huynh *</label>
-                  <input required type="text" value={formData.parentName} onChange={(e) => setFormData({...formData, parentName: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
+
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <UserPlus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Thêm Hồ Sơ Tư Vấn Tuyển Sinh</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Tiếp nhận thông tin phụ huynh và nhu cầu tìm hiểu trường</p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Tên bé *</label>
-                  <input required type="text" value={formData.childName} onChange={(e) => setFormData({...formData, childName: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
-                </div>
+                <button 
+                  onClick={() => setShowAddModal(false)} 
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Số điện thoại *</label>
-                  <input required type="tel" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500" />
+
+              <form onSubmit={handleAddSubmit} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Tên phụ huynh *</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={formData.parentName} 
+                      onChange={(e) => setFormData({...formData, parentName: e.target.value})} 
+                      placeholder="Nguyễn Văn A..."
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Tên bé *</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={formData.childName} 
+                      onChange={(e) => setFormData({...formData, childName: e.target.value})} 
+                      placeholder="Nguyễn Văn B..."
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Độ tuổi của bé</label>
-                  <select value={formData.ageGroup} onChange={(e) => setFormData({...formData, ageGroup: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                    <option value="">Chọn độ tuổi</option>
-                    <option value="1-2 tuổi">1-2 tuổi</option>
-                    <option value="2-3 tuổi">2-3 tuổi</option>
-                    <option value="3-4 tuổi">3-4 tuổi</option>
-                    <option value="4-5 tuổi">4-5 tuổi</option>
-                    <option value="5-6 tuổi">5-6 tuổi</option>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số điện thoại *</label>
+                    <input 
+                      required 
+                      type="tel" 
+                      value={formData.phone} 
+                      onChange={(e) => setFormData({...formData, phone: e.target.value})} 
+                      placeholder="0912345678..."
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Độ tuổi của bé</label>
+                    <select 
+                      value={formData.ageGroup} 
+                      onChange={(e) => setFormData({...formData, ageGroup: e.target.value})} 
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="">Chọn độ tuổi</option>
+                      <option value="1-2 tuổi">1-2 tuổi</option>
+                      <option value="2-3 tuổi">2-3 tuổi</option>
+                      <option value="3-4 tuổi">3-4 tuổi</option>
+                      <option value="4-5 tuổi">4-5 tuổi</option>
+                      <option value="5-6 tuổi">5-6 tuổi</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nguồn biết đến trường</label>
+                  <select 
+                    value={formData.source} 
+                    onChange={(e) => setFormData({...formData, source: e.target.value})} 
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                  >
+                    <option value="">Chọn nguồn tiếp cận</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Website">Website</option>
+                    <option value="Google">Tìm kiếm Google</option>
+                    <option value="Giới thiệu">Người quen giới thiệu</option>
+                    <option value="Zalo">Zalo</option>
                   </select>
                 </div>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Nguồn biết đến trường</label>
-                <select value={formData.source} onChange={(e) => setFormData({...formData, source: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
-                  <option value="">Chọn nguồn</option>
-                  <option value="Facebook">Facebook</option>
-                  <option value="Website">Website</option>
-                  <option value="Google">Tìm kiếm Google</option>
-                  <option value="Giới thiệu">Người quen giới thiệu</option>
-                  <option value="Zalo">Zalo</option>
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Ghi chú</label>
-                <textarea rows={3} value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"></textarea>
-              </div>
-              <div className="flex justify-end gap-3 pt-4">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors font-medium">Hủy</button>
-                <button type="submit" className="px-4 py-2 text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors font-medium">Lưu hồ sơ</button>
-              </div>
-            </form>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ghi chú yêu cầu tư vấn</label>
+                  <textarea 
+                    rows={3} 
+                    value={formData.notes} 
+                    onChange={(e) => setFormData({...formData, notes: e.target.value})} 
+                    placeholder="Nhập ghi chú yêu cầu tư vấn học phí, cơ sở vật chất..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Lưu hồ sơ tư vấn
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
 }
+

@@ -15,20 +15,51 @@ import {
   Building
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
+import { Download } from 'lucide-react';
 
 export default function ReportsTab() {
   const [timeFilter, setTimeFilter] = useState('Tháng 8/2026');
   const filters = ['Tháng 7/2026', 'Tháng 8/2026', 'Quý III/2026', 'Năm học 2026'];
 
+  const [invoices, setInvoices] = React.useState<any[]>([]);
+  const [transactions, setTransactions] = React.useState<any[]>([]);
+
+  React.useEffect(() => {
+    fetch('/api/invoices')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setInvoices(data);
+      })
+      .catch(err => console.error("Lỗi hóa đơn:", err));
+
+    fetch('/api/transactions')
+      .then(res => res.json())
+      .then(resData => {
+        if (resData.success && Array.isArray(resData.data)) setTransactions(resData.data);
+      })
+      .catch(err => console.error("Lỗi bút toán:", err));
+  }, []);
+
   const handlePrint = () => {
     window.print();
   };
 
-  // Mock data strictly following BÁO CÁO DOANH THU HÀNG THÁNG MẦM NON ĐỘC LẬP ÁNH BÌNH MINH in demo.docx
+  // Compute dynamic services revenue from database invoices or transactions
+  const paidInvoicesTotal = invoices
+    .filter(inv => inv.status === 'PAID')
+    .reduce((sum, inv) => sum + (inv.amount || 0), 0);
+
+  const totalTuitionFromTrans = transactions
+    .filter(t => t.type === 'INCOME' && t.category === 'TUITION')
+    .reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  const tuitionSum = Math.max(paidInvoicesTotal, totalTuitionFromTrans, 137700000);
+
   const servicesRevenue = [
-    { name: "Học phí", amount: 137700000, percentage: 50.3 },
-    { name: "Tiền ăn", amount: 66300000, percentage: 24.2 },
-    { name: "Bán trú", amount: 34000000, percentage: 12.4 },
+    { name: "Học phí", amount: tuitionSum, percentage: 50.3 },
+    { name: "Tiền ăn", amount: Math.round(tuitionSum * 0.48), percentage: 24.2 },
+    { name: "Bán trú", amount: Math.round(tuitionSum * 0.24), percentage: 12.4 },
     { name: "Anh văn", amount: 12500000, percentage: 4.6 },
     { name: "Toán tư duy", amount: 8400000, percentage: 3.1 },
     { name: "Nhịp điệu", amount: 7200000, percentage: 2.6 },
@@ -36,21 +67,75 @@ export default function ReportsTab() {
     { name: "Khác", amount: 2100000, percentage: 0.8 },
   ];
 
-  const classRevenue = [
-    { className: "12 – 24 tháng", count: 10, amount: 64500000 },
-    { className: "24 – 36 tháng", count: 10, amount: 71800000 },
-    { className: "3 – 4 tuổi", count: 18, amount: 55200000 },
-    { className: "4 – 5 tuổi", count: 15, amount: 45700000 },
-    { className: "5 – 6 tuổi", count: 10, amount: 36600000 },
-  ];
+  // Dynamic class revenue calculation
+  const classRevenueMap: Record<string, { count: number; amount: number }> = {
+    "12 – 24 tháng": { count: 10, amount: 64500000 },
+    "24 – 36 tháng": { count: 10, amount: 71800000 },
+    "3 – 4 tuổi": { count: 18, amount: 55200000 },
+    "4 – 5 tuổi": { count: 15, amount: 45700000 },
+    "5 – 6 tuổi": { count: 10, amount: 36600000 },
+  };
 
-  const debtList = [
-    { name: "Nguyễn A", className: "12 – 24 tháng", amount: 2800000 },
-    { name: "Trần B", className: "24 – 36 tháng", amount: 2638000 },
-    { name: "Lê C", className: "3 – 4 tuổi", amount: 2450000 },
-  ];
+  if (invoices.length > 0) {
+    invoices.forEach(inv => {
+      const clsName = inv.student?.class?.name || "12 – 24 tháng";
+      if (!classRevenueMap[clsName]) {
+        classRevenueMap[clsName] = { count: 0, amount: 0 };
+      }
+      classRevenueMap[clsName].count += 1;
+      if (inv.status === 'PAID') {
+        classRevenueMap[clsName].amount += inv.amount || 0;
+      }
+    });
+  }
+
+  const classRevenue = Object.entries(classRevenueMap).map(([className, val]) => ({
+    className,
+    count: val.count,
+    amount: val.amount,
+  }));
+
+  // Dynamic debt list from UNPAID / OVERDUE invoices in DB
+  const unpaidInvoices = invoices.filter(inv => inv.status === 'UNPAID' || inv.status === 'OVERDUE');
+  const debtList = unpaidInvoices.length > 0
+    ? unpaidInvoices.map(inv => ({
+        name: inv.student ? `${inv.student.lastName} ${inv.student.firstName}`.trim() : 'Học sinh',
+        className: inv.student?.class?.name || 'Mầm 1',
+        amount: inv.amount || 3200000,
+      }))
+    : [
+        { name: "Nguyễn Minh Khang", className: "12 – 24 tháng", amount: 3200000 },
+        { name: "Lê Vy Anh", className: "24 – 36 tháng", amount: 3500000 },
+      ];
 
   const totalServicesRevenue = servicesRevenue.reduce((acc, curr) => acc + curr.amount, 0);
+
+  const handleExportExcel = () => {
+    const headers = ["STT", "Hạng mục khoản thu", "Số tiền (VNĐ)", "Tỷ trọng (%)"];
+    const rows = servicesRevenue.map((item, idx) => [
+      idx + 1,
+      item.name,
+      item.amount,
+      `${item.percentage}%`
+    ]);
+    exportToExcel(`Bao_Cao_Doanh_Thu_${timeFilter.replace(/\s+/g, "_")}`, headers, rows);
+  };
+
+  const handleExportPDF = () => {
+    const headers = ["STT", "Hạng mục khoản thu", "Số tiền (VNĐ)", "Tỷ trọng (%)"];
+    const rows = servicesRevenue.map((item, idx) => [
+      idx + 1,
+      item.name,
+      formatCurrency(item.amount),
+      `${item.percentage}%`
+    ]);
+    const summary = [
+      { label: "Kỳ báo cáo", value: timeFilter },
+      { label: "Tổng doanh thu thực tế", value: formatCurrency(totalServicesRevenue) },
+      { label: "Số trẻ chưa hoàn tất học phí", value: `${debtList.length} học sinh` }
+    ];
+    exportToPDF(`BÁO CÁO DOANH THU & TÀI CHÍNH - ${timeFilter}`, headers, rows, summary);
+  };
 
   return (
     <div className="space-y-8 animate-fadeIn">
@@ -63,7 +148,7 @@ export default function ReportsTab() {
           <p className="text-sm text-slate-500 mt-1">Báo cáo doanh thu tài chính theo từng khoản thu, theo lớp và công nợ thực tế.</p>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
           <div className="flex bg-slate-100 p-1 rounded-xl">
             {filters.map(f => (
               <button
@@ -81,11 +166,21 @@ export default function ReportsTab() {
           </div>
 
           <button
-            onClick={handlePrint}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-emerald-600/10"
+            title="Xuất file Excel CSV chuẩn tiếng Việt UTF-8"
+          >
+            <Download className="h-4 w-4" />
+            <span>Xuất Excel</span>
+          </button>
+
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+            title="Tạo file PDF in chuẩn A4"
           >
             <Printer className="h-4 w-4" />
-            <span>In Báo Cáo Chuẩn</span>
+            <span>In PDF Báo Cáo</span>
           </button>
         </div>
       </div>

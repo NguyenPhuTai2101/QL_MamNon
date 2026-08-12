@@ -1,107 +1,101 @@
 import { NextResponse } from 'next/server';
-
-let evaluations = [
-  {
-    id: '1',
-    staffId: 'STF001',
-    staffName: 'Nguyễn Thị Hoa',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 38,
-    feedbackPts: 28,
-    totalScore: 96,
-    rank: 'EXCELLENT',
-    notes: 'Hoàn thành xuất sắc nhiệm vụ, được phụ huynh khen ngợi.'
-  },
-  {
-    id: '2',
-    staffId: 'STF002',
-    staffName: 'Trần Văn An',
-    month: '2026-08',
-    attendancePts: 28,
-    teachingPts: 35,
-    feedbackPts: 25,
-    totalScore: 88,
-    rank: 'GOOD',
-    notes: 'Giảng dạy tốt, cần cải thiện tương tác phụ huynh.'
-  },
-  {
-    id: '3',
-    staffId: 'STF003',
-    staffName: 'Lê Thu Hương',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 39,
-    feedbackPts: 29,
-    totalScore: 98,
-    rank: 'EXCELLENT',
-    notes: 'Giáo án sáng tạo, luôn đi làm đúng giờ.'
-  },
-  {
-    id: '4',
-    staffId: 'STF004',
-    staffName: 'Phạm Minh Đức',
-    month: '2026-08',
-    attendancePts: 25,
-    teachingPts: 30,
-    feedbackPts: 20,
-    totalScore: 75,
-    rank: 'FAIR',
-    notes: 'Thường xuyên đi muộn, cần chú ý giờ giấc.'
-  },
-  {
-    id: '5',
-    staffId: 'STF005',
-    staffName: 'Hoàng Thị Lan',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 36,
-    feedbackPts: 26,
-    totalScore: 92,
-    rank: 'GOOD',
-    notes: 'Hoàn thành tốt nhiệm vụ.'
-  },
-  {
-    id: '6',
-    staffId: 'STF006',
-    staffName: 'Vũ Ngọc Hùng',
-    month: '2026-08',
-    attendancePts: 20,
-    teachingPts: 25,
-    feedbackPts: 15,
-    totalScore: 60,
-    rank: 'POOR',
-    notes: 'Nhiều phụ huynh phàn nàn, cần họp nhắc nhở.'
-  }
-];
+import { prisma } from '@/lib/prisma';
 
 export async function GET(request: Request) {
-  return NextResponse.json({
-    success: true,
-    data: evaluations,
-    total: evaluations.length
-  });
+  try {
+    const { searchParams } = new URL(request.url);
+    const month = searchParams.get('month');
+
+    const evaluations = await prisma.evaluation.findMany({
+      where: {
+        ...(month ? { month } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: evaluations,
+      total: evaluations.length
+    });
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: 'Lỗi khi tải kết quả đánh giá nhân sự',
+      details: error.message
+    }, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const newEvaluation = {
-      id: Math.random().toString(36).substring(7),
-      ...body,
-      totalScore: Number(body.attendancePts || 0) + Number(body.teachingPts || 0) + Number(body.feedbackPts || 0)
-    };
-    evaluations.push(newEvaluation);
-    
+    const { staffId, staffName, month, attendancePts, teachingPts, feedbackPts, rank, notes } = body;
+
+    if (!staffName || !month) {
+      return NextResponse.json({
+        success: false,
+        message: 'Thiếu tên nhân viên hoặc tháng đánh giá'
+      }, { status: 400 });
+    }
+
+    const att = Number(attendancePts || 0);
+    const teach = Number(teachingPts || 0);
+    const fb = Number(feedbackPts || 0);
+    const totalScore = att + teach + fb;
+
+    let computedRank = rank;
+    if (!computedRank) {
+      if (totalScore >= 90) computedRank = 'EXCELLENT';
+      else if (totalScore >= 80) computedRank = 'GOOD';
+      else if (totalScore >= 70) computedRank = 'FAIR';
+      else computedRank = 'POOR';
+    }
+
+    const newEvaluation = await prisma.evaluation.create({
+      data: {
+        staffId: staffId || `STF-${Date.now().toString().slice(-4)}`,
+        staffName,
+        month: month || '2026-08',
+        attendancePts: att,
+        teachingPts: teach,
+        feedbackPts: fb,
+        score: totalScore,
+        rank: computedRank,
+        notes: notes || null,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       data: newEvaluation,
-      message: 'Đã lưu kết quả đánh giá'
+      message: 'Đã lưu kết quả đánh giá vào CSDL'
     }, { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json({
       success: false,
-      message: 'Lỗi khi lưu kết quả đánh giá'
-    }, { status: 400 });
+      message: 'Lỗi khi lưu kết quả đánh giá vào CSDL',
+      details: error.message
+    }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Thiếu ID kết quả đánh giá' }, { status: 400 });
+    }
+
+    await prisma.evaluation.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Đã xóa kết quả đánh giá khỏi CSDL' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: 'Không thể xóa kết quả đánh giá', details: error.message }, { status: 500 });
+  }
+}
+

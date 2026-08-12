@@ -130,7 +130,7 @@ model IngredientCost {
 // ===== PHASE 7: QUẢN LÝ CHUYÊN SÂU =====
 
 model Staff {
-  id            String   @id @default(uuid())
+  id            String       @id @default(uuid())
   fullName      String
   phone         String
   email         String?
@@ -141,6 +141,7 @@ model Staff {
   assignedClass String?  // Lớp được phân công phụ trách
   salary        Float?   // Mức lương (VNĐ)
   notes         String?
+  evaluations   Evaluation[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -174,22 +175,25 @@ model Event {
 // ===== PHASE 8: QUẢN LÝ NÂNG CAO BAN GIÁM HIỆU =====
 
 model Asset {
-  id          String   @id @default(uuid())
-  code        String   @unique // Mã tài sản (VD: TS-001)
-  name        String   // Tên tài sản (Máy chiếu, Máy điều hòa, Bàn ghế...)
-  category    String   // ELECTRONIC (Điện tử), FURNITURE (Bàn ghế), TOY (Đồ chơi), KITCHEN (Bếp), OTHER
-  location    String   // Phòng/Lớp phân bổ (Lớp Mầm 1, Bếp, Hội trường...)
-  quantity    Int      @default(1)
-  status      String   @default("GOOD") // GOOD (Tốt), MAINTENANCE (Bảo trì), BROKEN (Hỏng)
-  unitPrice   Float?
-  purchaseDate DateTime?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String               @id @default(uuid())
+  code                String               @unique // Mã tài sản (VD: TS-001)
+  name                String               // Tên tài sản (Máy chiếu, Máy điều hòa, Bàn ghế...)
+  category            String               // ELECTRONIC (Điện tử), FURNITURE (Bàn ghế), TOY (Đồ chơi), KITCHEN (Bếp), OTHER
+  location            String               // Phòng/Lớp phân bổ (Lớp Mầm 1, Bếp, Hội trường...)
+  quantity            Int                  @default(1)
+  status              String               @default("GOOD") // GOOD (Tốt), MAINTENANCE (Bảo trì), BROKEN (Hỏng)
+  unitPrice           Float?
+  purchaseDate        DateTime?
+  notes               String?
+  maintenanceRequests MaintenanceRequest[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
 }
 
 model MaintenanceRequest {
   id          String   @id @default(uuid())
+  assetId     String?
+  asset       Asset?   @relation(fields: [assetId], references: [id], onDelete: SetNull)
   assetName   String
   location    String
   issue       String   // Mô tả hỏng hóc/sự cố
@@ -217,7 +221,8 @@ model Lead {
 
 model Evaluation {
   id            String   @id @default(uuid())
-  staffId       String
+  staffId       String?
+  staff         Staff?   @relation(fields: [staffId], references: [id], onDelete: SetNull)
   staffName     String
   month         String   // YYYY-MM
   score         Float    // Điểm đánh giá (0-100)

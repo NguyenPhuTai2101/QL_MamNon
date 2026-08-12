@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Portal from "@/components/portal";
 import { 
   Award, Plus, Search, Filter, Star, CheckCircle2, 
   Trophy, Medal, AlertCircle, Trash2, X, TrendingUp, Calendar
@@ -95,17 +96,49 @@ const mockEvaluations: Evaluation[] = [
 ];
 
 export default function EvaluationsTab() {
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('2026-08');
   const [selectedRank, setSelectedRank] = useState<string>('ALL');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const filteredEvaluations = mockEvaluations.filter(evalItem => {
+  const loadEvaluations = () => {
+    setLoading(true);
+    fetch(`/api/evaluations?month=${selectedMonth}`)
+      .then((res) => res.json())
+      .then((resData) => {
+        if (resData.success && Array.isArray(resData.data)) {
+          const mapped: Evaluation[] = resData.data.map((item: any) => ({
+            id: item.id,
+            staffId: item.staffId || 'STF-001',
+            staffName: item.staffName,
+            month: item.month,
+            attendancePts: item.attendancePts || 0,
+            teachingPts: item.teachingPts || 0,
+            feedbackPts: item.feedbackPts || 0,
+            totalScore: item.score || item.totalScore || 0,
+            rank: item.rank as any,
+            notes: item.notes || '',
+          }));
+          setEvaluations(mapped);
+        }
+      })
+      .catch((err) => console.error("Lỗi khi tải kết quả đánh giá:", err))
+      .finally(() => setLoading(false));
+  };
+
+  React.useEffect(() => {
+    loadEvaluations();
+  }, [selectedMonth]);
+
+  const filteredEvaluations = evaluations.filter(evalItem => {
     const matchesSearch = evalItem.staffName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesMonth = evalItem.month === selectedMonth;
+    const matchesMonth = !selectedMonth || evalItem.month === selectedMonth;
     const matchesRank = selectedRank === 'ALL' || evalItem.rank === selectedRank;
     return matchesSearch && matchesMonth && matchesRank;
   });
+
 
   const getRankBadge = (rank: string) => {
     switch (rank) {
@@ -208,7 +241,7 @@ export default function EvaluationsTab() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Tìm kiếm giáo viên..."
-                className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                className="w-full pl-10 pr-4 py-2 bg-white text-slate-900 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
               />
             </div>
             <div className="flex gap-2 w-full sm:w-auto">
@@ -220,7 +253,7 @@ export default function EvaluationsTab() {
                   type="month"
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all"
+                  className="w-full pl-9 pr-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
                 />
               </div>
             </div>
@@ -343,92 +376,107 @@ export default function EvaluationsTab() {
 
       {/* Add Evaluation Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-2xl w-full max-w-lg overflow-hidden shadow-xl">
-            <div className="flex items-center justify-between p-5 border-b border-slate-100">
-              <h3 className="text-lg font-semibold text-slate-800">Thêm đánh giá mới</h3>
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Giáo viên</label>
-                  <select className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none">
-                    <option value="">Chọn giáo viên</option>
-                    <option value="STF001">Nguyễn Thị Hoa</option>
-                    <option value="STF002">Trần Văn An</option>
-                  </select>
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
+
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                    <Award className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Thêm Đánh Giá Nhân Sự Mới</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Chấm điểm chuyên cần, giảng dạy và phản hồi phụ huynh</p>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Tháng đánh giá</label>
+                <button 
+                  onClick={() => setShowAddModal(false)}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setShowAddModal(false);
+                loadEvaluations();
+              }} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Giáo viên</label>
+                    <select className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer">
+                      <option value="">Chọn giáo viên</option>
+                      <option value="STF001">Nguyễn Thị Hương</option>
+                      <option value="STF002">Phạm Thị Hoa</option>
+                      <option value="STF003">Lê Thị Lan</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Tháng đánh giá</label>
+                    <input 
+                      type="month" 
+                      defaultValue="2026-08"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Điểm chuyên cần (Tối đa 30)</label>
                   <input 
-                    type="month" 
-                    defaultValue="2026-08"
-                    className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+                    type="number" 
+                    min="0" max="30" defaultValue="30"
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
                   />
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Điểm chuyên cần (Tối đa 30)</label>
-                <input 
-                  type="number" 
-                  min="0" max="30"
-                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Điểm giảng dạy (Tối đa 40)</label>
+                  <input 
+                    type="number" 
+                    min="0" max="40" defaultValue="38"
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Điểm giảng dạy (Tối đa 40)</label>
-                <input 
-                  type="number" 
-                  min="0" max="40"
-                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Điểm phản hồi PH (Tối đa 30)</label>
+                  <input 
+                    type="number" 
+                    min="0" max="30" defaultValue="28"
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                  />
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Điểm phản hồi PH (Tối đa 30)</label>
-                <input 
-                  type="number" 
-                  min="0" max="30"
-                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-                />
-              </div>
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nhận xét chi tiết</label>
+                  <textarea 
+                    rows={3}
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                    placeholder="Nhập nhận xét chi tiết..."
+                  ></textarea>
+                </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Nhận xét</label>
-                <textarea 
-                  rows={3}
-                  className="w-full px-3 py-2 bg-white text-slate-900 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none resize-none"
-                  placeholder="Nhập nhận xét..."
-                ></textarea>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-100 bg-slate-50">
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="px-4 py-2 text-slate-600 font-medium hover:bg-slate-200 rounded-xl transition-colors"
-              >
-                Hủy
-              </button>
-              <button 
-                className="px-4 py-2 bg-indigo-600 text-white font-medium hover:bg-indigo-700 rounded-xl transition-colors shadow-sm"
-                onClick={() => setShowAddModal(false)}
-              >
-                Lưu đánh giá
-              </button>
+                <div className="pt-2">
+                  <button 
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Award className="w-4 h-4" />
+                    Lưu kết quả đánh giá
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
-        </div>
+        </Portal>
       )}
+
     </div>
   );
 }
+

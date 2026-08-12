@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Portal from "@/components/portal";
 import { 
   HeartPulse, 
   Activity, 
@@ -13,7 +14,8 @@ import {
   Moon, 
   Utensils, 
   Award,
-  Save
+  Save,
+  X
 } from "lucide-react";
 
 interface StudentHealth {
@@ -36,77 +38,64 @@ export default function HealthTab() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentHealth | null>(null);
   const [saveNotification, setSaveNotification] = useState(false);
+  const [records, setRecords] = useState<StudentHealth[]>([]);
+  const [availableClasses, setAvailableClasses] = useState<string[]>(["Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"]);
 
-  const availableClasses = ["Mầm 1", "Chồi 1", "Chồi 2", "Lá 1"];
+  // Tải danh sách Lớp học và Hồ sơ sức khỏe từ CSDL
+  const loadHealthData = () => {
+    fetch("/api/classes")
+      .then((res) => res.json())
+      .then((classes) => {
+        if (Array.isArray(classes) && classes.length > 0) {
+          const names = classes.map((c: any) => c.name);
+          setAvailableClasses(names);
+          if (!names.includes(selectedClass)) setSelectedClass(names[0]);
+        }
+      })
+      .catch((e) => console.error("Lỗi lớp học:", e));
 
-  // Mock initial dataset for health records & digital diary
-  const [records, setRecords] = useState<StudentHealth[]>([
-    {
-      id: "1",
-      name: "Nguyễn Minh Khang",
-      className: "Mầm 1",
-      heightCm: 98,
-      weightKg: 15.2,
-      allergies: "Dị ứng hải sản (tôm, cua)",
-      bloodType: "O+",
-      napTime: "2 tiếng 15 phút",
-      mealRating: "EXCELLENT",
-      starsCount: 5,
-      teacherNote: "Khang hôm nay rất ngoan, tự giác ăn hết suất và hăng hái phát biểu.",
-    },
-    {
-      id: "4",
-      name: "Phạm Mai Chi",
-      className: "Mầm 1",
-      heightCm: 96,
-      weightKg: 14.5,
-      allergies: "Không có",
-      bloodType: "A+",
-      napTime: "2 tiếng",
-      mealRating: "EXCELLENT",
-      starsCount: 5,
-      teacherNote: "Bé Chi ngoan, múa hát rất đẹp cùng các bạn.",
-    },
-    {
-      id: "6",
-      name: "Trần Đức Anh",
-      className: "Mầm 1",
-      heightCm: 101,
-      weightKg: 16.0,
-      allergies: "Nhạy cảm với bụi mịn",
-      bloodType: "B+",
-      napTime: "1 tiếng 45 phút",
-      mealRating: "GOOD",
-      starsCount: 4,
-      teacherNote: "Đức Anh hơi ho nhẹ buổi sáng, đã cho bé uống nước ấm.",
-    },
-    {
-      id: "2",
-      name: "Lê Vy Anh",
-      className: "Chồi 1",
-      heightCm: 106,
-      weightKg: 17.8,
-      allergies: "Dị ứng đậu phụng",
-      bloodType: "AB+",
-      napTime: "2 tiếng",
-      mealRating: "EXCELLENT",
-      starsCount: 5,
-      teacherNote: "Bé Vy Anh chơi hòa đồng với các bạn trong giờ vẽ tranh.",
-    },
-    {
-      id: "3",
-      name: "Trần Bảo Nam",
-      className: "Lá 1",
-      heightCm: 114,
-      weightKg: 20.5,
-      allergies: "Không có",
-      bloodType: "O+",
-      napTime: "2 tiếng 30 phút",
-      mealRating: "EXCELLENT",
-      starsCount: 5,
-      teacherNote: "Bảo Nam là lớp trưởng gương mẫu, giúp cô xếp lại đồ chơi.",
-    },
-  ]);
+    fetch("/api/students")
+      .then((res) => res.json())
+      .then((dbStudents) => {
+        if (Array.isArray(dbStudents)) {
+          fetch("/api/health")
+            .then((res) => res.json())
+            .then((dbHealth) => {
+              const healthMap: Record<string, any> = {};
+              if (Array.isArray(dbHealth)) {
+                dbHealth.forEach((h: any) => {
+                  healthMap[h.studentId] = h;
+                });
+              }
+
+              const list: StudentHealth[] = dbStudents.map((st: any) => {
+                const h = healthMap[st.id] || {};
+                return {
+                  id: st.id,
+                  name: `${st.lastName} ${st.firstName}`.trim(),
+                  className: st.class?.name || st.className || "Mầm 1",
+                  heightCm: h.heightCm || 100,
+                  weightKg: h.weightKg || 16,
+                  allergies: h.allergies || "Không có",
+                  bloodType: h.bloodType || "O+",
+                  napTime: "2 tiếng",
+                  mealRating: "EXCELLENT",
+                  starsCount: 5,
+                  teacherNote: h.notes || "Sức khỏe bình thường, sinh hoạt tốt.",
+                };
+              });
+
+              setRecords(list);
+            });
+        }
+      })
+      .catch((err) => console.error("Lỗi tải hồ sơ sức khỏe:", err));
+  };
+
+  React.useEffect(() => {
+    loadHealthData();
+  }, []);
+
 
   // Filter students based on Class and Search Query
   const filteredStudents = records.filter(
@@ -186,7 +175,7 @@ export default function HealthTab() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Tìm tên bé..."
-          className="w-full sm:w-64 px-3.5 py-2 border border-slate-200 bg-white text-slate-900 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+          className="w-full sm:w-64 px-3.5 py-2 border border-slate-200 bg-white text-slate-900 rounded-2xl text-xs focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-medium transition-all"
         />
       </div>
 
@@ -285,114 +274,116 @@ export default function HealthTab() {
 
       {/* Edit Health Record Modal */}
       {showEditModal && selectedStudent && (
-        <div className="fixed inset-0 z-50 bg-slate-900/35 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl space-y-6 relative border border-slate-100 overflow-hidden">
-            {/* Top Ribbon */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500" />
+        <Portal>
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+              {/* Top Ribbon Accent */}
+              <div className="h-2 w-full bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-500 shrink-0" />
 
-            <div className="flex justify-between items-start pt-2">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-gradient-to-tr from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/30">
-                  <HeartPulse className="w-6 h-6" />
+              <div className="flex justify-between items-start p-6 pb-4 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-gradient-to-tr from-emerald-500 to-teal-600 text-white rounded-2xl shadow-md shadow-emerald-500/30">
+                    <HeartPulse className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Cập nhật Sức khỏe & Bé ngoan</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">{selectedStudent.name} - Lớp {selectedStudent.className}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800 leading-tight">Cập nhật Sức khỏe & Bé ngoan</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">{selectedStudent.name} - Lớp {selectedStudent.className}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowEditModal(false)} 
-                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveStudentHealth} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Chiều cao (cm)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.5"
-                    value={selectedStudent.heightCm}
-                    onChange={(e) => setSelectedStudent({ ...selectedStudent, heightCm: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Cân nặng (kg)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.1"
-                    value={selectedStudent.weightKg}
-                    onChange={(e) => setSelectedStudent({ ...selectedStudent, weightKg: Number(e.target.value) })}
-                    className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Cảnh báo dị ứng thực phẩm / thuốc</label>
-                <input 
-                  type="text" 
-                  value={selectedStudent.allergies}
-                  onChange={(e) => setSelectedStudent({ ...selectedStudent, allergies: e.target.value })}
-                  placeholder="Ví dụ: Dị ứng hải sản, dị ứng đậu phụng..."
-                  className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold transition-all"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Giờ ngủ trưa</label>
-                  <input 
-                    type="text" 
-                    value={selectedStudent.napTime}
-                    onChange={(e) => setSelectedStudent({ ...selectedStudent, napTime: e.target.value })}
-                    placeholder="2 tiếng..."
-                    className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold transition-all"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Đánh giá Sao Bé ngoan</label>
-                  <select 
-                    value={selectedStudent.starsCount}
-                    onChange={(e) => setSelectedStudent({ ...selectedStudent, starsCount: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold cursor-pointer"
-                  >
-                    <option value={5}>⭐⭐⭐⭐⭐ (Xuất sắc)</option>
-                    <option value={4}>⭐⭐⭐⭐ (Rất ngoan)</option>
-                    <option value={3}>⭐⭐⭐ (Khá ngoan)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5 uppercase tracking-wider">Nhận xét của giáo viên chủ nhiệm</label>
-                <textarea 
-                  rows={3}
-                  value={selectedStudent.teacherNote}
-                  onChange={(e) => setSelectedStudent({ ...selectedStudent, teacherNote: e.target.value })}
-                  placeholder="Nhập nhận xét ngày cho phụ huynh..."
-                  className="w-full px-4 py-2.5 border border-slate-200 bg-slate-50 text-slate-900 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm font-semibold transition-all"
-                />
-              </div>
-
-              <div className="pt-2">
                 <button 
-                  type="submit"
-                  className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 text-sm"
+                  onClick={() => setShowEditModal(false)} 
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
                 >
-                  <Save className="w-4 h-4" />
-                  Lưu nhật ký Sổ Bé Ngoan
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSaveStudentHealth} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Chiều cao (cm)</label>
+                    <input 
+                      type="number" 
+                      required
+                      step="0.5"
+                      value={selectedStudent.heightCm}
+                      onChange={(e) => setSelectedStudent({ ...selectedStudent, heightCm: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Cân nặng (kg)</label>
+                    <input 
+                      type="number" 
+                      required
+                      step="0.1"
+                      value={selectedStudent.weightKg}
+                      onChange={(e) => setSelectedStudent({ ...selectedStudent, weightKg: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Cảnh báo dị ứng thực phẩm / thuốc</label>
+                  <input 
+                    type="text" 
+                    value={selectedStudent.allergies}
+                    onChange={(e) => setSelectedStudent({ ...selectedStudent, allergies: e.target.value })}
+                    placeholder="Ví dụ: Dị ứng hải sản, dị ứng đậu phụng..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Giờ ngủ trưa</label>
+                    <input 
+                      type="text" 
+                      value={selectedStudent.napTime}
+                      onChange={(e) => setSelectedStudent({ ...selectedStudent, napTime: e.target.value })}
+                      placeholder="2 tiếng..."
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Đánh giá Sao Bé ngoan</label>
+                    <select 
+                      value={selectedStudent.starsCount}
+                      onChange={(e) => setSelectedStudent({ ...selectedStudent, starsCount: Number(e.target.value) })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value={5}>⭐⭐⭐⭐⭐ (Xuất sắc)</option>
+                      <option value={4}>⭐⭐⭐⭐ (Rất ngoan)</option>
+                      <option value={3}>⭐⭐⭐ (Khá ngoan)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nhận xét của giáo viên chủ nhiệm</label>
+                  <textarea 
+                    rows={3}
+                    value={selectedStudent.teacherNote}
+                    onChange={(e) => setSelectedStudent({ ...selectedStudent, teacherNote: e.target.value })}
+                    placeholder="Nhập nhận xét ngày cho phụ huynh..."
+                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
+                  />
+                </div>
+
+                <div className="pt-2">
+                  <button 
+                    type="submit"
+                    className="w-full bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-emerald-500/25 flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Save className="w-4 h-4" />
+                    Lưu nhật ký Sổ Bé Ngoan
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Portal>
       )}
     </div>
   );
