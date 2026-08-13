@@ -90,7 +90,7 @@ export function exportToPDF(
 
       <div class="header">
         <div class="school-info">
-          <div class="school-name">TRƯỜNG MẦM NON HOÀNG GIA</div>
+          <div class="school-name">TRƯỜNG MẦM NON</div>
           <div class="school-sub">Hệ thống Quản lý ERP Mầm Non Chuyên Nghiệp</div>
         </div>
         <div style="text-align: right; font-size: 12px; color: #64748b;">
