@@ -17,9 +17,13 @@ import {
   X,
   Users,
   Calendar,
-  DollarSign
+  DollarSign,
+  FileSpreadsheet,
+  Printer,
+  Clock
 } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
 
 type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
 type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
@@ -67,13 +71,13 @@ const STATUS_MAP: Record<Status, { label: string; color: string }> = {
 };
 
 export default function StaffTab() {
+  const [activeSubTab, setActiveSubTab] = useState<'PROFILE' | 'SALARY'>('PROFILE');
   const [staffList, setStaffList] = useState<Staff[]>(mockData);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
 
-  // Tải danh sách Nhân viên trực tiếp từ Supabase PostgreSQL CSDL
   useEffect(() => {
     fetch('/api/staff')
       .then((res) => res.json())
@@ -186,7 +190,6 @@ export default function StaffTab() {
 
     try {
       if (editingStaffId) {
-        // CẬP NHẬT NHÂN VIÊN ĐÃ TỒN TẠI
         setStaffList(
           staffList.map((item) =>
             item.id === editingStaffId ? ({ ...item, ...formData } as Staff) : item
@@ -200,7 +203,6 @@ export default function StaffTab() {
           body: JSON.stringify({ id: editingStaffId, ...formData }),
         });
       } else {
-        // THÊM NHÂN VIÊN MỚI
         const newStaff: Staff = {
           ...formData,
           id: Date.now().toString(),
@@ -242,7 +244,88 @@ export default function StaffTab() {
     return matchesSearch && matchesPosition;
   });
 
-  // Calculate statistics
+  const handleExportExcel = () => {
+    if (activeSubTab === 'PROFILE') {
+      const headers = ['Họ và tên', 'Ngày sinh', 'Số CCCD', 'Chức vụ', 'SĐT', 'Email', 'Chuyên môn', 'Bằng cấp', 'Lớp phụ trách', 'Ngày vào làm', 'Trạng thái'];
+      const rows = filteredStaff.map((s) => [
+        s.fullName,
+        s.dob || '',
+        s.cccd || '',
+        POSITION_MAP[s.position].label,
+        s.phone,
+        s.email,
+        s.specialty || '',
+        s.degree,
+        s.assignedClass || 'Không',
+        s.startDate,
+        STATUS_MAP[s.status].label,
+      ]);
+      exportToExcel('Danh_Sach_Ho_So_Giao_Vien', headers, rows);
+    } else {
+      const headers = ['Họ và tên', 'Chức vụ', 'SĐT', 'Số ngày công', 'Số ngày nghỉ phép', 'Mức lương cơ bản (VNĐ)', 'Lương thực nhận ước tính (VNĐ)', 'Ghi chú'];
+      const rows = filteredStaff.map((s) => {
+        const estSalary = Math.round((s.salary || 0) * ((s.workDays ?? 26) / 26));
+        return [
+          s.fullName,
+          POSITION_MAP[s.position].label,
+          s.phone,
+          s.workDays ?? 26,
+          s.leaveDays ?? 0,
+          s.salary,
+          estSalary,
+          s.notes || '',
+        ];
+      });
+      exportToExcel('Bang_Theo_Doi_Ngay_Cong_Va_Luong', headers, rows);
+    }
+  };
+
+  const handleExportPDF = () => {
+    if (activeSubTab === 'PROFILE') {
+      const headers = ['STT', 'Họ và tên', 'Ngày sinh', 'CCCD', 'Chức vụ', 'SĐT', 'Bằng cấp & Chuyên môn', 'Phụ trách', 'Trạng thái'];
+      const rows = filteredStaff.map((s, idx) => [
+        idx + 1,
+        s.fullName,
+        s.dob || '—',
+        s.cccd || '—',
+        POSITION_MAP[s.position].label,
+        s.phone,
+        `${s.degree} (${s.specialty || 'Sư phạm'})`,
+        s.assignedClass ? `Lớp ${s.assignedClass}` : '—',
+        STATUS_MAP[s.status].label,
+      ]);
+      const summary = [
+        { label: 'Tổng số nhân sự', value: `${staffList.length} người` },
+        { label: 'Giáo viên đang đứng lớp', value: `${activeTeachers} cô` },
+        { label: 'Đang nghỉ phép', value: `${onLeaveCount} người` },
+      ];
+      exportToPDF('BÁO CÁO HỒ SƠ & TRÌNH ĐỘ GIÁO VIÊN - NHÂN SỰ', headers, rows, summary);
+    } else {
+      const headers = ['STT', 'Họ và tên', 'Chức vụ', 'SĐT', 'Ngày công', 'Nghỉ phép', 'Lương cơ bản', 'Thực nhận ước tính', 'Ghi chú'];
+      const rows = filteredStaff.map((s, idx) => {
+        const estSalary = Math.round((s.salary || 0) * ((s.workDays ?? 26) / 26));
+        return [
+          idx + 1,
+          s.fullName,
+          POSITION_MAP[s.position].label,
+          s.phone,
+          `${s.workDays ?? 26}/26 ngày`,
+          `${s.leaveDays ?? 0} ngày`,
+          formatCurrency(s.salary),
+          formatCurrency(estSalary),
+          s.notes || '—',
+        ];
+      });
+      const totalEstSalary = filteredStaff.reduce((sum, s) => sum + Math.round((s.salary || 0) * ((s.workDays ?? 26) / 26)), 0);
+      const summary = [
+        { label: 'Tổng số nhân sự theo dõi', value: `${filteredStaff.length} người` },
+        { label: 'Tổng quỹ lương định mức', value: formatCurrency(totalSalary) },
+        { label: 'Tổng quỹ lương thực nhận ước tính', value: formatCurrency(totalEstSalary) },
+      ];
+      exportToPDF('BẢNG BÁO CÁO THEO DÕI NGÀY CÔNG & CHẤM LƯƠNG NHÂN SỰ', headers, rows, summary);
+    }
+  };
+
   const totalStaff = staffList.length;
   const activeTeachers = staffList.filter((s) => s.position === 'TEACHER' && s.status === 'ACTIVE').length;
   const onLeaveCount = staffList.filter((s) => s.status === 'ON_LEAVE').length;
@@ -250,13 +333,15 @@ export default function StaffTab() {
     .filter((s) => s.status === 'ACTIVE')
     .reduce((acc, curr) => acc + (curr.salary || 0), 0);
 
+  const totalWorkDays = staffList.reduce((acc, curr) => acc + (curr.workDays ?? 26), 0);
+  const avgWorkDays = Math.round(totalWorkDays / (totalStaff || 1));
+
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Header controls */}
+    <div className="space-y-6 animate-fadeIn">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Quản lý Giáo viên & Nhân sự</h2>
-          <p className="text-sm text-slate-500 mt-1">Quản lý danh sách nhân viên, gán lớp phụ trách, mức lương và trạng thái làm việc.</p>
+          <p className="text-sm text-slate-500 mt-1">Quản lý danh sách hồ sơ chuyên môn, phân công giảng dạy, theo dõi ngày công và bảng lương.</p>
         </div>
 
         <button 
@@ -268,236 +353,440 @@ export default function StaffTab() {
         </button>
       </div>
 
-      {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng nhân sự</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{totalStaff} <span className="text-sm font-medium text-slate-500">người</span></h3>
-            </div>
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
-              <Users className="w-5 h-5" />
-            </div>
-          </div>
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-3 gap-4">
+        <div className="flex items-center gap-2 bg-slate-100/90 p-1.5 rounded-2xl shrink-0">
+          <button
+            onClick={() => setActiveSubTab('PROFILE')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              activeSubTab === 'PROFILE'
+                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <Users className="w-4 h-4" />
+            1. Hồ Sơ & Chuyên Môn ({staffList.length})
+          </button>
+
+          <button
+            onClick={() => setActiveSubTab('SALARY')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              activeSubTab === 'SALARY'
+                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            }`}
+          >
+            <DollarSign className="w-4 h-4" />
+            2. Theo Dõi Ngày Công & Lương ({staffList.length})
+          </button>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">GV Đứng lớp</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{activeTeachers} <span className="text-sm font-medium text-slate-500">cô</span></h3>
-            </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
-              <GraduationCap className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
+        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+          <button
+            onClick={handleExportExcel}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-extrabold transition-all border border-emerald-200/80 cursor-pointer shadow-sm"
+            title="Xuất CSV Excel"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5" />
+            Xuất Excel
+          </button>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-amber-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Đang nghỉ phép</p>
-              <h3 className="text-2xl font-bold text-amber-600 mt-1">{onLeaveCount} <span className="text-sm font-medium text-slate-500">người</span></h3>
-            </div>
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-purple-500" />
-          <div className="flex justify-between items-start">
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quỹ lương tháng</p>
-              <h3 className="text-xl font-bold text-slate-800 mt-1">{formatCurrency(totalSalary)}</h3>
-            </div>
-            <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-extrabold transition-all border border-indigo-200/80 cursor-pointer shadow-sm"
+            title="In báo cáo PDF"
+          >
+            <Printer className="w-3.5 h-3.5" />
+            In PDF
+          </button>
         </div>
       </div>
 
-      {/* Staff Table UI-UX PRO MAX */}
-      <div className="table-pro-container">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
-          <div className="relative w-full sm:w-80">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Tìm tên, SĐT, email nhân sự..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-slate-800 transition-all"
-            />
+      {activeSubTab === 'PROFILE' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng nhân sự</p>
+                  <h3 className="text-2xl font-bold text-slate-800 mt-1">{totalStaff} <span className="text-sm font-medium text-slate-500">người</span></h3>
+                </div>
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <Users className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">GV Đứng lớp</p>
+                  <h3 className="text-2xl font-bold text-slate-800 mt-1">{activeTeachers} <span className="text-sm font-medium text-slate-500">cô</span></h3>
+                </div>
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <GraduationCap className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-amber-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Đang nghỉ phép</p>
+                  <h3 className="text-2xl font-bold text-amber-600 mt-1">{onLeaveCount} <span className="text-sm font-medium text-slate-500">người</span></h3>
+                </div>
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                  <Calendar className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-purple-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Đang làm việc</p>
+                  <h3 className="text-2xl font-bold text-purple-700 mt-1">{staffList.filter(s => s.status === 'ACTIVE').length} <span className="text-sm font-medium text-slate-500">người</span></h3>
+                </div>
+                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-xs text-slate-500 font-extrabold shrink-0 mr-1">Chức vụ:</span>
-            <button
-              onClick={() => setPositionFilter('ALL')}
-              className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
-                positionFilter === 'ALL'
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              Tất cả ({staffList.length})
-            </button>
-            {(Object.keys(POSITION_MAP) as Position[]).map((pos) => (
-              <button
-                key={pos}
-                onClick={() => setPositionFilter(pos)}
-                className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
-                  positionFilter === pos
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {POSITION_MAP[pos].label}
-              </button>
-            ))}
-          </div>
-        </div>
+          <div className="table-pro-container">
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Tìm tên, SĐT, email nhân sự..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-slate-800 transition-all"
+                />
+              </div>
 
-        <div className="overflow-x-auto">
-          <table className="table-pro">
-            <thead>
-              <tr>
-                <th>Thông tin Cá nhân</th>
-                <th>Chức vụ & Chuyên môn</th>
-                <th>Liên hệ</th>
-                <th>Phân công & Bằng cấp</th>
-                <th>Theo dõi Ngày công</th>
-                <th>Theo dõi Lương</th>
-                <th>Trạng thái</th>
-                <th className="text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredStaff.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
-                    Không tìm thấy nhân viên nào phù hợp với tìm kiếm.
-                  </td>
-                </tr>
-              ) : (
-                filteredStaff.map((staff) => {
-                  const posInfo = POSITION_MAP[staff.position];
-                  const statusInfo = STATUS_MAP[staff.status];
-                  return (
-                    <tr key={staff.id}>
-                      <td>
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs shadow-sm ring-2 ring-indigo-50 shrink-0">
-                            {getInitials(staff.fullName)}
-                          </div>
-                          <div>
-                            <span className="font-bold text-slate-900 block">
-                              {staff.fullName}
-                            </span>
-                            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
-                              <span>NS: {staff.dob || '1994-05-15'}</span>
-                              <span>•</span>
-                              <span>CCCD: {staff.cccd || '034194000123'}</span>
-                            </div>
-                          </div>
-                        </div>
+              <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                <span className="text-xs text-slate-500 font-extrabold shrink-0 mr-1">Chức vụ:</span>
+                <button
+                  onClick={() => setPositionFilter('ALL')}
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
+                    positionFilter === 'ALL'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Tất cả ({staffList.length})
+                </button>
+                {(Object.keys(POSITION_MAP) as Position[]).map((pos) => (
+                  <button
+                    key={pos}
+                    onClick={() => setPositionFilter(pos)}
+                    className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all shrink-0 cursor-pointer ${
+                      positionFilter === pos
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {POSITION_MAP[pos].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="table-pro">
+                <thead>
+                  <tr>
+                    <th>Thông tin Cá nhân</th>
+                    <th>Chức vụ & Chuyên môn</th>
+                    <th>Liên hệ</th>
+                    <th>Phân công & Bằng cấp</th>
+                    <th>Trạng thái làm việc</th>
+                    <th className="text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStaff.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-medium">
+                        Không tìm thấy nhân viên nào phù hợp với tìm kiếm.
                       </td>
-                      <td>
-                        <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold border ${posInfo.color}`}>
-                          {posInfo.label}
-                        </span>
-                        <span className="block text-[11px] text-indigo-600 font-semibold mt-1">
-                          {staff.specialty || 'Sư phạm Mầm non'}
-                        </span>
-                      </td>
-                      <td className="text-xs space-y-0.5">
-                        <div className="flex items-center gap-1.5 text-slate-800 font-mono font-semibold">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          {staff.phone}
-                        </div>
-                        {staff.email && (
-                          <div className="flex items-center gap-1.5 text-slate-500 font-medium">
-                            <Mail className="w-3 h-3 text-slate-400" />
-                            {staff.email}
-                          </div>
-                        )}
-                      </td>
-                      <td className="text-xs">
-                        <div className="font-semibold text-slate-800">{staff.degree || 'Cử nhân'}</div>
-                        {staff.assignedClass ? (
-                          <span className="inline-block mt-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] px-2 py-0.5 rounded border border-indigo-100/60">
-                            Phụ trách: Lớp {staff.assignedClass}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400 text-[10px]">—</span>
-                        )}
-                      </td>
-                      <td className="text-xs">
-                        <div className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 inline-block">
-                          {staff.workDays ?? 26} ngày công
-                        </div>
-                        <div className="text-[10px] text-amber-600 font-medium mt-0.5">
-                          Nghỉ phép: {staff.leaveDays ?? 0} ngày
-                        </div>
-                      </td>
-                      <td className="font-black text-slate-900">{formatCurrency(staff.salary)}</td>
-                      <td>
-                        {staff.status === 'ACTIVE' && (
-                          <span className="badge-pill badge-pill-emerald">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Đang làm việc
-                          </span>
-                        )}
-                        {staff.status === 'ON_LEAVE' && (
-                          <span className="badge-pill badge-pill-amber">
-                            Nghỉ phép
-                          </span>
-                        )}
-                        {staff.status === 'RESIGNED' && (
-                          <span className="badge-pill badge-pill-rose">
-                            Đã nghỉ
-                          </span>
-                        )}
-                      </td>
-                      <td className="text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleOpenEditModal(staff)}
-                          className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                          title="Chỉnh sửa nhân viên"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(staff.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Xóa nhân viên"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ) : (
+                    filteredStaff.map((staff) => {
+                      const posInfo = POSITION_MAP[staff.position];
+                      return (
+                        <tr key={staff.id}>
+                          <td>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs shadow-sm ring-2 ring-indigo-50 shrink-0">
+                                {getInitials(staff.fullName)}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block">
+                                  {staff.fullName}
+                                </span>
+                                <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                                  <span>NS: {staff.dob || '1994-05-15'}</span>
+                                  <span>•</span>
+                                  <span>CCCD: {staff.cccd || '034194000123'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold border ${posInfo.color}`}>
+                              {posInfo.label}
+                            </span>
+                            <span className="block text-[11px] text-indigo-600 font-semibold mt-1">
+                              {staff.specialty || 'Sư phạm Mầm non'}
+                            </span>
+                          </td>
+                          <td className="text-xs space-y-0.5">
+                            <div className="flex items-center gap-1.5 text-slate-800 font-mono font-semibold">
+                              <Phone className="w-3 h-3 text-slate-400" />
+                              {staff.phone}
+                            </div>
+                            {staff.email && (
+                              <div className="flex items-center gap-1.5 text-slate-500 font-medium">
+                                <Mail className="w-3 h-3 text-slate-400" />
+                                {staff.email}
+                              </div>
+                            )}
+                          </td>
+                          <td className="text-xs">
+                            <div className="font-semibold text-slate-800">{staff.degree || 'Cử nhân'}</div>
+                            {staff.assignedClass ? (
+                              <span className="inline-block mt-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] px-2 py-0.5 rounded border border-indigo-100/60">
+                                Phụ trách: Lớp {staff.assignedClass}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 text-[10px]">—</span>
+                            )}
+                            <div className="text-[10px] text-slate-400 mt-0.5">Vào làm: {staff.startDate}</div>
+                          </td>
+                          <td>
+                            {staff.status === 'ACTIVE' && (
+                              <span className="badge-pill badge-pill-emerald">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Đang làm việc
+                              </span>
+                            )}
+                            {staff.status === 'ON_LEAVE' && (
+                              <span className="badge-pill badge-pill-amber">
+                                Nghỉ phép
+                              </span>
+                            )}
+                            {staff.status === 'RESIGNED' && (
+                              <span className="badge-pill badge-pill-rose">
+                                Đã nghỉ
+                              </span>
+                            )}
+                          </td>
+                          <td className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => handleOpenEditModal(staff)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                title="Chỉnh sửa hồ sơ"
+                              >
+                                <Edit3 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(staff.id)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Xóa nhân viên"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Add Staff Modal */}
+      {activeSubTab === 'SALARY' && (
+        <div className="space-y-6 animate-fadeIn">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-purple-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quỹ lương tháng</p>
+                  <h3 className="text-xl font-bold text-slate-800 mt-1">{formatCurrency(totalSalary)}</h3>
+                </div>
+                <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
+                  <DollarSign className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Ngày công</p>
+                  <h3 className="text-2xl font-bold text-emerald-600 mt-1">{totalWorkDays} <span className="text-sm font-medium text-slate-500">ngày</span></h3>
+                </div>
+                <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                  <Clock className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-sky-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">TB Ngày công / NV</p>
+                  <h3 className="text-2xl font-bold text-sky-600 mt-1">{avgWorkDays} <span className="text-sm font-medium text-slate-500">ngày/tháng</span></h3>
+                </div>
+                <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-amber-500" />
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Nghỉ phép tháng</p>
+                  <h3 className="text-2xl font-bold text-amber-600 mt-1">
+                    {staffList.reduce((acc, curr) => acc + (curr.leaveDays ?? 0), 0)} <span className="text-sm font-medium text-slate-500">lượt ngày</span>
+                  </h3>
+                </div>
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                  <Calendar className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="table-pro-container">
+            <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50/50">
+              <div className="relative w-full sm:w-80">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Tìm tên, SĐT nhân sự..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-slate-800 transition-all"
+                />
+              </div>
+
+              <div className="text-xs font-bold text-slate-500">
+                Định mức ngày công chuẩn: <span className="text-indigo-600 font-extrabold">26 ngày/tháng</span>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="table-pro">
+                <thead>
+                  <tr>
+                    <th>Nhân viên</th>
+                    <th>Chức vụ & SĐT</th>
+                    <th>Theo dõi Ngày công</th>
+                    <th>Theo dõi Nghỉ phép</th>
+                    <th>Mức lương cơ bản</th>
+                    <th>Thực nhận ước tính</th>
+                    <th>Ghi chú</th>
+                    <th className="text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredStaff.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-12 text-center text-slate-400 font-medium">
+                        Không tìm thấy thông tin chấm công nhân viên nào.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredStaff.map((staff) => {
+                      const posInfo = POSITION_MAP[staff.position];
+                      const workDays = staff.workDays ?? 26;
+                      const leaveDays = staff.leaveDays ?? 0;
+                      const progressPct = Math.min(100, Math.round((workDays / 26) * 100));
+                      const estSalary = Math.round((staff.salary || 0) * (workDays / 26));
+
+                      return (
+                        <tr key={staff.id}>
+                          <td>
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 via-indigo-600 to-indigo-700 text-white flex items-center justify-center font-extrabold text-xs shadow-sm ring-2 ring-indigo-50 shrink-0">
+                                {getInitials(staff.fullName)}
+                              </div>
+                              <div>
+                                <span className="font-bold text-slate-900 block">
+                                  {staff.fullName}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">CCCD: {staff.cccd || '—'}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold border ${posInfo.color}`}>
+                              {posInfo.label}
+                            </span>
+                            <div className="text-[11px] text-slate-500 font-mono mt-0.5">{staff.phone}</div>
+                          </td>
+                          <td>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-xs text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 shrink-0">
+                                {workDays}/26 công
+                              </span>
+                              <div className="w-20 bg-slate-100 rounded-full h-1.5 overflow-hidden shrink-0">
+                                <div 
+                                  className="bg-emerald-500 h-1.5 rounded-full transition-all duration-300"
+                                  style={{ width: `${progressPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded ${leaveDays > 0 ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'text-slate-400'}`}>
+                              {leaveDays} ngày
+                            </span>
+                          </td>
+                          <td className="font-bold text-slate-700 text-xs">{formatCurrency(staff.salary)}</td>
+                          <td className="font-black text-emerald-600 text-sm">{formatCurrency(estSalary)}</td>
+                          <td className="text-xs text-slate-500 max-w-[150px] truncate">{staff.notes || '—'}</td>
+                          <td className="text-right whitespace-nowrap">
+                            <button
+                              onClick={() => handleOpenEditModal(staff)}
+                              className="px-2.5 py-1 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer border border-indigo-100"
+                              title="Cập nhật ngày công & lương"
+                            >
+                              Sửa lương/công
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAddModalOpen && (
         <Portal>
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
             <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
-              {/* Top Ribbon Accent */}
               <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
 
               <div className="flex justify-between items-start p-6 pb-4 shrink-0">
@@ -523,7 +812,6 @@ export default function StaffTab() {
               </div>
 
               <form onSubmit={handleSaveStaff} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
-                {/* NHÓM 1: THÔNG TIN CÁ NHÂN */}
                 <div className="border-b border-slate-100 pb-3">
                   <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">1. Thông tin cá nhân</span>
                   <div className="grid grid-cols-2 gap-4">
@@ -587,7 +875,6 @@ export default function StaffTab() {
                   </div>
                 </div>
 
-                {/* NHÓM 2: CHUYÊN MÔN & BẰNG CẤP */}
                 <div className="border-b border-slate-100 pb-3">
                   <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">2. Chuyên môn & Bằng cấp</span>
                   <div className="grid grid-cols-2 gap-4">
@@ -643,7 +930,6 @@ export default function StaffTab() {
                   </div>
                 </div>
 
-                {/* NHÓM 3: THEO DÕI NGÀY CÔNG, NGHỈ PHÉP & LƯƠNG */}
                 <div>
                   <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">3. Theo dõi Ngày công & Lương</span>
                   <div className="grid grid-cols-3 gap-4">
@@ -705,17 +991,6 @@ export default function StaffTab() {
                       />
                     </div>
                   </div>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ghi chú</label>
-                  <textarea
-                    rows={2}
-                    placeholder="Ghi chú kinh nghiệm, khen thưởng..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm resize-none"
-                  />
                 </div>
 
                 <div className="pt-2">
