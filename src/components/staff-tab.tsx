@@ -77,6 +77,18 @@ export default function StaffTab() {
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'edit' | 'delete' }>({
+    show: false,
+    message: '',
+    type: 'success',
+  });
+
+  const showToast = (message: string, type: 'success' | 'edit' | 'delete' = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 3500);
+  };
 
   useEffect(() => {
     fetch('/api/staff')
@@ -191,6 +203,8 @@ export default function StaffTab() {
       return;
     }
 
+    const savedName = formData.fullName;
+
     try {
       if (editingStaffId) {
         // CẬP NHẬT NHÂN VIÊN
@@ -200,6 +214,7 @@ export default function StaffTab() {
           )
         );
         setIsAddModalOpen(false);
+        showToast(`Đã cập nhật thành công hồ sơ nhân viên "${savedName}"!`, 'edit');
 
         await fetch('/api/staff', {
           method: 'PUT',
@@ -230,6 +245,7 @@ export default function StaffTab() {
 
         setStaffList((prev) => [tempStaff, ...prev]);
         setIsAddModalOpen(false);
+        showToast(`Đã thêm mới hồ sơ nhân viên "${savedName}" thành công!`, 'success');
 
         const res = await fetch('/api/staff', {
           method: 'POST',
@@ -254,8 +270,12 @@ export default function StaffTab() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa hồ sơ nhân viên này khỏi CSDL?')) {
+    const target = staffList.find((s) => s.id === id);
+    const targetName = target ? target.fullName : 'nhân viên';
+
+    if (confirm(`Bạn có chắc chắn muốn xóa hồ sơ nhân viên "${targetName}" khỏi CSDL?`)) {
       setStaffList(staffList.filter((item) => item.id !== id));
+      showToast(`Đã xóa thành công hồ sơ "${targetName}" khỏi hệ thống!`, 'delete');
       try {
         await fetch(`/api/staff?id=${id}`, { method: 'DELETE' });
       } catch (err) {
@@ -1031,6 +1051,53 @@ export default function StaffTab() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </Portal>
+      )}
+
+      {/* Toast Notification Banner */}
+      {toast.show && (
+        <Portal>
+          <div className="fixed top-6 right-6 z-[9999] animate-slide-in-right">
+            <div
+              className={`flex items-center gap-3.5 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all ${
+                toast.type === 'success'
+                  ? 'bg-emerald-950/90 text-white border-emerald-500/40 shadow-emerald-950/40'
+                  : toast.type === 'edit'
+                  ? 'bg-indigo-950/90 text-white border-indigo-500/40 shadow-indigo-950/40'
+                  : 'bg-rose-950/90 text-white border-rose-500/40 shadow-rose-950/40'
+              }`}
+            >
+              <div
+                className={`p-2.5 rounded-xl shrink-0 ${
+                  toast.type === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-400'
+                    : toast.type === 'edit'
+                    ? 'bg-indigo-500/20 text-indigo-400'
+                    : 'bg-rose-500/20 text-rose-400'
+                }`}
+              >
+                {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 animate-bounce" />}
+                {toast.type === 'edit' && <UserCog className="w-5 h-5 animate-pulse" />}
+                {toast.type === 'delete' && <Trash2 className="w-5 h-5 animate-bounce" />}
+              </div>
+
+              <div>
+                <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
+                  {toast.type === 'success' && 'Tạo Mới Thành Công'}
+                  {toast.type === 'edit' && 'Cập Nhật Thành Công'}
+                  {toast.type === 'delete' && 'Đã Xóa Dữ Liệu'}
+                </h4>
+                <p className="text-xs font-semibold text-white mt-0.5">{toast.message}</p>
+              </div>
+
+              <button
+                onClick={() => setToast({ ...toast, show: false })}
+                className="ml-4 p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
         </Portal>
