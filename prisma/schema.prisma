@@ -78,13 +78,15 @@ model HealthRecord {
 }
 
 model TuitionFee {
-  id          String   @id @default(uuid())
-  name        String   // Tên khoản thu (Học phí, Bữa ăn, Xe đưa đón, dã ngoại...)
-  amount      Float    // Số tiền
-  type        String   // Loại thu: MONTHLY (Hằng tháng), ONE_TIME (Một lần), DAILY (Theo ngày thực tế)
-  description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String   // Tên khoản thu (Học phí, Bữa ăn, Xe đưa đón, dã ngoại...)
+  amount       Float    // Số tiền định mức
+  type         String   // Loại thu: MONTHLY (Hằng tháng), ONE_TIME (Một lần), DAILY (Theo ngày thực tế)
+  appliedClass String?  @default("ALL") // ALL (Toàn trường), MAM (Khối Mầm), CHOI (Khối Chồi), LA (Khối Lá) hoặc tên lớp
+  isActive     Boolean  @default(true)  // Đang áp dụng / Tạm dừng
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Invoice {
@@ -97,6 +99,7 @@ model Invoice {
   status        String    // UNPAID, PAID, OVERDUE (Chưa thanh toán, Đã thanh toán, Quá hạn)
   paymentDate   DateTime?
   paymentMethod String?   // CASH, TRANSFER, QR (Tiền mặt, Chuyển khoản, Quét QR)
+  breakdownJson String?   // Chi tiết bóc tách các khoản thu dạng JSON
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

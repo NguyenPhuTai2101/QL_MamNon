@@ -141,73 +141,89 @@ export default function AttendanceTab() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Header controls */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Điểm Danh & Tự Động Hoàn Tiền Ăn</h2>
-          <p className="text-sm text-slate-500 mt-1">Giáo viên điểm danh theo ngày. Trẻ vắng có phép tự động được hoàn 30.000đ/ngày tiền ăn vào hóa đơn kỳ sau.</p>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-white px-3 py-2 border border-slate-200 rounded-xl text-sm shadow-sm">
-            <CalendarIcon className="w-4 h-4 text-indigo-600" />
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="focus:outline-none text-slate-700 bg-transparent font-medium"
-            />
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-emerald-500 via-teal-600 to-emerald-600 rounded-2xl text-white shadow-md shadow-emerald-500/20 shrink-0">
+              <CheckCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Điểm Danh Chuyên Cần & Hoàn Tiền Ăn
+                </h1>
+                <span className="text-xs font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Tự động đối soát
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Giáo viên điểm danh theo ngày. Trẻ vắng có phép tự động được hoàn tiền ăn vào hóa đơn tháng sau.
+              </p>
+            </div>
           </div>
 
-          <button 
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-            title="Xuất file Excel CSV"
-          >
-            <Download className="w-4 h-4" />
-            Excel
-          </button>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <div className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 inline-flex items-center gap-2 flex-1 sm:flex-initial shadow-2xs">
+              <CalendarIcon className="w-4 h-4 text-emerald-600 shrink-0" />
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="bg-transparent font-extrabold text-slate-800 focus:outline-none cursor-pointer text-xs"
+              />
+            </div>
 
-          <button 
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm"
-            title="In PDF sổ điểm danh"
-          >
-            <Printer className="w-4 h-4 text-slate-600" />
-            In PDF
-          </button>
+            <button
+              onClick={handleExportExcel}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="Xuất file Excel CSV"
+            >
+              <Download className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Xuất Excel</span>
+            </button>
 
-          <button 
-            onClick={handleSaveAttendance}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-          >
-            <Save className="w-4 h-4" />
-            Lưu điểm danh
-          </button>
+            <button
+              onClick={handleExportPDF}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="In PDF sổ điểm danh"
+            >
+              <Printer className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>In PDF</span>
+            </button>
+
+            <button
+              onClick={handleSaveAttendance}
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-emerald-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+            >
+              <Save className="w-4 h-4 shrink-0" />
+              <span>Lưu Điểm Danh</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {savedSuccess && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-          Đã lưu thông tin điểm danh lớp {selectedClass} ngày {selectedDate} vào cơ sở dữ liệu thành công!
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-xs">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Đã lưu thông tin điểm danh lớp {selectedClass} ngày {selectedDate} vào CSDL thành công!</span>
         </div>
       )}
 
-      {/* Class Selector Tabs, Search & Quick Actions */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-        <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5" /> Chọn lớp:
+      {/* 2. CLASS SELECTOR, SEARCH & ACTION TOOLBAR */}
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 no-scrollbar">
+          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
+            <Filter className="w-3.5 h-3.5" /> Lớp:
           </span>
           {classList.map((cls) => (
             <button
               key={cls}
               onClick={() => setSelectedClass(cls)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`h-8 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 selectedClass === cls
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                  ? "bg-indigo-600 text-white shadow-sm font-extrabold"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
@@ -216,25 +232,25 @@ export default function AttendanceTab() {
           ))}
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           {/* Quick Search */}
-          <div className="relative w-full sm:w-60">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input 
-              type="text" 
-              placeholder="Tìm tên trẻ / phụ huynh..."
+          <div className="relative flex-1 sm:w-60">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm tên trẻ, phụ huynh..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+              className="w-full h-8 pl-8 pr-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:border-indigo-500 transition-all"
             />
           </div>
 
           <button
             onClick={handleMarkAllPresent}
-            className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-bold px-3.5 py-2 rounded-xl transition-all"
+            className="h-8 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 text-xs font-extrabold rounded-xl transition-all whitespace-nowrap cursor-pointer"
           >
-            <CheckCheck className="w-4 h-4 text-emerald-600" />
-            Điểm danh cả lớp Có mặt
+            <CheckCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Điểm danh cả lớp Có mặt</span>
           </button>
         </div>
       </div>

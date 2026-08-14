@@ -1,15 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: Truy vấn danh sách chi phí thực phẩm theo tháng/năm từ Supabase
+// GET: Truy vấn danh sách chi phí thực phẩm theo ngày / tháng / năm từ CSDL
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
+    const dateStr = searchParams.get("date");
     const month = searchParams.get("month");
     const year = searchParams.get("year");
 
     let whereClause = {};
-    if (month && year) {
+    if (dateStr) {
+      const targetDate = new Date(dateStr);
+      const startOfDay = new Date(new Date(dateStr).setHours(0, 0, 0, 0));
+      const endOfDay = new Date(new Date(dateStr).setHours(23, 59, 59, 999));
+      whereClause = {
+        date: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      };
+    } else if (month && year) {
       const startDate = new Date(parseInt(year), parseInt(month) - 1, 1);
       const endDate = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
       whereClause = {
@@ -34,21 +45,21 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Nhập thực phẩm mới vào kho
+// POST: Thêm mới hoặc nhập thực phẩm đi chợ vào kho
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { name, quantity, unit, unitPrice, notes, date } = body;
 
-    if (!name || !quantity || !unit || !unitPrice) {
+    if (!name || quantity === undefined || !unit || unitPrice === undefined) {
       return NextResponse.json(
         { error: "Vui lòng cung cấp tên nguyên liệu, số lượng, đơn vị và đơn giá." },
         { status: 400 }
       );
     }
 
-    const qty = parseFloat(quantity);
-    const price = parseFloat(unitPrice);
+    const qty = parseFloat(quantity) || 0;
+    const price = parseFloat(unitPrice) || 0;
     const totalCost = qty * price;
 
     const newIngredient = await prisma.ingredientCost.create({
@@ -67,6 +78,41 @@ export async function POST(request: Request) {
   } catch (error: any) {
     return NextResponse.json(
       { error: "Không thể thêm nguyên liệu thực phẩm.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH / PUT: Cập nhật thông tin hoặc khối lượng nguyên liệu thực phẩm
+export async function PATCH(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name, quantity, unit, unitPrice, notes, date } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID nguyên liệu cần cập nhật." }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (quantity !== undefined) updateData.quantity = parseFloat(quantity);
+    if (unit !== undefined) updateData.unit = unit;
+    if (unitPrice !== undefined) updateData.unitPrice = parseFloat(unitPrice);
+    if (updateData.quantity !== undefined && updateData.unitPrice !== undefined) {
+      updateData.totalCost = updateData.quantity * updateData.unitPrice;
+    }
+    if (notes !== undefined) updateData.notes = notes;
+    if (date !== undefined) updateData.date = new Date(date);
+
+    const updated = await prisma.ingredientCost.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Không thể cập nhật nguyên liệu.", details: error.message },
       { status: 500 }
     );
   }

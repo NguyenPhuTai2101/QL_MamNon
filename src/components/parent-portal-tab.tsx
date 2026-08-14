@@ -41,24 +41,24 @@ interface StudentDetail {
 export default function ParentPortalTab() {
   const [parentName, setParentName] = useState("Phụ huynh");
   const [child, setChild] = useState<StudentDetail>({
-    id: "1",
-    name: "Nguyễn Văn An",
-    className: "Mầm 1",
-    teacherName: "Cô Nguyễn Thị Mai (0987.654.321)",
-    birthDate: "15/05/2022",
-    gender: "Nam",
-    tuitionAmount: 3200000,
+    id: "",
+    name: "Đang tải dữ liệu học sinh...",
+    className: "---",
+    teacherName: "Chưa phân công",
+    birthDate: "---",
+    gender: "---",
+    tuitionAmount: 0,
     tuitionStatus: "UNPAID",
-    heightCm: 98,
-    weightKg: 14.5,
-    allergies: "Không có tiền sử dị ứng",
+    heightCm: 0,
+    weightKg: 0,
+    allergies: "Không có",
     attendanceToday: "PRESENT",
-    pickupPerson: "Bố (Nguyễn Văn Hùng)",
-    healthNotes: "Bé ăn ngoan, tâm trạng vui vẻ"
+    pickupPerson: "Chưa đăng ký",
+    healthNotes: "Chưa có ghi chú"
   });
 
-  const [pickupInput, setPickupInput] = useState(child.pickupPerson);
-  const [notesInput, setNotesInput] = useState(child.healthNotes);
+  const [pickupInput, setPickupInput] = useState("");
+  const [notesInput, setNotesInput] = useState("");
   const [savedPickup, setSavedPickup] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
 
@@ -71,30 +71,33 @@ export default function ParentPortalTab() {
       } catch (e) {}
     }
 
-    // Tải dữ liệu con từ DB API nếu có
+    // Tải dữ liệu con từ DB API
     fetch("/api/students")
       .then(res => res.json())
       .then(dbStudents => {
         if (Array.isArray(dbStudents) && dbStudents.length > 0) {
           const st = dbStudents[0];
-          setChild({
+          const studentObj: StudentDetail = {
             id: st.id,
             name: `${st.lastName} ${st.firstName}`.trim(),
-            className: st.class?.name || "Mầm 1",
-            teacherName: st.class?.teacher || "Cô Nguyễn Thị Mai (0987.654.321)",
-            birthDate: st.birthDate ? new Date(st.birthDate).toLocaleDateString("vi-VN") : "15/05/2022",
+            className: st.class?.name || "Chưa xếp lớp",
+            teacherName: st.class?.teacher || "Cô giáo chủ nhiệm",
+            birthDate: st.birthDate ? new Date(st.birthDate).toLocaleDateString("vi-VN") : "---",
             gender: st.gender || "Nam",
-            tuitionAmount: 3200000,
+            tuitionAmount: st.invoices && st.invoices.length > 0 ? st.invoices[0].amount : 3200000,
             tuitionStatus: st.invoices && st.invoices.length > 0 ? st.invoices[0].status : "UNPAID",
-            heightCm: 98,
-            weightKg: 14.5,
-            allergies: "Không có",
+            heightCm: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].heightCm || 0 : 0,
+            weightKg: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].weightKg || 0 : 0,
+            allergies: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].allergies || "Không có" : "Không có",
             attendanceToday: "PRESENT",
-            pickupPerson: "Bố (Nguyễn Văn Hùng)",
-            healthNotes: "Bé ăn ngoan, tâm trạng vui vẻ"
-          });
-          setPickupInput("Bố (Nguyễn Văn Hùng)");
-          setNotesInput("Bé ăn ngoan, tâm trạng vui vẻ");
+            pickupPerson: st.parentName || "Phụ huynh",
+            healthNotes: "Bình thường"
+          };
+          setChild(studentObj);
+          setPickupInput(studentObj.pickupPerson);
+          setNotesInput(studentObj.healthNotes);
+        } else {
+          setChild(prev => ({ ...prev, name: "Chưa có hồ sơ học sinh trong CSDL" }));
         }
       })
       .catch(() => {});

@@ -47,15 +47,6 @@ interface Staff {
   notes: string;
 }
 
-const mockData: Staff[] = [
-  { id: '1', fullName: 'Nguyễn Thị Hương', dob: '1993-06-15', cccd: '034193008811', position: 'TEACHER', phone: '0987654321', email: 'huong.nt@example.com', specialty: 'Sư phạm Mầm non', degree: 'Đại học Sư phạm', startDate: '2023-08-01', assignedClass: 'Chồi 1', status: 'ACTIVE', workDays: 26, leaveDays: 0, salary: 12000000, notes: 'Giáo viên giỏi cấp trường' },
-  { id: '2', fullName: 'Trần Văn Mạnh', dob: '1988-11-20', cccd: '034188009922', position: 'GUARD', phone: '0912345678', email: 'manh.tv@example.com', specialty: 'An ninh học đường', degree: 'THPT', startDate: '2022-05-15', assignedClass: '', status: 'ACTIVE', workDays: 26, leaveDays: 1, salary: 7000000, notes: 'Trực ca ngày' },
-  { id: '3', fullName: 'Lê Thị Lan', dob: '1995-03-10', cccd: '034195007733', position: 'COOK', phone: '0909090909', email: 'lan.lt@example.com', specialty: 'Dinh dưỡng Mầm non', degree: 'Chứng chỉ Nấu ăn Pro', startDate: '2024-01-10', assignedClass: '', status: 'ON_LEAVE', workDays: 18, leaveDays: 8, salary: 8500000, notes: 'Nghỉ thai sản' },
-  { id: '4', fullName: 'Phạm Minh Tuấn', dob: '1991-09-05', cccd: '034191006644', position: 'ADMIN_STAFF', phone: '0888888888', email: 'tuan.pm@example.com', specialty: 'Quản trị mạng & ERP', degree: 'Cử nhân CNTT', startDate: '2023-11-20', assignedClass: '', status: 'ACTIVE', workDays: 26, leaveDays: 0, salary: 10000000, notes: 'Quản trị hệ thống' },
-  { id: '5', fullName: 'Đỗ Thu Hà', dob: '1997-12-18', cccd: '034197005555', position: 'ASSISTANT', phone: '0777777777', email: 'ha.dt@example.com', specialty: 'Chăm sóc trẻ mầm non', degree: 'Cao đẳng Sư phạm', startDate: '2024-02-01', assignedClass: 'Chồi 1', status: 'ACTIVE', workDays: 25, leaveDays: 1, salary: 8000000, notes: '' },
-  { id: '6', fullName: 'Hoàng Quốc Việt', dob: '1990-04-25', cccd: '034190004466', position: 'TEACHER', phone: '0666666666', email: 'viet.hq@example.com', specialty: 'Giáo dục Thể chất', degree: 'Đại học', startDate: '2021-09-05', assignedClass: 'Lá 2', status: 'RESIGNED', workDays: 0, leaveDays: 0, salary: 13000000, notes: 'Chuyển công tác' },
-];
-
 const POSITION_MAP: Record<Position, { label: string; color: string }> = {
   TEACHER: { label: 'Giáo viên', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   ASSISTANT: { label: 'Trợ giảng', color: 'bg-sky-50 text-sky-700 border-sky-200' },
@@ -72,7 +63,7 @@ const STATUS_MAP: Record<Status, { label: string; color: string }> = {
 
 export default function StaffTab() {
   const [activeSubTab, setActiveSubTab] = useState<'PROFILE' | 'SALARY'>('PROFILE');
-  const [staffList, setStaffList] = useState<Staff[]>(mockData);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -385,67 +376,82 @@ export default function StaffTab() {
   const avgWorkDays = Math.round(totalWorkDays / (totalStaff || 1));
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Quản lý Giáo viên & Nhân sự</h2>
-          <p className="text-sm text-slate-500 mt-1">Quản lý danh sách hồ sơ chuyên môn, phân công giảng dạy, theo dõi ngày công và bảng lương.</p>
-        </div>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <UserCog className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Quản Lý Nhân Sự & Giáo Viên
+                </h1>
+                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  {staffList.length} nhân sự
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Quản lý danh sách hồ sơ chuyên môn, phân công giảng dạy, theo dõi ngày công và bảng lương toàn trường.
+              </p>
+            </div>
+          </div>
 
-        <button 
-          onClick={handleOpenAddModal}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm nhân viên mới
-        </button>
-      </div>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 w-full sm:w-auto">
+              <button
+                onClick={() => setActiveSubTab('PROFILE')}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex-1 sm:flex-initial ${
+                  activeSubTab === 'PROFILE'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-3.5 h-3.5" />
+                <span>Hồ Sơ ({staffList.length})</span>
+              </button>
 
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between border-b border-slate-200 pb-3 gap-4">
-        <div className="flex items-center gap-2 bg-slate-100/90 p-1.5 rounded-2xl shrink-0">
-          <button
-            onClick={() => setActiveSubTab('PROFILE')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeSubTab === 'PROFILE'
-                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            1. Hồ Sơ & Chuyên Môn ({staffList.length})
-          </button>
+              <button
+                onClick={() => setActiveSubTab('SALARY')}
+                className={`flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex-1 sm:flex-initial ${
+                  activeSubTab === 'SALARY'
+                    ? 'bg-white text-indigo-600 shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Chấm Công & Lương</span>
+              </button>
+            </div>
 
-          <button
-            onClick={() => setActiveSubTab('SALARY')}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-              activeSubTab === 'SALARY'
-                ? 'bg-white text-indigo-600 shadow-sm border border-slate-200/60'
-                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-            }`}
-          >
-            <DollarSign className="w-4 h-4" />
-            2. Theo Dõi Ngày Công & Lương ({staffList.length})
-          </button>
-        </div>
+            <button
+              onClick={handleExportExcel}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="Xuất file Excel CSV"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Xuất Excel</span>
+            </button>
 
-        <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-extrabold transition-all border border-emerald-200/80 cursor-pointer shadow-sm"
-            title="Xuất CSV Excel"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
-            Xuất Excel
-          </button>
+            <button
+              onClick={handleExportPDF}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="In báo cáo PDF"
+            >
+              <Printer className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>In PDF</span>
+            </button>
 
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-xl text-xs font-extrabold transition-all border border-indigo-200/80 cursor-pointer shadow-sm"
-            title="In báo cáo PDF"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            In PDF
-          </button>
+            <button
+              onClick={handleOpenAddModal}
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Thêm Nhân Viên</span>
+            </button>
+          </div>
         </div>
       </div>
 

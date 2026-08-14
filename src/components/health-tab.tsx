@@ -128,40 +128,58 @@ export default function HealthTab() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Header title */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Sức khỏe Dinh dưỡng & Sổ Bé Ngoan Điện tử</h2>
-          <p className="text-sm text-slate-500 mt-1">Theo dõi chỉ số chiều cao, cân nặng, BMI chuẩn WHO và nhật ký chăm sóc trẻ hàng ngày.</p>
-        </div>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-rose-500 via-pink-600 to-rose-600 rounded-2xl text-white shadow-md shadow-rose-500/20 shrink-0">
+              <HeartPulse className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Theo Dõi Sức Khỏe & Y Tế Học Đường
+                </h1>
+                <span className="text-xs font-extrabold bg-rose-50 text-rose-700 px-2.5 py-0.5 rounded-full border border-rose-200">
+                  Chuẩn WHO & Sổ Bé Ngoan
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Theo dõi chỉ số chiều cao, cân nặng, BMI chuẩn WHO và nhật ký dinh dưỡng, chăm sóc trẻ hàng ngày.
+              </p>
+            </div>
+          </div>
 
-        <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 px-4 py-2 rounded-2xl text-xs font-bold text-indigo-700 shadow-sm">
-          <Award className="w-4 h-4 text-indigo-600" />
-          Tổng hợp Sổ Bé Ngoan Tháng 08/2026
+          <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-start sm:justify-end">
+            <div className="h-9 px-3.5 bg-indigo-50 border border-indigo-100 rounded-xl text-xs font-bold text-indigo-700 inline-flex items-center gap-2 shadow-2xs">
+              <Award className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Sổ Bé Ngoan Tháng 08/2026</span>
+            </div>
+          </div>
         </div>
       </div>
 
       {saveNotification && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fadeIn">
-          <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-          Đã cập nhật hồ sơ sức khỏe và nhật ký Sổ Bé Ngoan thành công!
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fadeIn shadow-xs">
+          <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Đã cập nhật hồ sơ sức khỏe và nhật ký Sổ Bé Ngoan thành công!</span>
         </div>
       )}
 
-      {/* Class selector & Search bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1">
+      {/* 2. CLASS SELECTOR & SEARCH BAR */}
+      <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar">
+          <span className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mr-1 flex items-center gap-1 shrink-0">
             <Filter className="w-3.5 h-3.5" /> Lớp:
           </span>
           {availableClasses.map((cls) => (
             <button
               key={cls}
               onClick={() => setSelectedClass(cls)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`h-8 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                 selectedClass === cls
-                  ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                  ? "bg-indigo-600 text-white shadow-sm font-extrabold"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >
@@ -175,7 +193,7 @@ export default function HealthTab() {
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Tìm tên bé..."
-          className="w-full sm:w-64 px-3.5 py-2 border border-slate-200 bg-white text-slate-900 rounded-2xl text-xs focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-medium transition-all"
+          className="w-full sm:w-64 h-8 px-3.5 bg-slate-50 border border-slate-200 text-slate-900 rounded-xl text-xs focus:outline-none focus:border-indigo-500 font-medium transition-all"
         />
       </div>
 

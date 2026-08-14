@@ -112,23 +112,39 @@ export default function AssetsTab() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-indigo-600" />
-            Quản lý Tài sản & Thiết bị
-          </h2>
-          <p className="text-slate-500 mt-1">Theo dõi, bảo trì và quản lý cơ sở vật chất nhà trường</p>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Quản Lý Cơ Sở Vật Chất & Tài Sản (CSVC)
+                </h1>
+                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  {assets.length} hạng mục
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Kiểm kê thiết bị dạy học, đồ chơi mầm non, lịch bảo trì và quản lý cơ sở vật chất toàn trường.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Thêm Tài Sản Mới</span>
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="bg-indigo-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-indigo-700 transition-colors shadow-sm"
-        >
-          <Plus className="h-5 w-5" />
-          <span>Thêm tài sản</span>
-        </button>
       </div>
 
       {/* Stats Cards */}

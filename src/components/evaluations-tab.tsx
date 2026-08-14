@@ -20,81 +20,6 @@ interface Evaluation {
   notes: string;
 }
 
-const mockEvaluations: Evaluation[] = [
-  {
-    id: '1',
-    staffId: 'STF001',
-    staffName: 'Nguyễn Thị Hoa',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 38,
-    feedbackPts: 28,
-    totalScore: 96,
-    rank: 'EXCELLENT',
-    notes: 'Hoàn thành xuất sắc nhiệm vụ, được phụ huynh khen ngợi.'
-  },
-  {
-    id: '2',
-    staffId: 'STF002',
-    staffName: 'Trần Văn An',
-    month: '2026-08',
-    attendancePts: 28,
-    teachingPts: 35,
-    feedbackPts: 25,
-    totalScore: 88,
-    rank: 'GOOD',
-    notes: 'Giảng dạy tốt, cần cải thiện tương tác phụ huynh.'
-  },
-  {
-    id: '3',
-    staffId: 'STF003',
-    staffName: 'Lê Thu Hương',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 39,
-    feedbackPts: 29,
-    totalScore: 98,
-    rank: 'EXCELLENT',
-    notes: 'Giáo án sáng tạo, luôn đi làm đúng giờ.'
-  },
-  {
-    id: '4',
-    staffId: 'STF004',
-    staffName: 'Phạm Minh Đức',
-    month: '2026-08',
-    attendancePts: 25,
-    teachingPts: 30,
-    feedbackPts: 20,
-    totalScore: 75,
-    rank: 'FAIR',
-    notes: 'Thường xuyên đi muộn, cần chú ý giờ giấc.'
-  },
-  {
-    id: '5',
-    staffId: 'STF005',
-    staffName: 'Hoàng Thị Lan',
-    month: '2026-08',
-    attendancePts: 30,
-    teachingPts: 36,
-    feedbackPts: 26,
-    totalScore: 92,
-    rank: 'GOOD',
-    notes: 'Hoàn thành tốt nhiệm vụ.'
-  },
-  {
-    id: '6',
-    staffId: 'STF006',
-    staffName: 'Vũ Ngọc Hùng',
-    month: '2026-08',
-    attendancePts: 20,
-    teachingPts: 25,
-    feedbackPts: 15,
-    totalScore: 60,
-    rank: 'POOR',
-    notes: 'Nhiều phụ huynh phàn nàn, cần họp nhắc nhở.'
-  }
-];
-
 export default function EvaluationsTab() {
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -172,20 +97,39 @@ export default function EvaluationsTab() {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Đánh giá & Hiệu suất</h2>
-          <p className="text-sm text-slate-500 mt-1">Quản lý hiệu suất làm việc và khen thưởng giáo viên</p>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-amber-500 via-yellow-500 to-amber-600 rounded-2xl text-white shadow-md shadow-amber-500/20 shrink-0">
+              <Award className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Thi Đua, Đánh Giá KPI & Khen Thưởng Giáo Viên
+                </h1>
+                <span className="text-xs font-extrabold bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  KPI & Đánh giá
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Đánh giá chất lượng giảng dạy, chuyên cần và sự hài lòng của phụ huynh đối với đội ngũ giáo viên.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-amber-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Thêm Đánh Giá Mới</span>
+            </button>
+          </div>
         </div>
-        <button 
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors shadow-sm"
-        >
-          <Plus className="w-5 h-5" />
-          <span className="font-medium">Thêm đánh giá</span>
-        </button>
       </div>
 
       {/* Stat Cards */}

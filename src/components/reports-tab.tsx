@@ -138,50 +138,64 @@ export default function ReportsTab() {
   };
 
   return (
-    <div className="space-y-8 animate-fadeIn">
-      {/* Printable Header Section */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 uppercase tracking-wide">
-            BÁO CÁO DOANH THU HÀNG THÁNG - MẦM NON ĐỘC LẬP ÁNH BÌNH MINH
-          </h2>
-          <p className="text-sm text-slate-500 mt-1">Báo cáo doanh thu tài chính theo từng khoản thu, theo lớp và công nợ thực tế.</p>
-        </div>
-
-        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
-          <div className="flex bg-slate-100 p-1 rounded-xl">
-            {filters.map(f => (
-              <button
-                key={f}
-                onClick={() => setTimeFilter(f)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-                  timeFilter === f 
-                    ? 'bg-white text-indigo-600 shadow-sm font-bold' 
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Báo Cáo Doanh Thu & Tài Chính Hàng Tháng
+                </h1>
+                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  {timeFilter}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Báo cáo doanh thu tài chính theo từng khoản thu, theo từng nhóm lớp và công nợ thực tế.
+              </p>
+            </div>
           </div>
 
-          <button
-            onClick={handleExportExcel}
-            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-emerald-600/10"
-            title="Xuất file Excel CSV chuẩn tiếng Việt UTF-8"
-          >
-            <Download className="h-4 w-4" />
-            <span>Xuất Excel</span>
-          </button>
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200 overflow-x-auto w-full sm:w-auto no-scrollbar">
+              {filters.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setTimeFilter(f)}
+                  className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
+                    timeFilter === f
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  {f}
+                </button>
+              ))}
+            </div>
 
-          <button
-            onClick={handleExportPDF}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
-            title="Tạo file PDF in chuẩn A4"
-          >
-            <Printer className="h-4 w-4" />
-            <span>In PDF Báo Cáo</span>
-          </button>
+            <button
+              onClick={handleExportExcel}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="Xuất file Excel CSV chuẩn tiếng Việt UTF-8"
+            >
+              <Download className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Xuất Excel</span>
+            </button>
+
+            <button
+              onClick={handleExportPDF}
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+              title="Tạo file PDF in chuẩn A4"
+            >
+              <Printer className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>In PDF</span>
+            </button>
+          </div>
         </div>
       </div>
 

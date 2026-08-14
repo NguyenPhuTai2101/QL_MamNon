@@ -4,15 +4,6 @@ import React, { useState } from 'react';
 import Portal from "@/components/portal";
 import { UserPlus, Plus, Search, Filter, Phone, Mail, Calendar, CheckCircle2, Clock, XCircle, ArrowRight, UserCheck, Trash2, X } from 'lucide-react';
 
-const mockLeads = [
-  { id: 1, parentName: 'Nguyễn Thị Hương', childName: 'Trần Minh Tuấn', ageGroup: '3-4 tuổi', phone: '0901234567', email: 'huong.nguyen@example.com', source: 'Facebook', status: 'NEW', date: '01/08/2026', notes: 'Hỏi về học phí' },
-  { id: 2, parentName: 'Trần Văn Dũng', childName: 'Lê Mai Trang', ageGroup: '4-5 tuổi', phone: '0901234568', email: 'dung.tran@example.com', source: 'Website', status: 'CONTACTED', date: '02/08/2026', notes: 'Đã gọi tư vấn' },
-  { id: 3, parentName: 'Lê Thị Thu', childName: 'Phạm Gia Bảo', ageGroup: '2-3 tuổi', phone: '0901234569', email: 'thu.le@example.com', source: 'Giới thiệu', status: 'VISITED', date: '03/08/2026', notes: 'Đã hẹn t7 qua trường' },
-  { id: 4, parentName: 'Phạm Văn Thành', childName: 'Hoàng Bảo Yến', ageGroup: '5-6 tuổi', phone: '0901234570', email: 'thanh.pham@example.com', source: 'Google', status: 'ENROLLED', date: '04/08/2026', notes: 'Đã đóng học phí' },
-  { id: 5, parentName: 'Hoàng Thị Lan', childName: 'Nguyễn Quốc Việt', ageGroup: '3-4 tuổi', phone: '0901234571', email: 'lan.hoang@example.com', source: 'Facebook', status: 'REJECTED', date: '05/08/2026', notes: 'Trường xa nhà' },
-  { id: 6, parentName: 'Ngô Văn Nam', childName: 'Đinh Phương Anh', ageGroup: '2-3 tuổi', phone: '0901234572', email: 'nam.ngo@example.com', source: 'Zalo', status: 'NEW', date: '06/08/2026', notes: 'Xin thực đơn' },
-];
-
 const STATUSES = {
   'NEW': { label: 'Hồ sơ mới', color: 'text-sky-600 bg-sky-100' },
   'CONTACTED': { label: 'Đã tư vấn', color: 'text-indigo-600 bg-indigo-100' },
@@ -22,7 +13,7 @@ const STATUSES = {
 };
 
 export default function AdmissionsTab() {
-  const [leads, setLeads] = useState<any[]>(mockLeads);
+  const [leads, setLeads] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -82,30 +73,48 @@ export default function AdmissionsTab() {
   const conversionRate = Math.round((enrolledCount / leads.length) * 100) || 0;
 
   return (
-    <div className="animate-fadeIn p-6 max-w-7xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Quản lý Tuyển sinh</h1>
-          <p className="text-slate-500">Theo dõi quy trình tư vấn và đăng ký nhập học</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <a
-            href="/register"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm"
-          >
-            <UserPlus className="w-4 h-4" />
-            <span>Mở trang Đăng ký Online phụ huynh</span>
-          </a>
-          <button 
-            onClick={() => setShowAddModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Thêm hồ sơ mới</span>
-          </button>
+    <div className="space-y-6 animate-fadeIn pb-12">
+      {/* 1. ERP MODULE HEADER BANNER */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
+              <UserPlus className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Quản Lý Tuyển Sinh & Chăm Sóc Khách Hàng (CRM)
+                </h1>
+                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                  CRM Giáo Dục
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Theo dõi toàn diện quy trình tư vấn, hẹn tham quan trường và đăng ký nhập học trực tuyến.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
+            <a
+              href="/register"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-indigo-600 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4 text-indigo-600 shrink-0" />
+              <span>Cổng Đăng Ký Online</span>
+            </a>
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+            >
+              <Plus className="w-4 h-4 shrink-0" />
+              <span>Thêm Hồ Sơ Mới</span>
+            </button>
+          </div>
         </div>
       </div>
 
