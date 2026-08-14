@@ -24,9 +24,6 @@ import { formatCurrency } from '@/lib/utils';
 type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
 type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
 
-type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
-type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
-
 interface Staff {
   id: string;
   fullName: string;
