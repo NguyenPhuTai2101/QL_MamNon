@@ -132,14 +132,19 @@ model IngredientCost {
 model Staff {
   id            String       @id @default(uuid())
   fullName      String
+  dob           DateTime?    // Ngày sinh
+  cccd          String?      // Thẻ CCCD / CMND
   phone         String
   email         String?
   position      String   // TEACHER, ASSISTANT, COOK, GUARD, ADMIN_STAFF
+  specialty     String?  // Chuyên môn (Sư phạm Mầm non, Âm nhạc, Mỹ thuật...)
   degree        String?  // Bằng cấp chuyên môn
   startDate     DateTime // Ngày bắt đầu làm việc
   status        String   @default("ACTIVE") // ACTIVE, ON_LEAVE, RESIGNED
   assignedClass String?  // Lớp được phân công phụ trách
-  salary        Float?   // Mức lương (VNĐ)
+  workDays      Int?     @default(26) // Theo dõi: Ngày công trong tháng
+  leaveDays     Int?     @default(0)  // Theo dõi: Nghỉ phép trong tháng
+  salary        Float?   // Theo dõi: Mức lương (VNĐ)
   notes         String?
   evaluations   Evaluation[]
   createdAt     DateTime @default(now())

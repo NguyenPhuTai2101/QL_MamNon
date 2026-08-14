@@ -20,7 +20,22 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { fullName, position, phone, email, degree, startDate, assignedClass, salary, notes } = body;
+    const { 
+      fullName, 
+      dob, 
+      cccd, 
+      phone, 
+      email, 
+      position, 
+      specialty, 
+      degree, 
+      startDate, 
+      assignedClass, 
+      workDays, 
+      leaveDays, 
+      salary, 
+      notes 
+    } = body;
 
     if (!fullName || !phone || !position) {
       return NextResponse.json({ error: 'Thiếu họ tên, số điện thoại hoặc chức vụ.' }, { status: 400 });
@@ -29,12 +44,17 @@ export async function POST(request: Request) {
     const newStaff = await prisma.staff.create({
       data: {
         fullName,
-        position,
+        dob: dob ? new Date(dob) : null,
+        cccd: cccd || '',
         phone,
         email: email || '',
+        position,
+        specialty: specialty || '',
         degree: degree || '',
         startDate: startDate ? new Date(startDate) : new Date(),
         assignedClass: assignedClass || '',
+        workDays: workDays ? parseInt(workDays) : 26,
+        leaveDays: leaveDays ? parseInt(leaveDays) : 0,
         salary: salary ? parseFloat(salary) : 8000000,
         notes: notes || '',
         status: 'ACTIVE',

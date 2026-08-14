@@ -24,27 +24,35 @@ import { formatCurrency } from '@/lib/utils';
 type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
 type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
 
+type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
+type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
+
 interface Staff {
   id: string;
   fullName: string;
+  dob?: string;
+  cccd?: string;
   position: Position;
   phone: string;
   email: string;
+  specialty?: string;
   degree: string;
   startDate: string;
   assignedClass: string;
   status: Status;
+  workDays?: number;
+  leaveDays?: number;
   salary: number;
   notes: string;
 }
 
 const mockData: Staff[] = [
-  { id: '1', fullName: 'Nguyễn Thị Hương', position: 'TEACHER', phone: '0987654321', email: 'huong.nt@example.com', degree: 'Đại học Sư phạm', startDate: '2023-08-01', assignedClass: 'Chồi 1', status: 'ACTIVE', salary: 12000000, notes: 'Giáo viên giỏi cấp trường' },
-  { id: '2', fullName: 'Trần Văn Mạnh', position: 'GUARD', phone: '0912345678', email: 'manh.tv@example.com', degree: 'THPT', startDate: '2022-05-15', assignedClass: '', status: 'ACTIVE', salary: 7000000, notes: 'Trực ca ngày' },
-  { id: '3', fullName: 'Lê Thị Lan', position: 'COOK', phone: '0909090909', email: 'lan.lt@example.com', degree: 'Chứng chỉ Nấu ăn Pro', startDate: '2024-01-10', assignedClass: '', status: 'ON_LEAVE', salary: 8500000, notes: 'Nghỉ thai sản' },
-  { id: '4', fullName: 'Phạm Minh Tuấn', position: 'ADMIN_STAFF', phone: '0888888888', email: 'tuan.pm@example.com', degree: 'Cử nhân CNTT', startDate: '2023-11-20', assignedClass: '', status: 'ACTIVE', salary: 10000000, notes: 'Quản trị hệ thống' },
-  { id: '5', fullName: 'Đỗ Thu Hà', position: 'ASSISTANT', phone: '0777777777', email: 'ha.dt@example.com', degree: 'Cao đẳng Sư phạm', startDate: '2024-02-01', assignedClass: 'Chồi 1', status: 'ACTIVE', salary: 8000000, notes: '' },
-  { id: '6', fullName: 'Hoàng Quốc Việt', position: 'TEACHER', phone: '0666666666', email: 'viet.hq@example.com', degree: 'Đại học', startDate: '2021-09-05', assignedClass: 'Lá 2', status: 'RESIGNED', salary: 13000000, notes: 'Chuyển công tác' },
+  { id: '1', fullName: 'Nguyễn Thị Hương', dob: '1993-06-15', cccd: '034193008811', position: 'TEACHER', phone: '0987654321', email: 'huong.nt@example.com', specialty: 'Sư phạm Mầm non', degree: 'Đại học Sư phạm', startDate: '2023-08-01', assignedClass: 'Chồi 1', status: 'ACTIVE', workDays: 26, leaveDays: 0, salary: 12000000, notes: 'Giáo viên giỏi cấp trường' },
+  { id: '2', fullName: 'Trần Văn Mạnh', dob: '1988-11-20', cccd: '034188009922', position: 'GUARD', phone: '0912345678', email: 'manh.tv@example.com', specialty: 'An ninh học đường', degree: 'THPT', startDate: '2022-05-15', assignedClass: '', status: 'ACTIVE', workDays: 26, leaveDays: 1, salary: 7000000, notes: 'Trực ca ngày' },
+  { id: '3', fullName: 'Lê Thị Lan', dob: '1995-03-10', cccd: '034195007733', position: 'COOK', phone: '0909090909', email: 'lan.lt@example.com', specialty: 'Dinh dưỡng Mầm non', degree: 'Chứng chỉ Nấu ăn Pro', startDate: '2024-01-10', assignedClass: '', status: 'ON_LEAVE', workDays: 18, leaveDays: 8, salary: 8500000, notes: 'Nghỉ thai sản' },
+  { id: '4', fullName: 'Phạm Minh Tuấn', dob: '1991-09-05', cccd: '034191006644', position: 'ADMIN_STAFF', phone: '0888888888', email: 'tuan.pm@example.com', specialty: 'Quản trị mạng & ERP', degree: 'Cử nhân CNTT', startDate: '2023-11-20', assignedClass: '', status: 'ACTIVE', workDays: 26, leaveDays: 0, salary: 10000000, notes: 'Quản trị hệ thống' },
+  { id: '5', fullName: 'Đỗ Thu Hà', dob: '1997-12-18', cccd: '034197005555', position: 'ASSISTANT', phone: '0777777777', email: 'ha.dt@example.com', specialty: 'Chăm sóc trẻ mầm non', degree: 'Cao đẳng Sư phạm', startDate: '2024-02-01', assignedClass: 'Chồi 1', status: 'ACTIVE', workDays: 25, leaveDays: 1, salary: 8000000, notes: '' },
+  { id: '6', fullName: 'Hoàng Quốc Việt', dob: '1990-04-25', cccd: '034190004466', position: 'TEACHER', phone: '0666666666', email: 'viet.hq@example.com', specialty: 'Giáo dục Thể chất', degree: 'Đại học', startDate: '2021-09-05', assignedClass: 'Lá 2', status: 'RESIGNED', workDays: 0, leaveDays: 0, salary: 13000000, notes: 'Chuyển công tác' },
 ];
 
 const POSITION_MAP: Record<Position, { label: string; color: string }> = {
@@ -62,7 +70,7 @@ const STATUS_MAP: Record<Status, { label: string; color: string }> = {
 };
 
 export default function StaffTab() {
-  const [staffList, setStaffList] = useState<Staff[]>([]);
+  const [staffList, setStaffList] = useState<Staff[]>(mockData);
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -76,13 +84,18 @@ export default function StaffTab() {
           const mapped: Staff[] = dbStaff.map((s: any) => ({
             id: s.id,
             fullName: s.fullName,
+            dob: s.dob ? s.dob.split('T')[0] : '1994-05-15',
+            cccd: s.cccd || '034194000123',
             position: s.position as Position,
             phone: s.phone,
             email: s.email || '',
+            specialty: s.specialty || 'Sư phạm Mầm non',
             degree: s.degree || '',
             startDate: s.startDate ? s.startDate.split('T')[0] : '2024-09-01',
             assignedClass: s.assignedClass || '',
             status: s.status as Status,
+            workDays: s.workDays ?? 26,
+            leaveDays: s.leaveDays ?? 0,
             salary: s.salary || 8000000,
             notes: s.notes || '',
           }));
@@ -94,12 +107,17 @@ export default function StaffTab() {
 
   const [formData, setFormData] = useState<Partial<Staff>>({
     fullName: '',
+    dob: '1994-05-15',
+    cccd: '',
     phone: '',
     email: '',
     position: 'TEACHER',
-    degree: '',
+    specialty: 'Sư phạm Mầm non',
+    degree: 'Cử nhân Sư phạm',
     startDate: new Date().toISOString().split('T')[0],
     assignedClass: '',
+    workDays: 26,
+    leaveDays: 0,
     salary: 8000000,
     notes: '',
   });
@@ -136,12 +154,17 @@ export default function StaffTab() {
 
       setFormData({
         fullName: '',
+        dob: '1994-05-15',
+        cccd: '',
         phone: '',
         email: '',
         position: 'TEACHER',
-        degree: '',
+        specialty: 'Sư phạm Mầm non',
+        degree: 'Cử nhân Sư phạm',
         startDate: new Date().toISOString().split('T')[0],
         assignedClass: '',
+        workDays: 26,
+        leaveDays: 0,
         salary: 8000000,
         notes: '',
       });
@@ -296,12 +319,12 @@ export default function StaffTab() {
           <table className="table-pro">
             <thead>
               <tr>
-                <th>Nhân viên</th>
-                <th>Chức vụ</th>
-                <th>Thông tin liên hệ</th>
-                <th>Lớp phụ trách</th>
-                <th>Bằng cấp</th>
-                <th>Mức lương</th>
+                <th>Thông tin Cá nhân</th>
+                <th>Chức vụ & Chuyên môn</th>
+                <th>Liên hệ</th>
+                <th>Phân công & Bằng cấp</th>
+                <th>Theo dõi Ngày công</th>
+                <th>Theo dõi Lương</th>
                 <th>Trạng thái</th>
                 <th className="text-right">Thao tác</th>
               </tr>
@@ -328,13 +351,20 @@ export default function StaffTab() {
                             <span className="font-bold text-slate-900 block">
                               {staff.fullName}
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">Vào làm: {staff.startDate}</span>
+                            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 mt-0.5">
+                              <span>NS: {staff.dob || '1994-05-15'}</span>
+                              <span>•</span>
+                              <span>CCCD: {staff.cccd || '034194000123'}</span>
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td>
-                        <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-bold border ${posInfo.color}`}>
+                        <span className={`inline-block px-2.5 py-0.5 rounded-lg text-xs font-bold border ${posInfo.color}`}>
                           {posInfo.label}
+                        </span>
+                        <span className="block text-[11px] text-indigo-600 font-semibold mt-1">
+                          {staff.specialty || 'Sư phạm Mầm non'}
                         </span>
                       </td>
                       <td className="text-xs space-y-0.5">
@@ -349,16 +379,24 @@ export default function StaffTab() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td className="text-xs">
+                        <div className="font-semibold text-slate-800">{staff.degree || 'Cử nhân'}</div>
                         {staff.assignedClass ? (
-                          <span className="bg-indigo-50 text-indigo-700 font-bold text-xs px-2.5 py-1 rounded-lg border border-indigo-100/60">
-                            Lớp {staff.assignedClass}
+                          <span className="inline-block mt-0.5 bg-indigo-50 text-indigo-700 font-bold text-[10px] px-2 py-0.5 rounded border border-indigo-100/60">
+                            Phụ trách: Lớp {staff.assignedClass}
                           </span>
                         ) : (
-                          <span className="text-slate-400 text-xs">—</span>
+                          <span className="text-slate-400 text-[10px]">—</span>
                         )}
                       </td>
-                      <td className="text-slate-700 text-xs font-medium">{staff.degree || '—'}</td>
+                      <td className="text-xs">
+                        <div className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 inline-block">
+                          {staff.workDays ?? 26} ngày công
+                        </div>
+                        <div className="text-[10px] text-amber-600 font-medium mt-0.5">
+                          Nghỉ phép: {staff.leaveDays ?? 0} ngày
+                        </div>
+                      </td>
                       <td className="font-black text-slate-900">{formatCurrency(staff.salary)}</td>
                       <td>
                         {staff.status === 'ACTIVE' && (
@@ -383,12 +421,17 @@ export default function StaffTab() {
                           onClick={() => {
                             setFormData({
                               fullName: staff.fullName,
+                              dob: staff.dob || '1994-05-15',
+                              cccd: staff.cccd || '',
                               phone: staff.phone,
                               email: staff.email || '',
                               position: staff.position,
+                              specialty: staff.specialty || 'Sư phạm Mầm non',
                               degree: staff.degree || '',
                               startDate: staff.startDate,
                               assignedClass: staff.assignedClass || '',
+                              workDays: staff.workDays ?? 26,
+                              leaveDays: staff.leaveDays ?? 0,
                               salary: staff.salary,
                               notes: staff.notes || '',
                             });
@@ -444,104 +487,187 @@ export default function StaffTab() {
               </div>
 
               <form onSubmit={handleAddStaff} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Họ và tên *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Ví dụ: Nguyễn Thị Mai"
-                      value={formData.fullName}
-                      onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                    />
+                {/* NHÓM 1: THÔNG TIN CÁ NHÂN */}
+                <div className="border-b border-slate-100 pb-3">
+                  <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">1. Thông tin cá nhân</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Họ và tên *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Ví dụ: Nguyễn Thị Hương"
+                        value={formData.fullName}
+                        onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số điện thoại *</label>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="0987654321"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số điện thoại *</label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="0987654321"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                    />
-                  </div>
-                </div>
+                  <div className="grid grid-cols-3 gap-4 mt-3">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày sinh</label>
+                      <input
+                        type="date"
+                        value={formData.dob || '1994-05-15'}
+                        onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-semibold transition-all shadow-sm"
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Email</label>
-                    <input
-                      type="email"
-                      placeholder="example@school.edu.vn"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                    />
-                  </div>
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số CCCD / CMND</label>
+                      <input
+                        type="text"
+                        placeholder="034194000123"
+                        value={formData.cccd || ''}
+                        onChange={(e) => setFormData({ ...formData, cccd: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
 
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Chức vụ</label>
-                    <select
-                      value={formData.position}
-                      onChange={(e) => setFormData({ ...formData, position: e.target.value as Position })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
-                    >
-                      {Object.keys(POSITION_MAP).map((pos) => (
-                        <option key={pos} value={pos}>
-                          {POSITION_MAP[pos as Position].label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bằng cấp / Chuyên môn</label>
-                    <input
-                      type="text"
-                      placeholder="Đại học Sư phạm mầm non..."
-                      value={formData.degree}
-                      onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Lớp phụ trách</label>
-                    <input
-                      type="text"
-                      placeholder="Mầm 1, Chồi 2... (nếu có)"
-                      value={formData.assignedClass}
-                      onChange={(e) => setFormData({ ...formData, assignedClass: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                    />
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Email</label>
+                      <input
+                        type="email"
+                        placeholder="huong@school.edu.vn"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày vào làm</label>
-                    <input
-                      type="date"
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
-                    />
+                {/* NHÓM 2: CHUYÊN MÔN & BẰNG CẤP */}
+                <div className="border-b border-slate-100 pb-3">
+                  <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">2. Chuyên môn & Bằng cấp</span>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Chức vụ</label>
+                      <select
+                        value={formData.position}
+                        onChange={(e) => setFormData({ ...formData, position: e.target.value as Position })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                      >
+                        {Object.keys(POSITION_MAP).map((pos) => (
+                          <option key={pos} value={pos}>
+                            {POSITION_MAP[pos as Position].label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Chuyên môn</label>
+                      <input
+                        type="text"
+                        placeholder="Ví dụ: Sư phạm Mầm non, Âm nhạc..."
+                        value={formData.specialty || ''}
+                        onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Mức lương (VNĐ)</label>
-                    <input
-                      type="number"
-                      step={500000}
-                      value={formData.salary}
-                      onChange={(e) => setFormData({ ...formData, salary: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
-                    />
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Bằng cấp</label>
+                      <input
+                        type="text"
+                        placeholder="Đại học Sư phạm mầm non..."
+                        value={formData.degree}
+                        onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Lớp phụ trách</label>
+                      <input
+                        type="text"
+                        placeholder="Mầm 1, Chồi 2... (nếu có)"
+                        value={formData.assignedClass}
+                        onChange={(e) => setFormData({ ...formData, assignedClass: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* NHÓM 3: THEO DÕI NGÀY CÔNG, NGHỈ PHÉP & LƯƠNG */}
+                <div>
+                  <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">3. Theo dõi Ngày công & Lương</span>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày công tháng</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={31}
+                        value={formData.workDays ?? 26}
+                        onChange={(e) => setFormData({ ...formData, workDays: Number(e.target.value) })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-bold transition-all shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Số ngày nghỉ phép</label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={30}
+                        value={formData.leaveDays ?? 0}
+                        onChange={(e) => setFormData({ ...formData, leaveDays: Number(e.target.value) })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-bold transition-all shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Mức lương (VNĐ)</label>
+                      <input
+                        type="number"
+                        step={500000}
+                        value={formData.salary}
+                        onChange={(e) => setFormData({ ...formData, salary: Number(e.target.value) })}
+                        className="w-full px-3 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-xs font-extrabold text-indigo-700 transition-all shadow-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 mt-3">
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ngày vào làm</label>
+                      <input
+                        type="date"
+                        value={formData.startDate}
+                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Ghi chú</label>
+                      <input
+                        type="text"
+                        placeholder="Ghi chú kinh nghiệm, khen thưởng..."
+                        value={formData.notes}
+                        onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                        className="w-full px-4 py-2.5 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 transition-all shadow-sm"
+                      />
+                    </div>
                   </div>
                 </div>
 
