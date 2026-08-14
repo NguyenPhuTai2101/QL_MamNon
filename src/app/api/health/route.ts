@@ -78,10 +78,45 @@ export async function POST(request: Request) {
       });
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, data: result });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Không thể lưu hồ sơ sức khỏe.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT / PATCH: Cập nhật hồ sơ sức khỏe
+export async function PUT(request: Request) {
+  return POST(request);
+}
+
+export async function PATCH(request: Request) {
+  return POST(request);
+}
+
+// DELETE: Xóa hồ sơ sức khỏe
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    const studentId = searchParams.get("studentId");
+
+    if (id) {
+      await prisma.healthRecord.delete({ where: { id } });
+      return NextResponse.json({ success: true, message: "Đã xóa hồ sơ sức khỏe thành công." });
+    }
+
+    if (studentId) {
+      await prisma.healthRecord.deleteMany({ where: { studentId } });
+      return NextResponse.json({ success: true, message: "Đã xóa hồ sơ sức khỏe của học sinh thành công." });
+    }
+
+    return NextResponse.json({ error: "Thiếu ID hoặc studentId cần xóa." }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Không thể xóa hồ sơ sức khỏe.", details: error.message },
       { status: 500 }
     );
   }

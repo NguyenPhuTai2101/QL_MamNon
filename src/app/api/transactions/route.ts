@@ -40,6 +40,39 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT / PATCH: Cập nhật thông tin bút toán Thu/Chi
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, date, type, category, amount, description, createdBy } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: "Thiếu ID bút toán cần cập nhật." }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (date) updateData.date = new Date(date);
+    if (type) updateData.type = type;
+    if (category) updateData.category = category;
+    if (amount !== undefined) updateData.amount = parseFloat(amount);
+    if (description !== undefined) updateData.description = description;
+    if (createdBy !== undefined) updateData.createdBy = createdBy;
+
+    const updated = await prisma.transaction.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, message: "Không thể cập nhật bút toán.", details: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  return PUT(request);
+}
+
 // DELETE: Xóa bút toán khỏi CSDL Supabase
 export async function DELETE(request: Request) {
   try {

@@ -41,6 +41,39 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT / PATCH: Cập nhật thông tin tài sản & cơ sở vật chất
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, name, category, location, quantity, unitPrice, status } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID tài sản cần cập nhật.' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (category) updateData.category = category;
+    if (location !== undefined) updateData.location = location;
+    if (quantity !== undefined) updateData.quantity = parseInt(quantity);
+    if (unitPrice !== undefined) updateData.unitPrice = parseFloat(unitPrice);
+    if (status) updateData.status = status;
+
+    const updated = await prisma.asset.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, data: updated });
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Không thể cập nhật tài sản.', details: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  return PUT(request);
+}
+
 // DELETE: Xóa tài sản khỏi CSDL Supabase
 export async function DELETE(request: Request) {
   try {

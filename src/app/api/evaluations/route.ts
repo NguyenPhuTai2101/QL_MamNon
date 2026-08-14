@@ -80,6 +80,58 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT / PATCH: Cập nhật kết quả đánh giá giáo viên
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, staffName, month, attendancePts, teachingPts, feedbackPts, rank, notes } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Thiếu ID kết quả đánh giá cần cập nhật' }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (staffName) updateData.staffName = staffName;
+    if (month) updateData.month = month;
+    if (attendancePts !== undefined) updateData.attendancePts = Number(attendancePts);
+    if (teachingPts !== undefined) updateData.teachingPts = Number(teachingPts);
+    if (feedbackPts !== undefined) updateData.feedbackPts = Number(feedbackPts);
+    if (notes !== undefined) updateData.notes = notes;
+
+    if (updateData.attendancePts !== undefined || updateData.teachingPts !== undefined || updateData.feedbackPts !== undefined) {
+      const current = await prisma.evaluation.findUnique({ where: { id } });
+      const att = updateData.attendancePts !== undefined ? updateData.attendancePts : (current?.attendancePts || 0);
+      const teach = updateData.teachingPts !== undefined ? updateData.teachingPts : (current?.teachingPts || 0);
+      const fb = updateData.feedbackPts !== undefined ? updateData.feedbackPts : (current?.feedbackPts || 0);
+      updateData.score = att + teach + fb;
+
+      if (!rank) {
+        if (updateData.score >= 90) updateData.rank = 'EXCELLENT';
+        else if (updateData.score >= 80) updateData.rank = 'GOOD';
+        else if (updateData.score >= 70) updateData.rank = 'FAIR';
+        else updateData.rank = 'POOR';
+      } else {
+        updateData.rank = rank;
+      }
+    } else if (rank) {
+      updateData.rank = rank;
+    }
+
+    const updated = await prisma.evaluation.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, data: updated, message: 'Đã cập nhật kết quả đánh giá' });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: 'Không thể cập nhật kết quả đánh giá', details: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  return PUT(request);
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

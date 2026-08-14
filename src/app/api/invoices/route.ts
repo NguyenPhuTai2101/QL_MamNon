@@ -69,32 +69,70 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Cập nhật trạng thái thanh toán của hóa đơn
+// PATCH / PUT: Cập nhật thông tin hoặc trạng thái thanh toán của hóa đơn
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { id, status, paymentMethod } = body;
+    const { id, status, amount, paymentMethod, month, year } = body;
 
-    if (!id || !status) {
+    if (!id) {
       return NextResponse.json(
-        { error: "Thiếu ID hóa đơn hoặc trạng thái cần cập nhật." },
+        { error: "Thiếu ID hóa đơn cần cập nhật." },
         { status: 400 }
       );
     }
 
+    const updateData: any = {};
+    if (status) {
+      updateData.status = status;
+      updateData.paymentDate = status === "PAID" ? new Date() : null;
+    }
+    if (paymentMethod !== undefined) updateData.paymentMethod = paymentMethod;
+    if (amount !== undefined) updateData.amount = parseFloat(amount);
+    if (month !== undefined) updateData.month = parseInt(month);
+    if (year !== undefined) updateData.year = parseInt(year);
+
     const updated = await prisma.invoice.update({
       where: { id },
-      data: {
-        status,
-        paymentMethod: paymentMethod || "QR",
-        paymentDate: status === "PAID" ? new Date() : null,
+      data: updateData,
+      include: {
+        student: {
+          include: { class: true },
+        },
       },
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json({ success: true, data: updated });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Không thể cập nhật hóa đơn.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: Request) {
+  return PATCH(request);
+}
+
+// DELETE: Xóa hoặc hủy hóa đơn học phí
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID hóa đơn cần xóa." }, { status: 400 });
+    }
+
+    await prisma.invoice.delete({
+      where: { id },
+    });
+
+    return NextResponse.json({ success: true, message: "Đã xóa hóa đơn học phí thành công." });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Không thể xóa hóa đơn.", details: error.message },
       { status: 500 }
     );
   }

@@ -94,6 +94,61 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT / PATCH: Cập nhật thông tin học sinh
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    let { id, firstName, lastName, name, birthDate, gender, parentName, parentPhone, classId, className, address } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: "Thiếu ID học sinh cần cập nhật." }, { status: 400 });
+    }
+
+    if (name && (!firstName || !lastName)) {
+      const parts = name.trim().split(" ");
+      lastName = parts[0] || "Nguyễn";
+      firstName = parts.slice(1).join(" ") || parts[0] || "Học sinh";
+    }
+
+    // Nếu truyền className thay vì classId
+    if (className && !classId) {
+      const foundClass = await prisma.class.findFirst({
+        where: { name: { contains: className } },
+      });
+      if (foundClass) {
+        classId = foundClass.id;
+      }
+    }
+
+    const updateData: any = {};
+    if (firstName) updateData.firstName = firstName;
+    if (lastName) updateData.lastName = lastName;
+    if (birthDate) updateData.birthDate = new Date(birthDate);
+    if (gender) updateData.gender = gender;
+    if (parentName) updateData.parentName = parentName;
+    if (parentPhone) updateData.parentPhone = parentPhone;
+    if (address !== undefined) updateData.address = address;
+    if (classId) updateData.classId = classId;
+
+    const updatedStudent = await prisma.student.update({
+      where: { id },
+      data: updateData,
+      include: { class: true },
+    });
+
+    return NextResponse.json({ success: true, data: updatedStudent });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Không thể cập nhật thông tin học sinh.", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  return PUT(request);
+}
+
 // DELETE: Xóa học sinh theo ID (Tự động xóa các dữ liệu liên quan: Điểm danh, Sức khỏe, Hóa đơn)
 export async function DELETE(request: Request) {
   try {

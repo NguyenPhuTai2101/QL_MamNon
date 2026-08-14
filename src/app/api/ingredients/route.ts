@@ -45,10 +45,40 @@ export async function GET(request: Request) {
   }
 }
 
-// POST: Thêm mới hoặc nhập thực phẩm đi chợ vào kho
+// POST: Thêm mới hoặc nhập thực phẩm đi chợ vào kho (Hỗ trợ cả đơn lẻ và hàng loạt)
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
+    // Hỗ trợ nhập thực phẩm hàng loạt
+    const items = Array.isArray(body) ? body : (body.items && Array.isArray(body.items)) ? body.items : null;
+
+    if (items) {
+      const createdList = [];
+      for (const item of items) {
+        const { name, quantity, unit, unitPrice, notes, date } = item;
+        if (!name) continue;
+        const qty = parseFloat(quantity) || 0;
+        const price = parseFloat(unitPrice) || 0;
+        const totalCost = qty * price;
+
+        const created = await prisma.ingredientCost.create({
+          data: {
+            name,
+            quantity: qty,
+            unit: unit || "kg",
+            unitPrice: price,
+            totalCost,
+            notes: notes || null,
+            date: date ? new Date(date) : new Date(),
+          },
+        });
+        createdList.push(created);
+      }
+      return NextResponse.json({ success: true, count: createdList.length, data: createdList }, { status: 201 });
+    }
+
+    // Đơn lẻ
     const { name, quantity, unit, unitPrice, notes, date } = body;
 
     if (!name || quantity === undefined || !unit || unitPrice === undefined) {
@@ -74,7 +104,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(newIngredient, { status: 201 });
+    return NextResponse.json({ success: true, data: newIngredient }, { status: 201 });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Không thể thêm nguyên liệu thực phẩm.", details: error.message },

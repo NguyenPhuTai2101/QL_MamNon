@@ -46,6 +46,41 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT / PATCH: Cập nhật sự kiện / thông báo
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { id, title, description, date, endDate, type, priority, targetClass, createdBy } = body;
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Thiếu ID sự kiện cần cập nhật" }, { status: 400 });
+    }
+
+    const updateData: any = {};
+    if (title) updateData.title = title;
+    if (description !== undefined) updateData.description = description;
+    if (date) updateData.date = new Date(date);
+    if (endDate) updateData.endDate = new Date(endDate);
+    if (type) updateData.type = type;
+    if (priority) updateData.priority = priority;
+    if (targetClass !== undefined) updateData.targetClass = targetClass;
+    if (createdBy) updateData.createdBy = createdBy;
+
+    const updated = await prisma.event.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({ success: true, message: "Cập nhật thành công", data: updated });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: "Không thể cập nhật sự kiện", details: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  return PUT(request);
+}
+
 export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);

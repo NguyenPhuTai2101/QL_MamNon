@@ -82,9 +82,27 @@ export default function AttendanceTab() {
     setSavedSuccess(false);
   };
 
-  const handleSaveAttendance = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 3000);
+  const handleSaveAttendance = async () => {
+    try {
+      const recordsToSave = currentClassAll.map((item) => ({
+        studentId: item.studentId,
+        status: item.status,
+        pickupPerson: item.pickupPerson,
+        notes: item.notes,
+        date: selectedDate,
+      }));
+
+      await fetch("/api/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ attendances: recordsToSave }),
+      });
+
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 3000);
+    } catch (err) {
+      console.error("Lỗi lưu điểm danh:", err);
+    }
   };
 
   const currentClassAll = attendanceList.filter(s => s.className === selectedClass);
