@@ -186,12 +186,16 @@ export default function StaffTab() {
 
   const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.fullName || !formData.phone) return;
+    if (!formData.fullName || !formData.phone) {
+      alert('Vui lòng điền đầy đủ Họ và tên và Số điện thoại!');
+      return;
+    }
 
     try {
       if (editingStaffId) {
-        setStaffList(
-          staffList.map((item) =>
+        // CẬP NHẬT NHÂN VIÊN
+        setStaffList((prev) =>
+          prev.map((item) =>
             item.id === editingStaffId ? ({ ...item, ...formData } as Staff) : item
           )
         );
@@ -203,20 +207,44 @@ export default function StaffTab() {
           body: JSON.stringify({ id: editingStaffId, ...formData }),
         });
       } else {
-        const newStaff: Staff = {
-          ...formData,
-          id: Date.now().toString(),
+        // THÊM NHÂN VIÊN MỚI
+        const tempId = Date.now().toString();
+        const tempStaff: Staff = {
+          fullName: formData.fullName || '',
+          dob: formData.dob || '1994-05-15',
+          cccd: formData.cccd || '',
+          phone: formData.phone || '',
+          email: formData.email || '',
+          position: formData.position || 'TEACHER',
+          specialty: formData.specialty || 'Sư phạm Mầm non',
+          degree: formData.degree || 'Cử nhân Sư phạm',
+          startDate: formData.startDate || new Date().toISOString().split('T')[0],
+          assignedClass: formData.assignedClass || '',
+          workDays: formData.workDays ?? 26,
+          leaveDays: formData.leaveDays ?? 0,
+          salary: formData.salary || 8000000,
+          notes: formData.notes || '',
+          id: tempId,
           status: 'ACTIVE',
-        } as Staff;
+        };
 
-        setStaffList([newStaff, ...staffList]);
+        setStaffList((prev) => [tempStaff, ...prev]);
         setIsAddModalOpen(false);
 
-        await fetch('/api/staff', {
+        const res = await fetch('/api/staff', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(formData),
         });
+
+        if (res.ok) {
+          const dbItem = await res.json();
+          setStaffList((prev) =>
+            prev.map((item) =>
+              item.id === tempId ? { ...item, id: dbItem.id } : item
+            )
+          );
+        }
       }
 
       resetForm();

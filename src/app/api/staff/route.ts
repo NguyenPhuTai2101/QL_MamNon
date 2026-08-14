@@ -93,9 +93,9 @@ export async function PUT(request: Request) {
       return NextResponse.json({ error: 'Thiếu ID nhân viên' }, { status: 400 });
     }
 
-    const updatedStaff = await prisma.staff.update({
+    const updatedStaff = await prisma.staff.upsert({
       where: { id },
-      data: {
+      update: {
         fullName,
         dob: dob ? new Date(dob) : undefined,
         cccd,
@@ -110,6 +110,24 @@ export async function PUT(request: Request) {
         leaveDays: leaveDays !== undefined ? parseInt(leaveDays) : undefined,
         salary: salary !== undefined ? parseFloat(salary) : undefined,
         notes,
+      },
+      create: {
+        id,
+        fullName: fullName || 'Chưa đặt tên',
+        dob: dob ? new Date(dob) : null,
+        cccd: cccd || '',
+        phone: phone || '',
+        email: email || '',
+        position: position || 'TEACHER',
+        specialty: specialty || '',
+        degree: degree || '',
+        startDate: startDate ? new Date(startDate) : new Date(),
+        assignedClass: assignedClass || '',
+        workDays: workDays ? parseInt(workDays) : 26,
+        leaveDays: leaveDays ? parseInt(leaveDays) : 0,
+        salary: salary ? parseFloat(salary) : 8000000,
+        notes: notes || '',
+        status: 'ACTIVE',
       },
     });
 
