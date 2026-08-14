@@ -67,6 +67,58 @@ export async function POST(request: Request) {
   }
 }
 
+// PUT: Cập nhật thông tin nhân viên trong CSDL Supabase
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json();
+    const { 
+      id,
+      fullName, 
+      dob, 
+      cccd, 
+      phone, 
+      email, 
+      position, 
+      specialty, 
+      degree, 
+      startDate, 
+      assignedClass, 
+      workDays, 
+      leaveDays, 
+      salary, 
+      notes 
+    } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Thiếu ID nhân viên' }, { status: 400 });
+    }
+
+    const updatedStaff = await prisma.staff.update({
+      where: { id },
+      data: {
+        fullName,
+        dob: dob ? new Date(dob) : undefined,
+        cccd,
+        phone,
+        email,
+        position,
+        specialty,
+        degree,
+        startDate: startDate ? new Date(startDate) : undefined,
+        assignedClass,
+        workDays: workDays !== undefined ? parseInt(workDays) : undefined,
+        leaveDays: leaveDays !== undefined ? parseInt(leaveDays) : undefined,
+        salary: salary !== undefined ? parseFloat(salary) : undefined,
+        notes,
+      },
+    });
+
+    return NextResponse.json(updatedStaff);
+  } catch (error: any) {
+    return NextResponse.json({ error: 'Không thể cập nhật nhân viên', details: error.message }, { status: 500 });
+  }
+}
+
 // DELETE: Xóa nhân viên khỏi CSDL Supabase
 export async function DELETE(request: Request) {
   try {

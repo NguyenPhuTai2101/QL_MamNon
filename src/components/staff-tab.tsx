@@ -71,6 +71,7 @@ export default function StaffTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
 
   // Tải danh sách Nhân viên trực tiếp từ Supabase PostgreSQL CSDL
   useEffect(() => {
@@ -119,6 +120,57 @@ export default function StaffTab() {
     notes: '',
   });
 
+  const resetForm = () => {
+    setFormData({
+      fullName: '',
+      dob: '1994-05-15',
+      cccd: '',
+      phone: '',
+      email: '',
+      position: 'TEACHER',
+      specialty: 'Sư phạm Mầm non',
+      degree: 'Cử nhân Sư phạm',
+      startDate: new Date().toISOString().split('T')[0],
+      assignedClass: '',
+      workDays: 26,
+      leaveDays: 0,
+      salary: 8000000,
+      notes: '',
+    });
+    setEditingStaffId(null);
+  };
+
+  const handleOpenAddModal = () => {
+    resetForm();
+    setIsAddModalOpen(true);
+  };
+
+  const handleOpenEditModal = (staff: Staff) => {
+    setEditingStaffId(staff.id);
+    setFormData({
+      fullName: staff.fullName,
+      dob: staff.dob || '1994-05-15',
+      cccd: staff.cccd || '',
+      phone: staff.phone,
+      email: staff.email || '',
+      position: staff.position,
+      specialty: staff.specialty || 'Sư phạm Mầm non',
+      degree: staff.degree || '',
+      startDate: staff.startDate,
+      assignedClass: staff.assignedClass || '',
+      workDays: staff.workDays ?? 26,
+      leaveDays: staff.leaveDays ?? 0,
+      salary: staff.salary,
+      notes: staff.notes || '',
+    });
+    setIsAddModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsAddModalOpen(false);
+    resetForm();
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -128,43 +180,44 @@ export default function StaffTab() {
       .toUpperCase();
   };
 
-  const handleAddStaff = async (e: React.FormEvent) => {
+  const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.phone) return;
 
     try {
-      const newStaff: Staff = {
-        ...formData,
-        id: Date.now().toString(),
-        status: 'ACTIVE',
-      } as Staff;
-      
-      setStaffList([newStaff, ...staffList]);
-      setIsAddModalOpen(false);
+      if (editingStaffId) {
+        // CẬP NHẬT NHÂN VIÊN ĐÃ TỒN TẠI
+        setStaffList(
+          staffList.map((item) =>
+            item.id === editingStaffId ? ({ ...item, ...formData } as Staff) : item
+          )
+        );
+        setIsAddModalOpen(false);
 
-      // Lưu trực tiếp vào Database Supabase
-      await fetch('/api/staff', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
+        await fetch('/api/staff', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: editingStaffId, ...formData }),
+        });
+      } else {
+        // THÊM NHÂN VIÊN MỚI
+        const newStaff: Staff = {
+          ...formData,
+          id: Date.now().toString(),
+          status: 'ACTIVE',
+        } as Staff;
 
-      setFormData({
-        fullName: '',
-        dob: '1994-05-15',
-        cccd: '',
-        phone: '',
-        email: '',
-        position: 'TEACHER',
-        specialty: 'Sư phạm Mầm non',
-        degree: 'Cử nhân Sư phạm',
-        startDate: new Date().toISOString().split('T')[0],
-        assignedClass: '',
-        workDays: 26,
-        leaveDays: 0,
-        salary: 8000000,
-        notes: '',
-      });
+        setStaffList([newStaff, ...staffList]);
+        setIsAddModalOpen(false);
+
+        await fetch('/api/staff', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+      }
+
+      resetForm();
     } catch (err) {
       console.error('Lỗi lưu nhân viên vào DB:', err);
     }
@@ -207,8 +260,8 @@ export default function StaffTab() {
         </div>
 
         <button 
-          onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10"
+          onClick={handleOpenAddModal}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-colors shadow-md shadow-indigo-600/10 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           Thêm nhân viên mới
@@ -415,25 +468,7 @@ export default function StaffTab() {
                       <td className="text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => {
-                            setFormData({
-                              fullName: staff.fullName,
-                              dob: staff.dob || '1994-05-15',
-                              cccd: staff.cccd || '',
-                              phone: staff.phone,
-                              email: staff.email || '',
-                              position: staff.position,
-                              specialty: staff.specialty || 'Sư phạm Mầm non',
-                              degree: staff.degree || '',
-                              startDate: staff.startDate,
-                              assignedClass: staff.assignedClass || '',
-                              workDays: staff.workDays ?? 26,
-                              leaveDays: staff.leaveDays ?? 0,
-                              salary: staff.salary,
-                              notes: staff.notes || '',
-                            });
-                            setIsAddModalOpen(true);
-                          }}
+                          onClick={() => handleOpenEditModal(staff)}
                           className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                           title="Chỉnh sửa nhân viên"
                         >
@@ -471,19 +506,23 @@ export default function StaffTab() {
                     <UserCog className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-800 leading-tight">Thêm Nhân Viên / Giáo Viên Mới</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Khai báo thông tin hồ sơ và phân công công tác trong nhà trường</p>
+                    <h3 className="text-xl font-bold text-slate-800 leading-tight">
+                      {editingStaffId ? 'Chỉnh Sửa Hồ Sơ Nhân Viên' : 'Thêm Nhân Viên / Giáo Viên Mới'}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      {editingStaffId ? 'Cập nhật lại các thông tin cá nhân, chuyên môn và quá trình làm việc' : 'Khai báo thông tin hồ sơ và phân công công tác trong nhà trường'}
+                    </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                  onClick={handleCloseModal}
+                  className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddStaff} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
+              <form onSubmit={handleSaveStaff} className="p-6 pt-0 space-y-4 overflow-y-auto flex-1">
                 {/* NHÓM 1: THÔNG TIN CÁ NHÂN */}
                 <div className="border-b border-slate-100 pb-3">
                   <span className="text-xs font-black text-indigo-600 uppercase tracking-wider block mb-2">1. Thông tin cá nhân</span>
@@ -682,10 +721,10 @@ export default function StaffTab() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm cursor-pointer"
                   >
                     <UserCog className="w-4 h-4" />
-                    Lưu hồ sơ nhân viên
+                    {editingStaffId ? 'Cập nhật hồ sơ nhân viên' : 'Lưu hồ sơ nhân viên mới'}
                   </button>
                 </div>
               </form>
