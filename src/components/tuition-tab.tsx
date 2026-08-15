@@ -875,24 +875,14 @@ export default function TuitionTab() {
                           </td>
                           <td className="py-3.5 px-4 text-right whitespace-nowrap">
                             <div className="flex items-center justify-end gap-2">
-                              {/* Xem bóc tách hóa đơn theo lớp */}
+                              {/* Nút Xem Phiếu Báo Học Phí & VietQR chuẩn mẫu */}
                               <button
-                                onClick={() => setBreakdownStudent(student)}
-                                className="inline-flex items-center gap-1 text-slate-600 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 border border-slate-200 px-2.5 py-1.5 rounded-xl font-bold transition-all text-xs cursor-pointer"
-                                title="Xem chi tiết các khoản cấu thành học phí cho lớp này"
+                                onClick={() => setSelectedQRStudent({ ...student, amount: getStudentEffectiveAmount(student) })}
+                                className="inline-flex items-center gap-1.5 bg-gradient-to-r from-teal-600 via-emerald-600 to-teal-700 hover:from-teal-700 hover:to-emerald-700 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all shadow-md shadow-teal-600/20 cursor-pointer"
+                                title="Xem và in Phiếu Báo Học Phí kèm mã VietQR"
                               >
-                                <FileText className="w-3.5 h-3.5" /> Bóc tách
+                                <FileText className="w-3.5 h-3.5" /> Phiếu Báo & QR
                               </button>
-
-                              {/* VietQR button */}
-                              {student.tuitionStatus !== "PAID" && (
-                                <button
-                                  onClick={() => setSelectedQRStudent({ ...student, amount: getStudentEffectiveAmount(student) })}
-                                  className="inline-flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white text-xs px-3 py-1.5 rounded-xl font-bold transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
-                                >
-                                  <QrCode className="w-3.5 h-3.5" /> VietQR
-                                </button>
-                              )}
 
                               {/* Xác nhận thu */}
                               {userRole === "ADMIN" && student.tuitionStatus !== "PAID" && (
@@ -1482,20 +1472,53 @@ export default function TuitionTab() {
         </Portal>
       )}
 
-      {/* VietQR Modal */}
-      {selectedQRStudent && (
-        <VietQRModal
-          studentName={selectedQRStudent.name}
-          parentName={selectedQRStudent.parentName}
-          amount={getStudentEffectiveAmount(selectedQRStudent)}
-          invoiceId={`HP-${selectedQRStudent.id.slice(-4)}`}
-          onClose={() => setSelectedQRStudent(null)}
-          onConfirmPayment={() => {
-            handleMarkAsPaid(selectedQRStudent.id);
-            setSelectedQRStudent(null);
-          }}
-        />
-      )}
+      {/* VietQR / Phiếu Báo Học Phí Modal */}
+      {selectedQRStudent && (() => {
+        const breakdown = getStudentFeeBreakdown(selectedQRStudent.className, standardSchoolDays);
+        const baseTuition = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("học phí"))?.amount || 1620000;
+        const semiBoarding = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("bán trú"))?.amount || 400000;
+        const mealFee = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("ăn"))?.amount || 780000;
+        const facilityFee = breakdown.oneTimeItems.find(i => i.name.toLowerCase().includes("csvc") || i.name.toLowerCase().includes("cơ sở"))?.amount || 0;
+        const mathLogic = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("toán"))?.amount || 0;
+        const english = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("anh") || i.name.toLowerCase().includes("tiếng anh"))?.amount || 0;
+        const rhythmDance = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("nhịp") || i.name.toLowerCase().includes("múa"))?.amount || 0;
+        const discountPercent = 10;
+        const discountAmount = Math.round(baseTuition * (discountPercent / 100));
+        const total = baseTuition + semiBoarding + mealFee + facilityFee + mathLogic + english + rhythmDance - discountAmount;
+
+        const detailedBreakdown = {
+          baseTuition,
+          semiBoarding,
+          mealFee,
+          facilityFee,
+          mathLogic,
+          english,
+          rhythmDance,
+          leaveDays: 0,
+          refundMealFee: 0,
+          discountAmount,
+          discountPercent,
+        };
+
+        return (
+          <VietQRModal
+            studentName={selectedQRStudent.name}
+            className={selectedQRStudent.className}
+            parentName={selectedQRStudent.parentName}
+            amount={total}
+            month={8}
+            year={2025}
+            issueDate="03/08/2026"
+            invoiceId={`HP-${selectedQRStudent.id.slice(-4)}`}
+            breakdown={detailedBreakdown}
+            onClose={() => setSelectedQRStudent(null)}
+            onConfirmPayment={() => {
+              handleMarkAsPaid(selectedQRStudent.id);
+              setSelectedQRStudent(null);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

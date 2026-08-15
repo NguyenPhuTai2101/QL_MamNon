@@ -314,6 +314,7 @@ export default function ParentPortalTab() {
       {showQRModal && (
         <VietQRModal
           studentName={child.name}
+          className={child.className}
           parentName={parentName}
           amount={child.tuitionAmount}
           onClose={() => setShowQRModal(false)}

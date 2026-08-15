@@ -1,15 +1,15 @@
 export interface VietQRParams {
-  bankId?: string;       // Ví dụ: MB, VCB, ICB, ACB, TCB
-  accountNo?: string;    // Số tài khoản ngân hàng nhà trường
-  accountName?: string;  // Tên chủ tài khoản (Trường Mầm non NVSOFT)
+  bankId?: string;       // Ví dụ: TCB, MB, VCB, ICB, ACB
+  accountNo?: string;    // Số tài khoản ngân hàng nhà trường (VD: 6785271578)
+  accountName?: string;  // Tên chủ tài khoản (HO KINH DOANH LOP MAM NON DOC LAP ANH BINH MINH)
   amount: number;        // Số tiền học phí
-  memo: string;          // Nội dung chuyển khoản (VD: HOC PHI T8 KHANG)
+  memo: string;          // Nội dung chuyển khoản
 }
 
 export function generateVietQRUrl({
-  bankId = "MB",
-  accountNo = "090123456789",
-  accountName = "TRUONG MAM NON NVSOFT",
+  bankId = "TCB",
+  accountNo = "6785271578",
+  accountName = "HO KINH DOANH LOP MAM NON DOC LAP ANH BINH MINH",
   amount,
   memo
 }: VietQRParams): string {
@@ -18,3 +18,4 @@ export function generateVietQRUrl({
   
   return `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${cleanMemo}&accountName=${cleanAccountName}`;
 }
+

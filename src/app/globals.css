@@ -215,4 +215,28 @@ body {
   scrollbar-width: none;
 }
 
+/* Print Styles for Tuition Receipt */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #printable-tuition-receipt,
+  #printable-tuition-receipt * {
+    visibility: visible;
+  }
+  #printable-tuition-receipt {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 90% !important;
+    max-width: 600px !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 
