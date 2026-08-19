@@ -1,10 +1,9 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import Portal from "@/components/portal";
 import { generateVietQRUrl } from "@/lib/vietqr";
-import { formatCurrency } from "@/lib/utils";
-import { QrCode, CheckCircle2, Copy, Printer, Download, X, User } from "lucide-react";
+import { QrCode, CheckCircle2, Copy, Printer, X, User } from "lucide-react";
 
 export interface BreakdownDetails {
   baseTuition?: number;      // Học phí
@@ -37,18 +36,15 @@ interface VietQRModalProps {
 export default function VietQRModal({
   studentName,
   className = "Mầm 1",
-  parentName = "Phụ huynh",
   amount,
   month = 8,
   year = 2025,
   issueDate = "03/08/2026",
-  invoiceId = "HP-08",
   breakdown,
   onClose,
   onConfirmPayment
 }: VietQRModalProps) {
   const [copied, setCopied] = useState(false);
-  const printRef = useRef<HTMLDivElement>(null);
 
   const bankAccountNo = "6785 2715 78";
   const bankAccountNoRaw = "6785271578";
@@ -103,13 +99,287 @@ export default function VietQRModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   const formatItemValue = (val?: number) => {
     if (!val || val === 0) return "-";
     return val.toLocaleString("vi-VN");
+  };
+
+  // Hàm In Chuẩn Xác 100% không bị co rúm / cắt xén bởi khung modal
+  const handlePrint = () => {
+    const printFrame = document.createElement("iframe");
+    printFrame.style.position = "fixed";
+    printFrame.style.right = "0";
+    printFrame.style.bottom = "0";
+    printFrame.style.width = "0";
+    printFrame.style.height = "0";
+    printFrame.style.border = "0";
+    document.body.appendChild(printFrame);
+
+    const doc = printFrame.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Phiếu Báo Học Phí - ${studentName}</title>
+          <meta charset="utf-8" />
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 10mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            body {
+              font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, -apple-system, BlinkMacSystemFont;
+              background: #ffffff;
+              color: #0f172a;
+              display: flex;
+              justify-content: center;
+              padding: 15px;
+            }
+            .receipt-card {
+              width: 100%;
+              max-width: 580px;
+              border: 2.5px solid #38bdf8;
+              border-radius: 36px;
+              padding: 26px 30px;
+              background: #ffffff;
+            }
+            .header-school {
+              text-align: center;
+              font-size: 21px;
+              font-weight: 700;
+              color: #356799;
+              margin-bottom: 4px;
+            }
+            .header-title {
+              text-align: center;
+              font-size: 25px;
+              font-weight: 900;
+              color: #2e9c4b;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+              margin-bottom: 4px;
+            }
+            .header-date {
+              text-align: center;
+              font-size: 13.5px;
+              font-weight: 700;
+              color: #1b6b80;
+              margin-bottom: 20px;
+            }
+            .content-grid {
+              display: flex;
+              gap: 20px;
+              align-items: flex-start;
+            }
+            .left-col {
+              flex: 1.35;
+              font-size: 13px;
+              line-height: 1.7;
+            }
+            .student-info {
+              margin-bottom: 6px;
+              font-size: 13.5px;
+            }
+            .student-name {
+              font-weight: 900;
+              text-transform: uppercase;
+              color: #000000;
+            }
+            .row-item {
+              display: flex;
+              justify-content: space-between;
+              margin-bottom: 2px;
+              color: #1e293b;
+            }
+            .row-item-val {
+              font-weight: 700;
+              color: #000000;
+            }
+            .row-total {
+              display: flex;
+              justify-content: space-between;
+              align-items: baseline;
+              margin-top: 10px;
+              padding-top: 8px;
+              border-top: 1.5px solid #cbd5e1;
+            }
+            .total-text {
+              font-size: 17px;
+              font-weight: 900;
+              color: #000000;
+            }
+            .total-num {
+              font-size: 20px;
+              font-weight: 900;
+              color: #000000;
+            }
+            .row-memo {
+              margin-top: 6px;
+              font-size: 12px;
+              color: #334155;
+            }
+            .right-col {
+              flex: 1;
+              display: flex;
+              justify-content: center;
+            }
+            .qr-box {
+              width: 100%;
+              max-width: 220px;
+              border: 2px solid #38bdf8;
+              border-radius: 24px;
+              padding: 10px;
+              text-align: center;
+              background: #ffffff;
+            }
+            .qr-box-header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 3px;
+            }
+            .tcb-brand {
+              font-size: 10px;
+              font-weight: 900;
+              color: #da251c;
+            }
+            .qr-img-wrapper {
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 10px;
+              padding: 4px;
+              margin: 4px 0;
+              display: flex;
+              justify-content: center;
+            }
+            .qr-img-wrapper img {
+              width: 155px;
+              height: 155px;
+              object-fit: contain;
+            }
+            .qr-sub-logos {
+              font-size: 9px;
+              font-weight: 900;
+              color: #005baa;
+              margin: 3px 0;
+            }
+            .qr-acc-name {
+              font-size: 8.5px;
+              font-weight: 700;
+              color: #334155;
+              text-transform: uppercase;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+            .qr-acc-no {
+              font-size: 12.5px;
+              font-weight: 900;
+              color: #000000;
+              letter-spacing: 0.5px;
+              margin-top: 1px;
+            }
+            .qr-box-footer {
+              display: flex;
+              justify-content: space-between;
+              font-size: 12px;
+              margin-top: 3px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-card">
+            <div class="header-school">${schoolName}</div>
+            <div class="header-title">HỌC PHÍ THÁNG ${month < 10 ? `0${month}` : month}/${year}</div>
+            <div class="header-date">(Ngày ${issueDate})</div>
+
+            <div class="content-grid">
+              <div class="left-col">
+                <div class="student-info">
+                  <strong>Họ và Tên: </strong><span class="student-name">${studentName}</span>
+                </div>
+                <div class="row-item"><span>Học phí:</span><span class="row-item-val">${formatItemValue(details.baseTuition)}</span></div>
+                <div class="row-item"><span>Bán trú:</span><span class="row-item-val">${formatItemValue(details.semiBoarding)}</span></div>
+                <div class="row-item"><span>Tiền ăn:</span><span class="row-item-val">${formatItemValue(details.mealFee)}</span></div>
+                <div class="row-item"><span>CSVC:</span><span class="row-item-val">${formatItemValue(details.facilityFee)}</span></div>
+                <div class="row-item"><span>Toán Tư Duy:</span><span class="row-item-val">${formatItemValue(details.mathLogic)}</span></div>
+                <div class="row-item"><span>Anh Văn:</span><span class="row-item-val">${formatItemValue(details.english)}</span></div>
+                <div class="row-item"><span>Nhịp điệu:</span><span class="row-item-val">${formatItemValue(details.rhythmDance)}</span></div>
+                <div class="row-item"><span>Tổng ngày phép:</span><span class="row-item-val">${details.leaveDays ? `${details.leaveDays} ngày` : "-"}</span></div>
+                <div class="row-item"><span>Trả Tiền Ăn:</span><span class="row-item-val">${formatItemValue(details.refundMealFee)}</span></div>
+                <div class="row-item"><span>Giảm ${details.discountPercent || 10}% học phí:</span><span class="row-item-val">${formatItemValue(details.discountAmount)}</span></div>
+                
+                <div class="row-total">
+                  <span class="total-text">Tổng Cộng:</span>
+                  <span class="total-num">${computedTotal.toLocaleString("vi-VN")}</span>
+                </div>
+
+                <div class="row-memo">
+                  <strong>Nội dung CK: </strong><span>"Họ tên bé + Tên lớp"</span>
+                </div>
+              </div>
+
+              <div class="right-col">
+                <div class="qr-box">
+                  <div class="qr-box-header">
+                    <span>☀️</span>
+                    <div style="display:flex; align-items:center; gap:3px;">
+                      <span class="tcb-brand">TECHCOMBANK</span>
+                      <span style="display:inline-block; width:7px; height:7px; background:#da251c; transform:rotate(45deg);"></span>
+                    </div>
+                    <span>🌈</span>
+                  </div>
+
+                  <div class="qr-img-wrapper">
+                    <img src="${qrUrl}" alt="VietQR" />
+                  </div>
+
+                  <div class="qr-sub-logos">
+                    <span>VIET<span style="color:#ed1c24;">QR</span></span>
+                    <span style="color:#cbd5e1; margin:0 3px;">|</span>
+                    <span>napas<span style="color:#f68b1f;">247</span></span>
+                  </div>
+
+                  <div class="qr-acc-name">${accountHolder}</div>
+                  <div class="qr-acc-no">${bankAccountNo}</div>
+
+                  <div class="qr-box-footer">
+                    <span>🏫</span>
+                    <span>🌱🌸🌼</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    doc.open();
+    doc.write(htmlContent);
+    doc.close();
+
+    setTimeout(() => {
+      printFrame.contentWindow?.focus();
+      printFrame.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(printFrame)) {
+          document.body.removeChild(printFrame);
+        }
+      }, 2000);
+    }, 400);
   };
 
   return (
@@ -133,7 +403,7 @@ export default function VietQRModal({
               <button
                 onClick={handlePrint}
                 className="h-8 px-3 inline-flex items-center gap-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-                title="In phiếu báo học phí này"
+                title="In phiếu báo học phí chuẩn A4/A5"
               >
                 <Printer className="w-3.5 h-3.5 text-slate-600" />
                 <span>In Phiếu</span>
@@ -152,9 +422,8 @@ export default function VietQRModal({
           <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-100/60 flex justify-center items-center">
             
             <div
-              ref={printRef}
               id="printable-tuition-receipt"
-              className="w-full max-w-xl bg-white border-[2.5px] border-[#38bdf8] rounded-[36px] sm:rounded-[42px] p-6 sm:p-8 shadow-md relative print:border-2 print:border-teal-500 print:rounded-[36px] print:shadow-none print:m-0 print:p-6"
+              className="w-full max-w-xl bg-white border-[2.5px] border-[#38bdf8] rounded-[36px] sm:rounded-[42px] p-6 sm:p-8 shadow-md relative"
             >
               {/* Tiêu đề Đầu Phiếu */}
               <div className="text-center space-y-1 mb-6">

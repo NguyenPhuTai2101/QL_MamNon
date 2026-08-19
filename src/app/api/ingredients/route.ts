@@ -52,25 +52,41 @@ export async function POST(request: Request) {
 
     // Hỗ trợ nhập thực phẩm hàng loạt
     const items = Array.isArray(body) ? body : (body.items && Array.isArray(body.items)) ? body.items : null;
+    const replaceForDate = body.replaceForDate || false;
+    const targetDateStr = body.date;
 
     if (items) {
+      // Nếu có yêu cầu ghi đè theo ngày, xóa các bản ghi cũ của ngày đó trước khi lưu danh sách mới
+      if (replaceForDate && targetDateStr) {
+        const startOfDay = new Date(new Date(targetDateStr).setHours(0, 0, 0, 0));
+        const endOfDay = new Date(new Date(targetDateStr).setHours(23, 59, 59, 999));
+        await prisma.ingredientCost.deleteMany({
+          where: {
+            date: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+        });
+      }
+
       const createdList = [];
       for (const item of items) {
         const { name, quantity, unit, unitPrice, notes, date } = item;
         if (!name) continue;
-        const qty = parseFloat(quantity) || 0;
+        const qty = quantity !== undefined && quantity !== null ? parseFloat(quantity) : 0;
         const price = parseFloat(unitPrice) || 0;
         const totalCost = qty * price;
 
         const created = await prisma.ingredientCost.create({
           data: {
             name,
-            quantity: qty,
+            quantity: isNaN(qty) ? 0 : qty,
             unit: unit || "kg",
             unitPrice: price,
             totalCost,
             notes: notes || null,
-            date: date ? new Date(date) : new Date(),
+            date: date ? new Date(date) : (targetDateStr ? new Date(targetDateStr) : new Date()),
           },
         });
         createdList.push(created);

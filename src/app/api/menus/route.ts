@@ -10,10 +10,14 @@ export async function GET(request: Request) {
 
     let whereClause = {};
     if (startDateStr && endDateStr) {
+      const start = new Date(startDateStr);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDateStr);
+      end.setHours(23, 59, 59, 999);
       whereClause = {
         date: {
-          gte: new Date(startDateStr),
-          lte: new Date(endDateStr),
+          gte: start,
+          lte: end,
         },
       };
     }

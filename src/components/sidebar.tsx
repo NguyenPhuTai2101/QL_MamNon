@@ -94,14 +94,10 @@ export default function Sidebar({
     { id: "finance", label: "Sổ Quỹ Thu Chi", shortLabel: "Sổ Quỹ", icon: Wallet, roles: ["ADMIN"], category: "finance" },
     { id: "cost", label: "Chi phí & Nguyên liệu Bếp", shortLabel: "Chi phí bếp", icon: TrendingUp, roles: ["ADMIN"], category: "finance" },
 
-    // 4. NHÂN SỰ & HÀNH CHÍNH
+    // 4. NHÂN SỰ & GIÁO VIÊN
     { id: "staff", label: "Nhân sự & Giáo viên", shortLabel: "Nhân sự", icon: UserCog, roles: ["ADMIN"], category: "hr" },
-    { id: "admissions", label: "Tuyển sinh Mới (CRM)", shortLabel: "Tuyển sinh", icon: UserPlus, roles: ["ADMIN"], category: "hr", badge: "CRM", badgeColor: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-    { id: "assets", label: "Cơ sở vật chất & CSVC", shortLabel: "Tài sản", icon: Building2, roles: ["ADMIN"], category: "hr" },
-    { id: "evaluations", label: "Thi đua & Đánh giá KPI", shortLabel: "Đánh giá", icon: Award, roles: ["ADMIN"], category: "hr" },
 
-    // 5. HỆ THỐNG & CỔNG TIN
-    { id: "events", label: "Sự kiện & Thông báo", shortLabel: "Sự kiện", icon: CalendarDays, roles: ["ADMIN", "TEACHER", "PARENT"], category: "system" },
+    // 5. HỆ THỐNG & TÀI KHOẢN
     { id: "accounts", label: "Quản lý Tài khoản", shortLabel: "Tài khoản", icon: ShieldCheck, roles: ["ADMIN"], category: "system" },
     { id: "parent_portal", label: "Góc Phụ Huynh (Portal)", shortLabel: "Phụ Huynh", icon: HeartHandshake, roles: ["PARENT"], category: "system", badge: "Portal", badgeColor: "bg-pink-500/20 text-pink-300 border-pink-500/30" },
   ];
@@ -110,8 +106,8 @@ export default function Sidebar({
     { key: "management", label: "I. ĐIỀU HÀNH & BÁO CÁO" },
     { key: "academic", label: "II. ĐÀO TẠO & HỌC SINH" },
     { key: "finance", label: "III. TÀI CHÍNH & HỌC PHÍ" },
-    { key: "hr", label: "IV. NHÂN SỰ & HÀNH CHÍNH" },
-    { key: "system", label: "V. HỆ THỐNG & DỊCH VỤ" },
+    { key: "hr", label: "IV. NHÂN SỰ & GIÁO VIÊN" },
+    { key: "system", label: "V. HỆ THỐNG & TÀI KHOẢN" },
   ];
 
   const menuItems = allMenuItems.filter((item) => item.roles.includes(userRole));
