@@ -22,6 +22,7 @@ export interface Student {
   refundMealFee?: number; // Tiền ăn được hoàn lại (30k x absentDays)
   discountPercent?: number; // Giảm giá % (VD: 10%)
   freeUniform?: boolean; // Tặng đồng phục
+  invoice?: any; // Hóa đơn tháng hiện tại
 }
 
 export interface MenuItem {

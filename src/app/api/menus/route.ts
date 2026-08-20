@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { id, date, breakfast, lunch, snack, costPerStudent } = body;
+    const { id, date, breakfast, lunch, snack, costPerStudent, ingredientsJson } = body;
 
     if (!date || !breakfast || !lunch || !snack) {
       return NextResponse.json(
@@ -79,6 +79,7 @@ export async function POST(request: Request) {
           lunch,
           snack,
           costPerStudent: parseFloat(costPerStudent) || 30000,
+          ingredientsJson: ingredientsJson !== undefined ? (typeof ingredientsJson === "string" ? ingredientsJson : JSON.stringify(ingredientsJson)) : undefined,
         },
       });
     } else {
@@ -89,6 +90,7 @@ export async function POST(request: Request) {
           lunch,
           snack,
           costPerStudent: parseFloat(costPerStudent) || 30000,
+          ingredientsJson: ingredientsJson ? (typeof ingredientsJson === "string" ? ingredientsJson : JSON.stringify(ingredientsJson)) : null,
         },
       });
     }

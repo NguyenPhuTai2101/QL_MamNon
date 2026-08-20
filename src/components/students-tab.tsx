@@ -52,6 +52,7 @@ interface StudentRecord {
   joinDate?: string;
   tuitionStatus: "PAID" | "UNPAID" | "OVERDUE";
   amount: number;
+  invoice?: any;
 }
 
 interface ClassRecord {
@@ -138,7 +139,7 @@ export default function StudentsTab() {
         }
 
         const mapped: StudentRecord[] = resStudents.map((st: any) => {
-          const inv = invMap[st.id] || (st.invoices && st.invoices.length > 0 ? st.invoices[0] : null) || {};
+          const inv = invMap[st.id] || (st.invoices && st.invoices.length > 0 ? st.invoices[0] : null) || null;
           const className = st.class?.name || "Mầm 1";
           const effAmount = getStudentEffectiveAmount({ className, invoice: inv }, loadedFees, 22);
 
@@ -153,8 +154,9 @@ export default function StudentsTab() {
             parentPhone: st.parentPhone || "0900000000",
             address: st.address || "Hà Nội",
             joinDate: st.enrollmentDate ? new Date(st.enrollmentDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
-            tuitionStatus: (inv.status as any) || "UNPAID",
+            tuitionStatus: (inv?.status as any) || "UNPAID",
             amount: effAmount,
+            invoice: inv,
           };
         });
         setStudents(mapped);
@@ -862,7 +864,12 @@ export default function StudentsTab() {
 
                 {/* Chi tiết bóc tách học phí */}
                 {(() => {
-                  const breakdown = getStudentFeeBreakdown(selectedStudentDetail.className, feeItems, 22);
+                  const breakdown = getStudentFeeBreakdown(
+                    selectedStudentDetail.className,
+                    feeItems,
+                    22,
+                    selectedStudentDetail.invoice
+                  );
                   return (
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-1 border-b border-slate-200">
@@ -872,7 +879,12 @@ export default function StudentsTab() {
                       <div className="space-y-1.5 max-h-36 overflow-y-auto">
                         {breakdown.monthlyItems.map((item, idx) => (
                           <div key={item.id || idx} className="flex justify-between items-center text-[11px]">
-                            <span className="text-slate-600 font-medium">{item.name}:</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-slate-600 font-medium">{item.name}:</span>
+                              {item.isElective && (
+                                <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-bold">Năng khiếu</span>
+                              )}
+                            </div>
                             <span className="font-bold text-slate-800">{formatCurrency(item.amount)}</span>
                           </div>
                         ))}
@@ -907,7 +919,12 @@ export default function StudentsTab() {
                         onClick={async () => {
                           const stId = selectedStudentDetail.id;
                           const stAmount = selectedStudentDetail.amount;
-                          const breakdown = getStudentFeeBreakdown(selectedStudentDetail.className, feeItems, 22);
+                          const breakdown = getStudentFeeBreakdown(
+                            selectedStudentDetail.className,
+                            feeItems,
+                            22,
+                            selectedStudentDetail.invoice
+                          );
 
                           setSelectedStudentDetail((prev) => (prev ? { ...prev, tuitionStatus: "PAID" } : null));
                           setStudents((prev) =>

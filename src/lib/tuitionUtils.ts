@@ -16,6 +16,7 @@ export interface FeeBreakdownItem {
   type: FeeType;
   amount: number;
   note: string;
+  isElective?: boolean; // Môn năng khiếu / tự chọn riêng
 }
 
 export interface StudentFeeBreakdown {
@@ -25,6 +26,44 @@ export interface StudentFeeBreakdown {
   totalMonthly: number;
   totalOneTime: number;
   totalAll: number;
+  selectedFeeIds?: string[];
+  schoolDays?: number;
+  discountPercent?: number;
+  discountAmount?: number;
+  notes?: string;
+}
+
+/**
+ * Kiểm tra xem một khoản thu có phải là Môn Năng Khiếu / Dịch Vụ Tự Chọn đăng ký riêng hay không
+ */
+export function isElectiveSubject(fee: TuitionFeeItem): boolean {
+  const name = (fee.name || "").toLowerCase();
+  const desc = (fee.description || "").toLowerCase();
+
+  return (
+    name.includes("tiếng anh") ||
+    name.includes("anh văn") ||
+    name.includes("cambridge") ||
+    name.includes("toán") ||
+    name.includes("tư duy") ||
+    name.includes("nhịp điệu") ||
+    name.includes("múa") ||
+    name.includes("aerobic") ||
+    name.includes("âm nhạc") ||
+    name.includes("đàn") ||
+    name.includes("hội họa") ||
+    name.includes("vẽ") ||
+    name.includes("năng khiếu") ||
+    name.includes("xe") ||
+    name.includes("đưa đón") ||
+    name.includes("ngoài giờ") ||
+    name.includes("trông muộn") ||
+    name.includes("bơi") ||
+    name.includes("kỹ năng") ||
+    desc.includes("tự chọn") ||
+    desc.includes("đăng ký thêm") ||
+    desc.includes("năng khiếu")
+  );
 }
 
 /**
@@ -83,60 +122,131 @@ export function detectClassGroup(className: string): { isMam: boolean; isChoi: b
 }
 
 /**
- * Tính toán bóc tách chi tiết học phí theo lớp học và cấu hình biểu phí
+ * Phân tích đối tượng bóc tách JSON lưu trong hóa đơn
  */
-export function getStudentFeeBreakdown(
-  studentClassName: string,
-  feeItems: TuitionFeeItem[] = [],
-  schoolDays: number = 22
-): StudentFeeBreakdown {
-  const { isMam, isChoi, isLa } = detectClassGroup(studentClassName);
-  const targetClassLower = (studentClassName || "").toLowerCase().trim();
+export function parseInvoiceBreakdown(invoice?: { breakdownJson?: string | null } | null): StudentFeeBreakdown | null {
+  if (!invoice || !invoice.breakdownJson) return null;
+  try {
+    const parsed = JSON.parse(invoice.breakdownJson);
+    if (parsed && Array.isArray(parsed.items) && typeof parsed.totalMonthly === "number") {
+      return parsed as StudentFeeBreakdown;
+    }
+  } catch (e) {}
+  return null;
+}
 
-  const applicableFees = feeItems.filter((f) => {
-    if (f.isActive === false) return false;
-    const applied = (f.appliedClass || "ALL").trim();
-    if (applied === "ALL" || !applied) return true;
-    if (applied.toLowerCase() === targetClassLower) return true; // Khớp đích danh từng lớp
-    if (isMam && applied.toUpperCase() === "MAM") return true;
-    if (isChoi && applied.toUpperCase() === "CHOI") return true;
-    if (isLa && applied.toUpperCase() === "LA") return true;
-    return false;
-  });
+/**
+ * Xây dựng bóc tách học phí tùy biến cho TỪNG HỌC SINH dựa trên các môn năng khiếu và dịch vụ bé đăng ký
+ */
+export function buildCustomStudentBreakdown({
+  className,
+  feeItems = [],
+  selectedFeeIds = [],
+  schoolDays = 22,
+  discountPercent = 0,
+  notes = "",
+}: {
+  className: string;
+  feeItems: TuitionFeeItem[];
+  selectedFeeIds: string[];
+  schoolDays?: number;
+  discountPercent?: number;
+  notes?: string;
+}): StudentFeeBreakdown {
+  const { isMam, isChoi, isLa } = detectClassGroup(className);
+  const targetClassLower = (className || "").toLowerCase().trim();
 
   const monthlyItems: FeeBreakdownItem[] = [];
   const oneTimeItems: FeeBreakdownItem[] = [];
 
-  applicableFees.forEach((fee) => {
-    if (fee.type === "DAILY") {
-      monthlyItems.push({
-        id: fee.id,
-        name: fee.name,
-        type: fee.type,
-        amount: fee.amount * schoolDays,
-        note: `${schoolDays} ngày × ${(fee.amount).toLocaleString("vi-VN")} đ/ngày`,
-      });
-    } else if (fee.type === "MONTHLY") {
-      monthlyItems.push({
-        id: fee.id,
-        name: fee.name,
-        type: fee.type,
-        amount: fee.amount,
-        note: "Cố định hàng tháng",
-      });
-    } else if (fee.type === "ONE_TIME") {
-      oneTimeItems.push({
-        id: fee.id,
-        name: fee.name,
-        type: fee.type,
-        amount: fee.amount,
-        note: "Thu 1 lần đầu năm học",
-      });
+  feeItems.forEach((fee) => {
+    if (fee.isActive === false) return;
+
+    const isElective = isElectiveSubject(fee);
+    const applied = (fee.appliedClass || "ALL").trim();
+    const isMatchingClass =
+      applied === "ALL" ||
+      !applied ||
+      applied.toLowerCase() === targetClassLower ||
+      (isMam && applied.toUpperCase() === "MAM") ||
+      (isChoi && applied.toUpperCase() === "CHOI") ||
+      (isLa && applied.toUpperCase() === "LA");
+
+    // Nếu là môn năng khiếu / tự chọn: CHỈ tính khi học sinh đó có đăng ký (selectedFeeIds)
+    if (isElective) {
+      if (selectedFeeIds.includes(fee.id)) {
+        if (fee.type === "DAILY") {
+          monthlyItems.push({
+            id: fee.id,
+            name: fee.name,
+            type: fee.type,
+            amount: fee.amount * schoolDays,
+            note: `Tự chọn: ${schoolDays} ngày × ${fee.amount.toLocaleString("vi-VN")} đ/ngày`,
+            isElective: true,
+          });
+        } else if (fee.type === "MONTHLY") {
+          monthlyItems.push({
+            id: fee.id,
+            name: fee.name,
+            type: fee.type,
+            amount: fee.amount,
+            note: "Môn năng khiếu đăng ký riêng",
+            isElective: true,
+          });
+        } else {
+          oneTimeItems.push({
+            id: fee.id,
+            name: fee.name,
+            type: fee.type,
+            amount: fee.amount,
+            note: "Dịch vụ tự chọn (1 lần)",
+            isElective: true,
+          });
+        }
+      }
+      return;
+    }
+
+    // Nếu là khoản thu bắt buộc chung theo lớp/trường: Tự động đưa vào nếu khớp lớp
+    if (isMatchingClass) {
+      if (fee.type === "DAILY") {
+        monthlyItems.push({
+          id: fee.id,
+          name: fee.name,
+          type: fee.type,
+          amount: fee.amount * schoolDays,
+          note: `${schoolDays} ngày × ${fee.amount.toLocaleString("vi-VN")} đ/ngày`,
+          isElective: false,
+        });
+      } else if (fee.type === "MONTHLY") {
+        monthlyItems.push({
+          id: fee.id,
+          name: fee.name,
+          type: fee.type,
+          amount: fee.amount,
+          note: "Học phí định mức cơ bản",
+          isElective: false,
+        });
+      } else if (fee.type === "ONE_TIME") {
+        oneTimeItems.push({
+          id: fee.id,
+          name: fee.name,
+          type: fee.type,
+          amount: fee.amount,
+          note: "Khoản thu bắt buộc đầu năm",
+          isElective: false,
+        });
+      }
     }
   });
 
-  const totalMonthly = monthlyItems.reduce((sum, i) => sum + i.amount, 0);
+  const rawMonthly = monthlyItems.reduce((sum, i) => sum + i.amount, 0);
   const totalOneTime = oneTimeItems.reduce((sum, i) => sum + i.amount, 0);
+
+  // Tính miễn giảm nếu có (áp dụng trên học phí chính khóa hoặc tổng tháng)
+  const baseTuition = monthlyItems.find((i) => i.name.toLowerCase().includes("học phí"))?.amount || rawMonthly;
+  const discountAmount = discountPercent > 0 ? Math.round(baseTuition * (discountPercent / 100)) : 0;
+  const totalMonthly = Math.max(0, rawMonthly - discountAmount);
 
   return {
     items: [...monthlyItems, ...oneTimeItems],
@@ -145,26 +255,68 @@ export function getStudentFeeBreakdown(
     totalMonthly,
     totalOneTime,
     totalAll: totalMonthly + totalOneTime,
+    selectedFeeIds,
+    schoolDays,
+    discountPercent,
+    discountAmount,
+    notes,
   };
 }
 
 /**
+ * Tính toán bóc tách chi tiết học phí cho học sinh:
+ * - Ưu tiên đọc bóc tách tùy biến đã lưu trong hóa đơn DB của học sinh (`invoice.breakdownJson`).
+ * - Nếu chưa có, tự động tính theo biểu phí mặc định của lớp học.
+ */
+export function getStudentFeeBreakdown(
+  studentClassName: string,
+  feeItems: TuitionFeeItem[] = [],
+  schoolDays: number = 22,
+  invoice?: { breakdownJson?: string | null; amount?: number } | null
+): StudentFeeBreakdown {
+  // 1. Kiểm tra hóa đơn đã lưu bóc tách
+  const savedBreakdown = parseInvoiceBreakdown(invoice);
+  if (savedBreakdown && savedBreakdown.items && savedBreakdown.items.length > 0) {
+    return savedBreakdown;
+  }
+
+  // 2. Nếu chưa lưu bóc tách riêng, tính mặc định theo lớp
+  const defaultElectiveIds = feeItems
+    .filter((f) => {
+      if (!isElectiveSubject(f)) return false;
+      const { isLa } = detectClassGroup(studentClassName);
+      const applied = (f.appliedClass || "ALL").toUpperCase();
+      // Mặc định tự chọn lớp Lá có tiếng anh nếu chưa cấu hình riêng
+      if (isLa && (applied === "LA" || applied === "ALL")) return true;
+      return false;
+    })
+    .map((f) => f.id);
+
+  return buildCustomStudentBreakdown({
+    className: studentClassName,
+    feeItems,
+    selectedFeeIds: defaultElectiveIds,
+    schoolDays,
+    discountPercent: 0,
+  });
+}
+
+/**
  * Lấy số tiền học phí thực tế của học sinh:
- * - Nếu học sinh đã có hóa đơn trong DB với số tiền > 0, ưu tiên số tiền hóa đơn.
- * - Nếu chưa có hóa đơn (hoặc số tiền = 0), tự động tính theo biểu phí lớp.
- * - Dự phòng mặc định: 3.200.000 đ nếu không có cấu hình biểu phí.
+ * - Ưu tiên số tiền trên hóa đơn DB (nếu có).
+ * - Hoặc số tiền tính toán theo bóc tách của học sinh.
  */
 export function getStudentEffectiveAmount(
-  student: { className?: string; amount?: number; invoice?: { amount?: number } | null },
+  student: { className?: string; amount?: number; invoice?: { amount?: number; breakdownJson?: string | null } | null },
   feeItems: TuitionFeeItem[] = [],
   schoolDays: number = 22
 ): number {
   if (student.invoice && typeof student.invoice.amount === "number" && student.invoice.amount > 0) {
     return student.invoice.amount;
   }
-  
+
   const className = student.className || "";
-  const breakdown = getStudentFeeBreakdown(className, feeItems, schoolDays);
+  const breakdown = getStudentFeeBreakdown(className, feeItems, schoolDays, student.invoice);
   if (breakdown.totalMonthly > 0) {
     return breakdown.totalMonthly;
   }
@@ -177,16 +329,17 @@ export function getStudentEffectiveAmount(
 }
 
 /**
- * Tạo dữ liệu chi tiết cho VietQR Modal từ biểu phí hoặc hóa đơn
+ * Tạo dữ liệu chi tiết cho VietQR Modal từ bóc tách của học sinh
  */
 export function getVietQRBreakdownDetails(
   className: string,
   feeItems: TuitionFeeItem[] = [],
   schoolDays: number = 22,
-  overrideTotal?: number
+  overrideTotal?: number,
+  invoice?: { breakdownJson?: string | null; amount?: number } | null
 ) {
-  const breakdown = getStudentFeeBreakdown(className, feeItems, schoolDays);
-  
+  const breakdown = getStudentFeeBreakdown(className, feeItems, schoolDays, invoice);
+
   const baseTuition =
     breakdown.monthlyItems.find((i) => i.name.toLowerCase().includes("học phí"))?.amount || 0;
   const semiBoarding =
@@ -212,8 +365,8 @@ export function getVietQRBreakdownDetails(
     rhythmDance,
     leaveDays: 0,
     refundMealFee: 0,
-    discountAmount: 0,
-    discountPercent: 0,
+    discountAmount: breakdown.discountAmount || 0,
+    discountPercent: breakdown.discountPercent || 0,
   };
 }
 

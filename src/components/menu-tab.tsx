@@ -44,14 +44,28 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
 
-interface DailyMenuItem {
-  id?: string;
-  date: string; // YYYY-MM-DD
+export interface MenuIngredientItem {
+  id: string;
+  meal: "BREAKFAST" | "LUNCH" | "SNACK";
+  warehouseId?: string;
+  code?: string;
+  name: string;
+  category: "PROTEIN" | "CARB" | "VEG" | "FRUIT_DAIRY" | "SPICE_OTHER";
+  gramsPerKid: number; // Định lượng gram/trẻ hoặc số lượng/trẻ
+  unit: string; // kg, lít, quả, hộp, g...
+  unitPrice: number;
+  supplier?: string;
+}
+
+export interface DailyMenuItem {
+  id: string;
+  date: string; // "YYYY-MM-DD"
   dayOfWeek: string; // "Thứ Hai", "Thứ Ba"...
   breakfast: string;
   lunch: string;
   snack: string;
   costPerStudent: number;
+  ingredients?: MenuIngredientItem[];
 }
 
 export interface WarehouseItem {
@@ -293,13 +307,31 @@ export default function MenuTab() {
   // Modal Thêm / Sửa Thực đơn ngày
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [editingMenu, setEditingMenu] = useState<DailyMenuItem | null>(null);
-  const [menuForm, setMenuForm] = useState({
+  const [menuForm, setMenuForm] = useState<{
+    date: string;
+    breakfast: string;
+    lunch: string;
+    snack: string;
+    costPerStudent: number;
+    ingredients: MenuIngredientItem[];
+  }>({
     date: new Date().toISOString().split("T")[0],
     breakfast: "",
     lunch: "",
     snack: "",
     costPerStudent: 30000,
+    ingredients: [],
   });
+
+  // Tab bữa ăn đang chọn cấu hình nguyên liệu trong modal thực đơn
+  const [activeMenuMealTab, setActiveMenuMealTab] = useState<
+    "BREAKFAST" | "LUNCH" | "SNACK"
+  >("BREAKFAST");
+
+  // Form thêm nhanh nguyên liệu vào bữa ăn trong modal thực đơn
+  const [selectedWarehouseForMenu, setSelectedWarehouseForMenu] =
+    useState<string>("");
+  const [menuIngQtyGrams, setMenuIngQtyGrams] = useState<number>(50);
 
   // =========================================================================
   // PHẦN 2: ĐỊNH LƯỢNG THỰC TẾ ĐI CHỢ & LIÊN KẾT TỒN KHO
@@ -412,6 +444,17 @@ export default function MenuTab() {
         const mapped: DailyMenuItem[] = data.map((m: any) => {
           const d = new Date(m.date);
           const dateStr = d.toISOString().split("T")[0];
+          let parsedIngredients: MenuIngredientItem[] = [];
+          if (m.ingredientsJson) {
+            try {
+              parsedIngredients =
+                typeof m.ingredientsJson === "string"
+                  ? JSON.parse(m.ingredientsJson)
+                  : m.ingredientsJson;
+            } catch (err) {
+              console.error("Failed to parse ingredientsJson", err);
+            }
+          }
           return {
             id: m.id,
             date: dateStr,
@@ -420,6 +463,7 @@ export default function MenuTab() {
             lunch: m.lunch || "",
             snack: m.snack || "",
             costPerStudent: m.costPerStudent || 30000,
+            ingredients: parsedIngredients,
           };
         });
         setWeeklyMenus(mapped);
@@ -431,7 +475,69 @@ export default function MenuTab() {
     }
   };
 
-  // Tải nguyên liệu thực phẩm đi chợ của ngày được chọn từ CSDL (Chỉ hiển thị món đã lưu, không tự động dump hết)
+  // Hàm chuyển đổi các nguyên liệu đã cấu hình trong Thực Đơn Ngày thành danh sách Đi Chợ
+  const generateGroceriesFromMenu = (
+    menu: DailyMenuItem,
+    currentWarehouse: WarehouseItem[],
+    kidCount: number,
+  ): GroceryItem[] => {
+    if (!menu.ingredients || menu.ingredients.length === 0) return [];
+    return menu.ingredients.map((ing, idx) => {
+      const whMatch = currentWarehouse.find(
+        (w) =>
+          (ing.warehouseId && w.id === ing.warehouseId) ||
+          (ing.code && w.code === ing.code) ||
+          w.name.toLowerCase() === ing.name.toLowerCase(),
+      );
+      const stock = whMatch ? whMatch.stockQuantity : 0;
+      const price = ing.unitPrice || whMatch?.unitPrice || 0;
+
+      let theoretical = 0;
+      if (ing.unit === "kg" || ing.unit === "lít" || ing.unit === "g") {
+        theoretical = parseFloat(
+          ((kidCount * ing.gramsPerKid) / 1000).toFixed(2),
+        );
+      } else if (ing.unit === "quả" || ing.unit === "hộp") {
+        theoretical = Math.ceil(
+          kidCount * (ing.gramsPerKid >= 1 ? ing.gramsPerKid : ing.gramsPerKid / 40),
+        );
+      } else {
+        theoretical = parseFloat(
+          ((kidCount * ing.gramsPerKid) / 1000).toFixed(2),
+        );
+      }
+
+      const neededBuy = Math.max(
+        0,
+        parseFloat((theoretical - stock).toFixed(2)),
+      );
+      const mealPrefix =
+        ing.meal === "BREAKFAST"
+          ? "[Sáng] "
+          : ing.meal === "LUNCH"
+            ? "[Trưa] "
+            : "[Xế] ";
+
+      return {
+        id: `menu-ing-${ing.id || idx}-${Date.now()}`,
+        warehouseId: whMatch?.id,
+        code: ing.code || whMatch?.code || "TP-THUCDON",
+        name: `${mealPrefix}${ing.name}`,
+        category: ing.category || whMatch?.category || "PROTEIN",
+        standardPerKidGrams: ing.gramsPerKid,
+        theoreticalQty: theoretical,
+        actualQty: neededBuy,
+        stockQty: stock,
+        unit: ing.unit,
+        unitPrice: price,
+        totalCost: Math.round(neededBuy * price),
+        supplier: ing.supplier || whMatch?.supplier || "Chợ đầu mối",
+        selected: true,
+      };
+    });
+  };
+
+  // Tải nguyên liệu thực phẩm đi chợ của ngày được chọn từ CSDL hoặc tự động bóc tách từ Thực đơn ngày
   const loadGroceries = async (
     dateStr: string,
     currentWarehouse: WarehouseItem[],
@@ -462,17 +568,64 @@ export default function MenuTab() {
             unitPrice: item.unitPrice || 0,
             totalCost: item.totalCost || item.quantity * item.unitPrice,
             supplier: item.notes || whMatch?.supplier || "Chợ đầu mối",
+            selected: true,
           };
         });
         setGroceryItems(mapped);
       } else {
-        // Mặc định danh sách trống để người dùng tự chọn nguyên liệu
-        setGroceryItems([]);
+        // Tự động kiểm tra xem ngày này đã có thực đơn với danh sách nguyên liệu chưa
+        const matchingMenu = weeklyMenus.find((m) => m.date === dateStr);
+        if (
+          matchingMenu &&
+          matchingMenu.ingredients &&
+          matchingMenu.ingredients.length > 0
+        ) {
+          const autoItems = generateGroceriesFromMenu(
+            matchingMenu,
+            currentWarehouse,
+            groceryKidCount,
+          );
+          setGroceryItems(autoItems);
+        } else {
+          setGroceryItems([]);
+        }
       }
     } catch (e) {
       console.error(e);
       setGroceryItems([]);
     }
+  };
+
+  // Nút chủ động tải lại/đồng bộ nguyên liệu từ Thực đơn ngày
+  const handleSyncGroceriesFromDailyMenu = () => {
+    const matchingMenu = weeklyMenus.find(
+      (m) => m.date === selectedGroceryDate,
+    );
+    if (!matchingMenu) {
+      alert(
+        `Chưa tìm thấy thực đơn cho ngày ${selectedGroceryDate}. Vui lòng tạo thực đơn trước!`,
+      );
+      return;
+    }
+    if (
+      !matchingMenu.ingredients ||
+      matchingMenu.ingredients.length === 0
+    ) {
+      alert(
+        `Thực đơn ngày ${selectedGroceryDate} chưa được cấu hình nguyên liệu bóc tách. Hãy bấm 'Sửa thực đơn' để thêm nguyên liệu cho các bữa!`,
+      );
+      return;
+    }
+
+    const generated = generateGroceriesFromMenu(
+      matchingMenu,
+      warehouseInventory,
+      groceryKidCount,
+    );
+    setGroceryItems(generated);
+    showToast(
+      `Đã bóc tách thành công ${generated.length} nguyên liệu từ Thực đơn ngày ${selectedGroceryDate}!`,
+    );
   };
 
   // Mở modal chọn từ kho và chuẩn bị danh sách đã chọn hiện tại
@@ -745,6 +898,10 @@ export default function MenuTab() {
           lunch: menuForm.lunch,
           snack: menuForm.snack,
           costPerStudent: menuForm.costPerStudent,
+          ingredientsJson:
+            menuForm.ingredients && menuForm.ingredients.length > 0
+              ? JSON.stringify(menuForm.ingredients)
+              : null,
         }),
       });
 
@@ -796,7 +953,9 @@ export default function MenuTab() {
       lunch: menu.lunch,
       snack: menu.snack,
       costPerStudent: menu.costPerStudent,
+      ingredients: menu.ingredients || [],
     });
+    setActiveMenuMealTab("BREAKFAST");
     setIsMenuModalOpen(true);
   };
 
@@ -809,15 +968,85 @@ export default function MenuTab() {
       lunch: "",
       snack: "",
       costPerStudent: 30000,
+      ingredients: [],
     });
+    setActiveMenuMealTab("BREAKFAST");
     setIsMenuModalOpen(true);
   };
 
-  // Thống kê Ngân sách vs Chi phí đi chợ thực tế
+  // Thêm nguyên liệu từ kho vào bữa ăn trong Modal Thực đơn
+  const handleAddWarehouseIngToMenu = () => {
+    if (!selectedWarehouseForMenu) return;
+    const wh = warehouseInventory.find((w) => w.id === selectedWarehouseForMenu);
+    if (!wh) return;
+
+    const newIng: MenuIngredientItem = {
+      id: `ing-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      meal: activeMenuMealTab,
+      warehouseId: wh.id,
+      code: wh.code,
+      name: wh.name,
+      category: wh.category,
+      gramsPerKid: menuIngQtyGrams > 0 ? menuIngQtyGrams : 50,
+      unit: wh.unit,
+      unitPrice: wh.unitPrice,
+      supplier: wh.supplier,
+    };
+
+    setMenuForm((prev) => ({
+      ...prev,
+      ingredients: [...prev.ingredients, newIng],
+    }));
+
+    setSelectedWarehouseForMenu("");
+    setMenuIngQtyGrams(50);
+  };
+
+  // Xóa nguyên liệu khỏi bữa ăn trong Modal Thực đơn
+  const handleRemoveIngFromMenu = (ingId: string) => {
+    setMenuForm((prev) => ({
+      ...prev,
+      ingredients: prev.ingredients.filter((i) => i.id !== ingId),
+    }));
+  };
+
+  // Tính tổng chi phí nguyên liệu ước tính / trẻ từ tất cả các bữa ăn đã cấu hình
+  const totalMenuIngredientsCostPerKid = useMemo(() => {
+    if (!menuForm.ingredients || menuForm.ingredients.length === 0) return 0;
+    return menuForm.ingredients.reduce((acc, ing) => {
+      let cost = 0;
+      if (ing.unit === "kg" || ing.unit === "lít" || ing.unit === "g") {
+        cost = (ing.gramsPerKid / 1000) * ing.unitPrice;
+      } else if (ing.unit === "quả" || ing.unit === "hộp") {
+        cost =
+          (ing.gramsPerKid >= 1 ? ing.gramsPerKid : ing.gramsPerKid / 40) *
+          ing.unitPrice;
+      } else {
+        cost = (ing.gramsPerKid / 1000) * ing.unitPrice;
+      }
+      return acc + cost;
+    }, 0);
+  }, [menuForm.ingredients]);
+
+  // Thống kê Ngân sách vs Tiền định lượng vs Chi phí đi chợ thực tế
   const totalBudget = groceryKidCount * mealFeePerKid;
+
+  const totalTheoreticalCost = useMemo(() => {
+    return groceryItems.reduce((acc, item) => {
+      return acc + Math.round(item.theoreticalQty * item.unitPrice);
+    }, 0);
+  }, [groceryItems]);
+
+  const theoreticalCostPerKid = useMemo(() => {
+    return groceryKidCount > 0
+      ? Math.round(totalTheoreticalCost / groceryKidCount)
+      : 0;
+  }, [totalTheoreticalCost, groceryKidCount]);
+
   const totalActualGroceryCost = useMemo(() => {
     return groceryItems.reduce((acc, item) => acc + item.totalCost, 0);
   }, [groceryItems]);
+
   const balanceDifference = totalBudget - totalActualGroceryCost;
 
   // Xuất Excel Thực đơn
@@ -1137,14 +1366,30 @@ export default function MenuTab() {
                   </div>
                 </div>
 
-                {/* Footer Cost */}
-                <div className="bg-slate-50 p-3 border-t border-slate-100 text-center text-xs font-bold text-slate-600 flex items-center justify-between">
-                  <span className="text-[11px] text-slate-400">
-                    Định mức/bé:
-                  </span>
-                  <span className="text-amber-600 font-black">
-                    {formatCurrency(menu.costPerStudent)}
-                  </span>
+                {/* Footer Cost & Ingredients Count */}
+                <div className="bg-slate-50 p-3 border-t border-slate-100 text-xs font-bold text-slate-600 flex items-center justify-between">
+                  <div className="flex items-center gap-1">
+                    {menu.ingredients && menu.ingredients.length > 0 ? (
+                      <span
+                        className="text-[10px] font-extrabold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200"
+                        title="Đã cấu hình bóc tách nguyên liệu cho các bữa"
+                      >
+                        {menu.ingredients.length} nguyên liệu
+                      </span>
+                    ) : (
+                      <span className="text-[10px] text-slate-400">
+                        Chưa gắn NL
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 block font-normal">
+                      Định mức / trẻ:
+                    </span>
+                    <span className="text-amber-600 font-black">
+                      {formatCurrency(menu.costPerStudent)}
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -1248,12 +1493,13 @@ export default function MenuTab() {
           </div>
         </div>
 
-        {/* Live Financial Budget vs Grocery Cost Summary Bar */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Live Financial Budget vs Grocery Cost Summary Bar (4 Cards) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Card 1: Tổng Ngân Sách Thu */}
           <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-extrabold text-slate-500 uppercase block">
-                Tổng Ngân Sách Tiền Ăn Thu Được
+                Tổng Ngân Sách Tiền Ăn
               </span>
               <span className="text-lg font-black text-indigo-700 mt-0.5 block">
                 {formatCurrency(totalBudget)}
@@ -1267,16 +1513,35 @@ export default function MenuTab() {
             </div>
           </div>
 
+          {/* Card 2: Tiền Thức Ăn Theo Định Lượng Chuẩn (Lý thuyết) */}
+          <div className="p-4 bg-purple-50/60 rounded-2xl border border-purple-100 flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-extrabold text-purple-600 uppercase block">
+                Tiền Ăn Theo Định Lượng
+              </span>
+              <span className="text-lg font-black text-purple-700 mt-0.5 block">
+                {formatCurrency(totalTheoreticalCost)}
+              </span>
+              <span className="text-[10px] text-purple-500 font-medium">
+                (~{formatCurrency(theoreticalCostPerKid)} / trẻ theo chuẩn)
+              </span>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl text-purple-600 shadow-xs">
+              <Scale className="w-5 h-5" />
+            </div>
+          </div>
+
+          {/* Card 3: Tổng Tiền Mua Thực Tế */}
           <div className="p-4 bg-amber-50/60 rounded-2xl border border-amber-100 flex items-center justify-between">
             <div>
               <span className="text-[11px] font-extrabold text-slate-500 uppercase block">
-                Tổng Tiền Đi Chợ Thực Tế
+                Tổng Tiền Mua Thực Tế
               </span>
               <span className="text-lg font-black text-amber-700 mt-0.5 block">
                 {formatCurrency(totalActualGroceryCost)}
               </span>
               <span className="text-[10px] text-slate-400 font-medium">
-                ({groceryItems.length} món thực phẩm đã chọn)
+                ({groceryItems.length} món thực phẩm)
               </span>
             </div>
             <div className="p-2.5 bg-white rounded-xl text-amber-600 shadow-xs">
@@ -1284,6 +1549,7 @@ export default function MenuTab() {
             </div>
           </div>
 
+          {/* Card 4: Cân Đối Ngân Sách Đi Chợ */}
           <div
             className={`p-4 rounded-2xl border flex items-center justify-between ${
               balanceDifference >= 0
@@ -1332,7 +1598,17 @@ export default function MenuTab() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto justify-start sm:justify-end">
-              {/* NÚT CHỌN NGUYÊN LIỆU */}
+              {/* NÚT LẤY TỪ THỰC ĐƠN NGÀY */}
+              <button
+                onClick={handleSyncGroceriesFromDailyMenu}
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                title="Tự động bóc tách lại nguyên liệu và định lượng từ Thực đơn của ngày này"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-600" />
+                <span>Lấy từ Thực Đơn</span>
+              </button>
+
+              {/* NÚT CHỌN NGUYÊN LIỆU TỪ KHO */}
               <button
                 onClick={handleOpenWarehousePicker}
                 className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white rounded-xl text-xs font-extrabold shadow-sm shadow-indigo-600/20 transition-all cursor-pointer"
@@ -1851,13 +2127,14 @@ export default function MenuTab() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: THÊM / SỬA THỰC ĐƠN NGÀY */}
+      {/* MODAL 2: THÊM / SỬA THỰC ĐƠN NGÀY & BÓC TÁCH NGUYÊN LIỆU TỪNG BỮA */}
       {/* ========================================================================= */}
       {isMenuModalOpen && (
         <Portal>
           <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn space-y-4 max-h-[90vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="bg-white rounded-3xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn space-y-4 max-h-[92vh] overflow-y-auto flex flex-col">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 bg-amber-50 text-amber-600 rounded-2xl">
                     <UtensilsCrossed className="w-5 h-5" />
@@ -1865,11 +2142,11 @@ export default function MenuTab() {
                   <div>
                     <h3 className="font-black text-slate-900 text-base">
                       {editingMenu
-                        ? "Cập Nhật Thực Đơn Ngày"
-                        : "Thêm Thực Đơn Ngày Mới"}
+                        ? "Cập Nhật Thực Đơn & Định Lượng Ngày"
+                        : "Thêm Thực Đơn & Định Lượng Ngày Mới"}
                     </h3>
                     <p className="text-[11px] text-slate-500 font-medium">
-                      Lưu trực tiếp vào CSDL toàn trường
+                      Cấu hình món ăn và bóc tách nguyên liệu gram/trẻ cho các bữa
                     </p>
                   </div>
                 </div>
@@ -1881,11 +2158,12 @@ export default function MenuTab() {
                 </button>
               </div>
 
-              <form onSubmit={handleSaveMenu} className="space-y-4 text-xs">
-                <div className="grid grid-cols-2 gap-3">
+              <form onSubmit={handleSaveMenu} className="space-y-4 text-xs flex-1">
+                {/* 1. Date and Cost Inputs */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
                   <div>
                     <label className="font-extrabold text-slate-700 block mb-1">
-                      Ngày áp dụng <span className="text-rose-500">*</span>
+                      📅 Ngày áp dụng <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="date"
@@ -1894,14 +2172,34 @@ export default function MenuTab() {
                       onChange={(e) =>
                         setMenuForm({ ...menuForm, date: e.target.value })
                       }
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-amber-500"
                     />
                   </div>
 
                   <div>
-                    <label className="font-extrabold text-slate-700 block mb-1">
-                      Đơn giá suất ăn (VNĐ/trẻ)
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-extrabold text-slate-700">
+                        💰 Đơn giá suất ăn (VNĐ / trẻ)
+                      </label>
+                      {totalMenuIngredientsCostPerKid > 0 && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMenuForm({
+                              ...menuForm,
+                              costPerStudent: Math.round(
+                                totalMenuIngredientsCostPerKid,
+                              ),
+                            })
+                          }
+                          className="text-[10px] font-bold text-amber-700 hover:underline cursor-pointer flex items-center gap-0.5"
+                          title="Lấy chi phí tính từ nguyên liệu"
+                        >
+                          <Sparkles className="w-3 h-3 text-amber-600" />
+                          <span>Áp dụng ước tính ({formatCurrency(totalMenuIngredientsCostPerKid)})</span>
+                        </button>
+                      )}
+                    </div>
                     <input
                       type="number"
                       step="1000"
@@ -1912,73 +2210,310 @@ export default function MenuTab() {
                           costPerStudent: parseFloat(e.target.value) || 30000,
                         })
                       }
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-amber-500"
+                      className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-amber-500"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-extrabold text-indigo-700 block mb-1 flex items-center gap-1">
-                    <Soup className="w-3.5 h-3.5" /> Bữa sáng{" "}
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Cháo thịt bằm cà rốt, Sữa tươi tiệt trùng"
-                    value={menuForm.breakfast}
-                    onChange={(e) =>
-                      setMenuForm({ ...menuForm, breakfast: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-amber-500"
-                  />
+                {/* 2. Three Meals Menu Text Fields */}
+                <div className="space-y-2.5">
+                  <h4 className="font-black text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                    <span>🍲 Tên Món Ăn Trong Ngày</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="font-extrabold text-indigo-700 block mb-1 flex items-center gap-1">
+                        <Soup className="w-3.5 h-3.5" /> Bữa sáng{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="VD: Cháo thịt bằm, Sữa tươi"
+                        value={menuForm.breakfast}
+                        onChange={(e) =>
+                          setMenuForm({
+                            ...menuForm,
+                            breakfast: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-extrabold text-emerald-700 block mb-1 flex items-center gap-1">
+                        <Drumstick className="w-3.5 h-3.5" /> Bữa trưa chính{" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="VD: Cơm trắng, Thịt bò xào, Canh bí"
+                        value={menuForm.lunch}
+                        onChange={(e) =>
+                          setMenuForm({ ...menuForm, lunch: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="font-extrabold text-amber-700 block mb-1 flex items-center gap-1">
+                        <Apple className="w-3.5 h-3.5" /> Bữa xế (phụ){" "}
+                        <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="VD: Chuối tiêu, Sữa chua"
+                        value={menuForm.snack}
+                        onChange={(e) =>
+                          setMenuForm({ ...menuForm, snack: e.target.value })
+                        }
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:bg-white focus:outline-none focus:border-amber-500"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="font-extrabold text-emerald-700 block mb-1 flex items-center gap-1">
-                    <Drumstick className="w-3.5 h-3.5" /> Bữa trưa chính{" "}
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    required
-                    placeholder="VD: Cơm trắng, Thịt bò xào củ quả, Canh bí đỏ tôm thịt"
-                    value={menuForm.lunch}
-                    onChange={(e) =>
-                      setMenuForm({ ...menuForm, lunch: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-amber-500 resize-none"
-                  />
+                {/* 3. Section Bóc Tách Nguyên Liệu Cho Từng Bữa Ăn */}
+                <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-slate-200/80">
+                    <div>
+                      <h4 className="font-black text-slate-900 text-xs uppercase tracking-wider flex items-center gap-1.5">
+                        <Scale className="w-4 h-4 text-purple-600" />
+                        <span>Bóc Tách Nguyên Liệu & Định Lượng (Gram/Trẻ)</span>
+                      </h4>
+                      <p className="text-[11px] text-slate-500">
+                        Nguyên liệu sẽ tự động đẩy sang <strong>Sổ Đi Chợ</strong> theo sĩ số học sinh
+                      </p>
+                    </div>
+
+                    {/* Meal Tab Selector */}
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                      {[
+                        {
+                          id: "BREAKFAST" as const,
+                          label: "🥣 Bữa Sáng",
+                          count: menuForm.ingredients.filter(
+                            (i) => i.meal === "BREAKFAST",
+                          ).length,
+                        },
+                        {
+                          id: "LUNCH" as const,
+                          label: "🍗 Bữa Trưa",
+                          count: menuForm.ingredients.filter(
+                            (i) => i.meal === "LUNCH",
+                          ).length,
+                        },
+                        {
+                          id: "SNACK" as const,
+                          label: "🍎 Bữa Xế",
+                          count: menuForm.ingredients.filter(
+                            (i) => i.meal === "SNACK",
+                          ).length,
+                        },
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          type="button"
+                          onClick={() => setActiveMenuMealTab(tab.id)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                            activeMenuMealTab === tab.id
+                              ? "bg-indigo-600 text-white shadow-2xs"
+                              : "text-slate-600 hover:bg-slate-100"
+                          }`}
+                        >
+                          <span>{tab.label}</span>
+                          <span
+                            className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                              activeMenuMealTab === tab.id
+                                ? "bg-white/20 text-white"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {tab.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Quick Add Ingredient into Active Meal Tab */}
+                  <div className="flex flex-col sm:flex-row items-center gap-2 bg-white p-2.5 rounded-xl border border-slate-200">
+                    <div className="flex-1 w-full">
+                      <select
+                        value={selectedWarehouseForMenu}
+                        onChange={(e) =>
+                          setSelectedWarehouseForMenu(e.target.value)
+                        }
+                        className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                      >
+                        <option value="">-- Chọn nguyên liệu từ kho --</option>
+                        {warehouseInventory.map((wh) => (
+                          <option key={wh.id} value={wh.id}>
+                            [{wh.code}] {wh.name} ({formatCurrency(wh.unitPrice)} / {wh.unit})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 w-full sm:w-auto justify-end">
+                      <label className="text-[11px] font-bold text-slate-500 shrink-0">
+                        Định lượng:
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={menuIngQtyGrams}
+                        onChange={(e) =>
+                          setMenuIngQtyGrams(parseFloat(e.target.value) || 0)
+                        }
+                        className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-indigo-700 text-center focus:bg-white focus:outline-none focus:border-indigo-500"
+                        placeholder="g / trẻ"
+                      />
+                      <span className="text-xs font-bold text-slate-500 shrink-0">
+                        g/trẻ
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={handleAddWarehouseIngToMenu}
+                        disabled={!selectedWarehouseForMenu}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg text-xs font-bold cursor-pointer transition-colors shrink-0 flex items-center gap-1"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Thêm</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* List of Ingredients in Active Meal Tab */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white max-h-44 overflow-y-auto">
+                    {menuForm.ingredients.filter(
+                      (i) => i.meal === activeMenuMealTab,
+                    ).length === 0 ? (
+                      <div className="py-6 text-center text-slate-400 text-xs">
+                        Chưa có nguyên liệu nào được thêm cho{" "}
+                        <strong>
+                          {activeMenuMealTab === "BREAKFAST"
+                            ? "Bữa Sáng"
+                            : activeMenuMealTab === "LUNCH"
+                              ? "Bữa Trưa"
+                              : "Bữa Xế"}
+                        </strong>
+                        . Hãy chọn món từ kho phía trên.
+                      </div>
+                    ) : (
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-200 text-[10px] font-extrabold text-slate-600 uppercase">
+                          <tr>
+                            <th className="py-2 px-3">Tên Nguyên Liệu</th>
+                            <th className="py-2 px-3 text-center">
+                              Định Lượng / Trẻ
+                            </th>
+                            <th className="py-2 px-3">Đơn Giá Kho</th>
+                            <th className="py-2 px-3">Ước Tính / Trẻ</th>
+                            <th className="py-2 px-3 text-right">Xóa</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {menuForm.ingredients
+                            .filter((i) => i.meal === activeMenuMealTab)
+                            .map((ing) => {
+                              const costPerKid =
+                                ing.unit === "kg" ||
+                                ing.unit === "lít" ||
+                                ing.unit === "g"
+                                  ? Math.round(
+                                      (ing.gramsPerKid / 1000) * ing.unitPrice,
+                                    )
+                                  : Math.round(
+                                      (ing.gramsPerKid >= 1
+                                        ? ing.gramsPerKid
+                                        : ing.gramsPerKid / 40) * ing.unitPrice,
+                                    );
+
+                              return (
+                                <tr
+                                  key={ing.id}
+                                  className="hover:bg-slate-50 transition-colors"
+                                >
+                                  <td className="py-2 px-3 font-extrabold text-slate-800">
+                                    <div className="flex items-center gap-1.5">
+                                      {ing.code && (
+                                        <span className="font-mono text-[10px] text-indigo-600 bg-indigo-50 px-1 py-0.5 rounded">
+                                          {ing.code}
+                                        </span>
+                                      )}
+                                      <span>{ing.name}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-2 px-3 text-center font-bold text-indigo-700">
+                                    <span className="bg-indigo-50 px-2 py-0.5 rounded-full">
+                                      {ing.gramsPerKid}{" "}
+                                      {ing.unit === "quả" || ing.unit === "hộp"
+                                        ? ing.unit
+                                        : "g"}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 px-3 text-slate-600 font-medium">
+                                    {formatCurrency(ing.unitPrice)} / {ing.unit}
+                                  </td>
+                                  <td className="py-2 px-3 font-extrabold text-emerald-700">
+                                    ~{formatCurrency(costPerKid)}
+                                  </td>
+                                  <td className="py-2 px-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleRemoveIngFromMenu(ing.id)
+                                      }
+                                      className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer transition-colors"
+                                      title="Xóa nguyên liệu này"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  {/* Summary Bar inside Modal */}
+                  <div className="flex items-center justify-between text-xs pt-1 px-1 text-slate-600">
+                    <span>
+                      Tổng cộng cả ngày:{" "}
+                      <strong className="text-slate-900 font-black">
+                        {menuForm.ingredients.length} nguyên liệu
+                      </strong>
+                    </span>
+                    <span>
+                      Chi phí nguyên liệu chuẩn ước tính:{" "}
+                      <strong className="text-purple-700 font-black text-sm">
+                        ~{formatCurrency(totalMenuIngredientsCostPerKid)} / trẻ
+                      </strong>
+                    </span>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="font-extrabold text-amber-700 block mb-1 flex items-center gap-1">
-                    <Apple className="w-3.5 h-3.5" /> Bữa xế (bữa phụ){" "}
-                    <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Chuối tiêu chín, Sữa chua lên men tự nhiên"
-                    value={menuForm.snack}
-                    onChange={(e) =>
-                      setMenuForm({ ...menuForm, snack: e.target.value })
-                    }
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-amber-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                {/* Modal Footer Actions */}
+                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsMenuModalOpen(false)}
-                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
+                    className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer text-xs"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-extrabold shadow-md shadow-amber-600/20 cursor-pointer"
+                    className="px-5 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-extrabold shadow-md shadow-amber-600/20 cursor-pointer text-xs transition-all"
                   >
                     {editingMenu ? "Cập Nhật Thực Đơn" : "Lưu Thực Đơn Mới"}
                   </button>

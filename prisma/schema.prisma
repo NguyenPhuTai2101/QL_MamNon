@@ -105,16 +105,17 @@ model Invoice {
 }
 
 model DailyMenu {
-  id             String   @id @default(uuid())
-  date           DateTime // Ngày áp dụng thực đơn
-  classId        String?  // Lớp áp dụng (null nếu áp dụng cho toàn trường)
-  class          Class?   @relation(fields: [classId], references: [id])
-  breakfast      String   // Bữa sáng
-  lunch          String   // Bữa trưa
-  snack          String   // Bữa xế (bữa phụ)
-  costPerStudent Float    // Chi phí ước tính trên mỗi học sinh
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(uuid())
+  date            DateTime // Ngày áp dụng thực đơn
+  classId         String?  // Lớp áp dụng (null nếu áp dụng cho toàn trường)
+  class           Class?   @relation(fields: [classId], references: [id])
+  breakfast       String   // Bữa sáng
+  lunch           String   // Bữa trưa
+  snack           String   // Bữa xế (bữa phụ)
+  costPerStudent  Float    // Chi phí ước tính trên mỗi học sinh
+  ingredientsJson String?  // Chi tiết nguyên liệu bóc tách theo bữa (Sáng, Trưa, Xế) dạng JSON
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model IngredientCost {
