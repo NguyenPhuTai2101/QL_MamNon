@@ -4,6 +4,15 @@ import { Pool } from "pg";
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
+// Tự động chuyển đổi cổng kết nối từ Session Mode (5432) sang Transaction Mode (6543) cho Supabase pooler
+let dbUrl = process.env.DATABASE_URL || "";
+if (dbUrl.includes(".pooler.supabase.com:5432")) {
+  dbUrl = dbUrl.replace(":5432", ":6543");
+  if (!dbUrl.includes("pgbouncer=true")) {
+    dbUrl += dbUrl.includes("?") ? "&pgbouncer=true" : "?pgbouncer=true";
+  }
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma?: PrismaClient;
   pgPool?: Pool;
@@ -11,11 +20,11 @@ const globalForPrisma = globalThis as unknown as {
 
 if (!globalForPrisma.pgPool) {
   globalForPrisma.pgPool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: dbUrl,
     ssl: { rejectUnauthorized: false },
-    max: 3, // Giới hạn số connection của client để không vượt quota pool_size của Supabase
-    idleTimeoutMillis: 10000,
-    connectionTimeoutMillis: 5000,
+    max: 5,
+    idleTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10000,
   });
 }
 
