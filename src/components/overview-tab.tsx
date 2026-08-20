@@ -39,6 +39,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import {
+  type TuitionFeeItem,
+  getStudentEffectiveAmount,
+} from "@/lib/tuitionUtils";
 
 interface OverviewTabProps {
   onNavigateTab: (tabId: string) => void;
@@ -49,6 +53,7 @@ export default function OverviewTab({ onNavigateTab, userRole = "ADMIN" }: Overv
   const [students, setStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [feeItems, setFeeItems] = useState<TuitionFeeItem[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [staffCount, setStaffCount] = useState<number>(0);
@@ -60,14 +65,16 @@ export default function OverviewTab({ onNavigateTab, userRole = "ADMIN" }: Overv
       fetch("/api/students").then((r) => r.json()).catch(() => []),
       fetch("/api/classes").then((r) => r.json()).catch(() => []),
       fetch("/api/invoices").then((r) => r.json()).catch(() => []),
+      fetch("/api/tuition-fees").then((r) => r.json()).catch(() => ({ data: [] })),
       fetch("/api/transactions").then((r) => r.json()).catch(() => ({ data: [] })),
       fetch("/api/events").then((r) => r.json()).catch(() => ({ data: [] })),
       fetch("/api/staff").then((r) => r.json()).catch(() => ({ data: [] })),
     ])
-      .then(([dbStudents, dbClasses, dbInvoices, dbTransactions, dbEvents, dbStaff]) => {
+      .then(([dbStudents, dbClasses, dbInvoices, resFees, dbTransactions, dbEvents, dbStaff]) => {
         if (Array.isArray(dbStudents)) setStudents(dbStudents);
         if (Array.isArray(dbClasses)) setClasses(dbClasses);
         if (Array.isArray(dbInvoices)) setInvoices(dbInvoices);
+        if (resFees?.data && Array.isArray(resFees.data)) setFeeItems(resFees.data);
         if (dbTransactions?.data && Array.isArray(dbTransactions.data)) setTransactions(dbTransactions.data);
         if (dbEvents?.data && Array.isArray(dbEvents.data)) setEvents(dbEvents.data);
         if (dbStaff?.data && Array.isArray(dbStaff.data)) setStaffCount(dbStaff.data.length);
@@ -82,7 +89,10 @@ export default function OverviewTab({ onNavigateTab, userRole = "ADMIN" }: Overv
   const paidInvoices = invoices.filter((i) => i.status === "PAID");
   const unpaidInvoices = invoices.filter((i) => i.status === "UNPAID" || i.status === "OVERDUE");
   const totalCollectedTuition = paidInvoices.reduce((sum, i) => sum + (i.amount || 0), 0);
-  const totalExpectedTuition = invoices.reduce((sum, i) => sum + (i.amount || 0), 0) || (totalStudents * 3200000);
+  const totalExpectedTuition = students.reduce((sum, st) => {
+    const inv = invoices.find((i) => i.studentId === st.id);
+    return sum + getStudentEffectiveAmount({ className: st.class?.name || "Mầm 1", invoice: inv }, feeItems, 22);
+  }, 0);
   const tuitionPaidPercent = totalExpectedTuition > 0 ? Math.round((totalCollectedTuition / totalExpectedTuition) * 100) : 0;
 
   // Thống kê Dòng tiền Quỹ tháng

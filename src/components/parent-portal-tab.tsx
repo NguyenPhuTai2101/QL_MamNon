@@ -20,6 +20,13 @@ import {
   AlertCircle
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import {
+  type TuitionFeeItem,
+  getStudentFeeBreakdown,
+  getStudentEffectiveAmount,
+  getVietQRBreakdownDetails,
+  saveInvoicePaymentToDB,
+} from "@/lib/tuitionUtils";
 
 interface StudentDetail {
   id: string;
@@ -40,6 +47,7 @@ interface StudentDetail {
 
 export default function ParentPortalTab() {
   const [parentName, setParentName] = useState("Phụ huynh");
+  const [feeItems, setFeeItems] = useState<TuitionFeeItem[]>([]);
   const [child, setChild] = useState<StudentDetail>({
     id: "",
     name: "Đang tải dữ liệu học sinh...",
@@ -71,21 +79,30 @@ export default function ParentPortalTab() {
       } catch (e) {}
     }
 
-    // Tải dữ liệu con từ DB API
-    fetch("/api/students")
-      .then(res => res.json())
-      .then(dbStudents => {
+    // Tải dữ liệu con và biểu phí từ DB API
+    Promise.all([
+      fetch("/api/students").then((r) => r.json()).catch(() => []),
+      fetch("/api/tuition-fees").then((r) => r.json()).catch(() => ({ data: [] })),
+    ])
+      .then(([dbStudents, resFees]) => {
+        const loadedFees: TuitionFeeItem[] = resFees?.data && Array.isArray(resFees.data) ? resFees.data : [];
+        setFeeItems(loadedFees);
+
         if (Array.isArray(dbStudents) && dbStudents.length > 0) {
           const st = dbStudents[0];
+          const inv = st.invoices && st.invoices.length > 0 ? st.invoices[0] : null;
+          const className = st.class?.name || "Chưa xếp lớp";
+          const effAmount = getStudentEffectiveAmount({ className, invoice: inv }, loadedFees, 22);
+
           const studentObj: StudentDetail = {
             id: st.id,
             name: `${st.lastName} ${st.firstName}`.trim(),
-            className: st.class?.name || "Chưa xếp lớp",
+            className: className,
             teacherName: st.class?.teacher || "Cô giáo chủ nhiệm",
             birthDate: st.birthDate ? new Date(st.birthDate).toLocaleDateString("vi-VN") : "---",
             gender: st.gender || "Nam",
-            tuitionAmount: st.invoices && st.invoices.length > 0 ? st.invoices[0].amount : 3200000,
-            tuitionStatus: st.invoices && st.invoices.length > 0 ? st.invoices[0].status : "UNPAID",
+            tuitionAmount: effAmount,
+            tuitionStatus: inv ? inv.status : "UNPAID",
             heightCm: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].heightCm || 0 : 0,
             weightKg: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].weightKg || 0 : 0,
             allergies: st.healthRecords && st.healthRecords.length > 0 ? st.healthRecords[0].allergies || "Không có" : "Không có",
@@ -311,19 +328,36 @@ export default function ParentPortalTab() {
       </div>
 
       {/* VietQR Modal */}
-      {showQRModal && (
-        <VietQRModal
-          studentName={child.name}
-          className={child.className}
-          parentName={parentName}
-          amount={child.tuitionAmount}
-          onClose={() => setShowQRModal(false)}
-          onConfirmPayment={() => {
-            setChild(prev => ({ ...prev, tuitionStatus: "PAID" }));
-            setShowQRModal(false);
-          }}
-        />
-      )}
+      {showQRModal && (() => {
+        const qrDetails = getVietQRBreakdownDetails(child.className, feeItems, 22, child.tuitionAmount);
+        return (
+          <VietQRModal
+            studentName={child.name}
+            className={child.className}
+            parentName={parentName}
+            amount={child.tuitionAmount}
+            month={new Date().getMonth() + 1}
+            year={new Date().getFullYear()}
+            issueDate={new Date().toLocaleDateString("vi-VN")}
+            invoiceId={`HP-${child.id ? child.id.slice(-4) : "0001"}`}
+            breakdown={qrDetails}
+            onClose={() => setShowQRModal(false)}
+            onConfirmPayment={async () => {
+              setChild((prev) => ({ ...prev, tuitionStatus: "PAID" }));
+              setShowQRModal(false);
+              if (child.id) {
+                await saveInvoicePaymentToDB({
+                  studentId: child.id,
+                  status: "PAID",
+                  amount: child.tuitionAmount,
+                  paymentMethod: "QR",
+                  breakdownJson: JSON.stringify(getStudentFeeBreakdown(child.className, feeItems, 22)),
+                });
+              }
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

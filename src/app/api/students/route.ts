@@ -12,6 +12,9 @@ export async function GET() {
           orderBy: { date: "desc" },
           take: 5,
         },
+        invoices: {
+          orderBy: { createdAt: "desc" },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

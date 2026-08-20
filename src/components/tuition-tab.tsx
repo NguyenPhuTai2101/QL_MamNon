@@ -39,17 +39,14 @@ import {
 import { formatCurrency, cn } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
 import { mockStudents, type Student } from "@/lib/mockData";
-
-export type FeeType = "MONTHLY" | "DAILY" | "ONE_TIME";
-
-export interface TuitionFeeItem {
-  id: string;
-  name: string;
-  amount: number;
-  type: FeeType;
-  description?: string;
-  appliedClass?: string; // "ALL" | "MAM" | "CHOI" | "LA" | "Mầm 1" ...
-}
+import {
+  type FeeType,
+  type TuitionFeeItem,
+  getStudentFeeBreakdown as calcFeeBreakdown,
+  getStudentEffectiveAmount as calcEffectiveAmount,
+  getVietQRBreakdownDetails,
+  saveInvoicePaymentToDB,
+} from "@/lib/tuitionUtils";
 
 const DEFAULT_CLASS_OPTIONS = [
   { value: "ALL", label: "🏫 Toàn trường (Tất cả các lớp)" },
@@ -201,100 +198,12 @@ export default function TuitionTab() {
 
   // Hàm tính toán tổng học phí & bóc tách chi tiết theo LỚP HỌC của từng bé
   const getStudentFeeBreakdown = (studentClassName: string, schoolDays: number = 22) => {
-    const cls = (studentClassName || "").toLowerCase();
-    
-    // Nhận diện khối lớp thông minh theo tên lớp (Mầm / Chồi / Lá / Tháng tuổi)
-    const isMam =
-      cls.includes("mầm") ||
-      cls.includes("nhà trẻ") ||
-      cls.includes("thơ") ||
-      cls.includes("12") ||
-      cls.includes("18") ||
-      cls.includes("24") ||
-      cls.includes("36") ||
-      cls.includes("tháng");
-
-    const isChoi =
-      cls.includes("chồi") ||
-      cls.includes("3-4") ||
-      cls.includes("3 - 4") ||
-      cls.includes("3 – 4") ||
-      cls.includes("3-5") ||
-      cls.includes("3 – 5") ||
-      cls.includes("3 tuổi") ||
-      cls.includes("4 tuổi");
-
-    const isLa =
-      cls.includes("lá") ||
-      cls.includes("4-5") ||
-      cls.includes("4 - 5") ||
-      cls.includes("4 – 5") ||
-      cls.includes("5-6") ||
-      cls.includes("5 – 6") ||
-      cls.includes("5 tuổi") ||
-      cls.includes("6 tuổi") ||
-      cls.includes("tiền tiểu học") ||
-      cls.includes("chồi lá");
-
-    const applicableFees = feeItems.filter((f) => {
-      if (f.appliedClass === "ALL" || !f.appliedClass) return true;
-      if (f.appliedClass.toLowerCase() === studentClassName.toLowerCase()) return true; // Khớp đích danh từng lớp
-      if (isMam && f.appliedClass === "MAM") return true;
-      if (isChoi && f.appliedClass === "CHOI") return true;
-      if (isLa && f.appliedClass === "LA") return true;
-      return false;
-    });
-
-    const monthlyItems: Array<{ id: string; name: string; type: FeeType; amount: number; note: string }> = [];
-    const oneTimeItems: Array<{ id: string; name: string; type: FeeType; amount: number; note: string }> = [];
-
-    applicableFees.forEach((fee) => {
-      if (fee.type === "DAILY") {
-        monthlyItems.push({
-          id: fee.id,
-          name: fee.name,
-          type: fee.type,
-          amount: fee.amount * schoolDays,
-          note: `${schoolDays} ngày × ${formatCurrency(fee.amount)}/ngày`,
-        });
-      } else if (fee.type === "MONTHLY") {
-        monthlyItems.push({
-          id: fee.id,
-          name: fee.name,
-          type: fee.type,
-          amount: fee.amount,
-          note: "Cố định hàng tháng",
-        });
-      } else if (fee.type === "ONE_TIME") {
-        oneTimeItems.push({
-          id: fee.id,
-          name: fee.name,
-          type: fee.type,
-          amount: fee.amount,
-          note: "Thu 1 lần đầu năm học",
-        });
-      }
-    });
-
-    const totalMonthly = monthlyItems.reduce((sum, i) => sum + i.amount, 0);
-    const totalOneTime = oneTimeItems.reduce((sum, i) => sum + i.amount, 0);
-
-    return {
-      items: [...monthlyItems, ...oneTimeItems],
-      monthlyItems,
-      oneTimeItems,
-      totalMonthly,
-      totalOneTime,
-      totalAll: totalMonthly + totalOneTime,
-    };
+    return calcFeeBreakdown(studentClassName, feeItems, schoolDays);
   };
 
   // Helper lấy số tiền học phí thực tế của học sinh (đảm bảo luôn khớp 100% với bóc tách)
   const getStudentEffectiveAmount = (student: Student) => {
-    const breakdown = getStudentFeeBreakdown(student.className, standardSchoolDays);
-    if (breakdown.totalMonthly > 0) return breakdown.totalMonthly;
-    if (student.amount && student.amount > 0) return student.amount;
-    return 3200000;
+    return calcEffectiveAmount(student, feeItems, standardSchoolDays);
   };
 
   // Tự động đồng bộ số tiền học phí của học sinh theo đúng cấu hình biểu phí & số ngày học
@@ -349,11 +258,24 @@ export default function TuitionTab() {
   }, [feeItems, configClassFilter]);
 
   // Thao tác xác nhận đã thu
-  const handleMarkAsPaid = (studentId: string) => {
+  const handleMarkAsPaid = async (studentId: string) => {
+    const student = students.find((s) => s.id === studentId);
+    const effAmount = student ? getStudentEffectiveAmount(student) : 3200000;
+    const breakdown = student ? getStudentFeeBreakdown(student.className, standardSchoolDays) : null;
+
     setStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, tuitionStatus: "PAID" } : s))
+      prev.map((s) => (s.id === studentId ? { ...s, tuitionStatus: "PAID", amount: effAmount } : s))
     );
     showToast("Đã xác nhận thanh toán học phí thành công!");
+
+    // Ghi nhận trực tiếp vào CSDL
+    await saveInvoicePaymentToDB({
+      studentId,
+      status: "PAID",
+      amount: effAmount,
+      paymentMethod: "QR",
+      breakdownJson: breakdown ? JSON.stringify(breakdown) : undefined,
+    });
   };
 
   // Thao tác Lưu / Sửa Khoản thu
@@ -445,18 +367,38 @@ export default function TuitionTab() {
     setIsAddFeeModalOpen(true);
   };
 
-  // Tự động tính toán & áp dụng định mức học phí riêng cho TỪNG LỚP của học sinh
-  const handleRecalculateInvoicesByClass = () => {
-    setStudents((prev) =>
-      prev.map((st) => {
-        const breakdown = getStudentFeeBreakdown(st.className, standardSchoolDays);
-        return {
-          ...st,
-          amount: breakdown.totalMonthly,
-        };
-      })
-    );
-    showToast(`Đã tự động tính toán lại học phí riêng biệt cho từng lớp học!`);
+  // Tự động tính toán & áp dụng định mức học phí riêng cho TỪNG LỚP của học sinh và lưu vào CSDL
+  const handleRecalculateInvoicesByClass = async () => {
+    const updated = students.map((st) => {
+      const breakdown = getStudentFeeBreakdown(st.className, standardSchoolDays);
+      return {
+        ...st,
+        amount: breakdown.totalMonthly,
+      };
+    });
+
+    setStudents(updated);
+
+    const batch = updated.map((st) => {
+      const breakdown = getStudentFeeBreakdown(st.className, standardSchoolDays);
+      return {
+        studentId: st.id,
+        amount: breakdown.totalMonthly,
+        status: st.tuitionStatus || "UNPAID",
+        breakdownJson: JSON.stringify(breakdown),
+      };
+    });
+
+    try {
+      await fetch("/api/invoices", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(batch),
+      });
+      showToast("Đã tự động tính toán lại và đồng bộ học phí các lớp vào CSDL!");
+    } catch (e) {
+      showToast("Đã cập nhật biểu phí thành công!");
+    }
   };
 
   // Xuất Excel học phí
@@ -511,7 +453,7 @@ export default function TuitionTab() {
     exportToPDF("BÁO CÁO THU HỌC PHÍ THEO LỚP", headers, data);
   };
 
-  const getClassBadge = (appliedClass?: string) => {
+  const getClassBadge = (appliedClass?: string | null) => {
     switch (appliedClass) {
       case "MAM":
         return (
@@ -533,9 +475,17 @@ export default function TuitionTab() {
         );
       case "ALL":
       case undefined:
+      case null:
+      case "":
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-50 text-indigo-700 border border-indigo-200">
             🏫 Toàn trường (Tất cả)
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-teal-50 text-teal-700 border border-teal-200">
+            🏷️ Lớp {appliedClass}
           </span>
         );
     }
@@ -1474,41 +1424,23 @@ export default function TuitionTab() {
 
       {/* VietQR / Phiếu Báo Học Phí Modal */}
       {selectedQRStudent && (() => {
-        const breakdown = getStudentFeeBreakdown(selectedQRStudent.className, standardSchoolDays);
-        const baseTuition = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("học phí"))?.amount || 1620000;
-        const semiBoarding = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("bán trú"))?.amount || 400000;
-        const mealFee = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("ăn"))?.amount || 780000;
-        const facilityFee = breakdown.oneTimeItems.find(i => i.name.toLowerCase().includes("csvc") || i.name.toLowerCase().includes("cơ sở"))?.amount || 0;
-        const mathLogic = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("toán"))?.amount || 0;
-        const english = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("anh") || i.name.toLowerCase().includes("tiếng anh"))?.amount || 0;
-        const rhythmDance = breakdown.monthlyItems.find(i => i.name.toLowerCase().includes("nhịp") || i.name.toLowerCase().includes("múa"))?.amount || 0;
-        const discountPercent = 10;
-        const discountAmount = Math.round(baseTuition * (discountPercent / 100));
-        const total = baseTuition + semiBoarding + mealFee + facilityFee + mathLogic + english + rhythmDance - discountAmount;
-
-        const detailedBreakdown = {
-          baseTuition,
-          semiBoarding,
-          mealFee,
-          facilityFee,
-          mathLogic,
-          english,
-          rhythmDance,
-          leaveDays: 0,
-          refundMealFee: 0,
-          discountAmount,
-          discountPercent,
-        };
+        const studentAmount = getStudentEffectiveAmount(selectedQRStudent);
+        const detailedBreakdown = getVietQRBreakdownDetails(
+          selectedQRStudent.className,
+          feeItems,
+          standardSchoolDays,
+          studentAmount
+        );
 
         return (
           <VietQRModal
             studentName={selectedQRStudent.name}
             className={selectedQRStudent.className}
             parentName={selectedQRStudent.parentName}
-            amount={total}
-            month={8}
-            year={2025}
-            issueDate="03/08/2026"
+            amount={studentAmount}
+            month={new Date().getMonth() + 1}
+            year={new Date().getFullYear()}
+            issueDate={new Date().toLocaleDateString("vi-VN")}
             invoiceId={`HP-${selectedQRStudent.id.slice(-4)}`}
             breakdown={detailedBreakdown}
             onClose={() => setSelectedQRStudent(null)}

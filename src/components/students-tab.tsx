@@ -32,6 +32,12 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import {
+  type TuitionFeeItem,
+  getStudentFeeBreakdown,
+  getStudentEffectiveAmount,
+  saveInvoicePaymentToDB,
+} from "@/lib/tuitionUtils";
 
 interface StudentRecord {
   id: string;
@@ -61,6 +67,7 @@ export default function StudentsTab() {
   const [subTab, setSubTab] = useState<"students" | "classes">("students");
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [classes, setClasses] = useState<ClassRecord[]>([]);
+  const [feeItems, setFeeItems] = useState<TuitionFeeItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters & Search
@@ -99,11 +106,15 @@ export default function StudentsTab() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [resStudents, resClasses, resInvoices] = await Promise.all([
+      const [resStudents, resClasses, resInvoices, resFees] = await Promise.all([
         fetch("/api/students").then((r) => r.json()).catch(() => []),
         fetch("/api/classes").then((r) => r.json()).catch(() => []),
         fetch("/api/invoices").then((r) => r.json()).catch(() => []),
+        fetch("/api/tuition-fees").then((r) => r.json()).catch(() => ({ data: [] })),
       ]);
+
+      const loadedFees = resFees?.data && Array.isArray(resFees.data) ? resFees.data : [];
+      setFeeItems(loadedFees);
 
       if (Array.isArray(resClasses)) {
         setClasses(
@@ -127,12 +138,15 @@ export default function StudentsTab() {
         }
 
         const mapped: StudentRecord[] = resStudents.map((st: any) => {
-          const inv = invMap[st.id] || {};
+          const inv = invMap[st.id] || (st.invoices && st.invoices.length > 0 ? st.invoices[0] : null) || {};
+          const className = st.class?.name || "Mầm 1";
+          const effAmount = getStudentEffectiveAmount({ className, invoice: inv }, loadedFees, 22);
+
           return {
             id: st.id,
             code: `HS0${st.id.slice(-3)}`,
             name: `${st.lastName} ${st.firstName}`.trim(),
-            className: st.class?.name || "Mầm 1",
+            className: className,
             gender: st.gender || "Nam",
             birthDate: st.birthDate ? new Date(st.birthDate).toISOString().split("T")[0] : "2021-05-15",
             parentName: st.parentName || "Phụ huynh",
@@ -140,7 +154,7 @@ export default function StudentsTab() {
             address: st.address || "Hà Nội",
             joinDate: st.enrollmentDate ? new Date(st.enrollmentDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
             tuitionStatus: (inv.status as any) || "UNPAID",
-            amount: inv.amount || 3200000,
+            amount: effAmount,
           };
         });
         setStudents(mapped);
@@ -846,20 +860,93 @@ export default function StudentsTab() {
                   </div>
                 </div>
 
+                {/* Chi tiết bóc tách học phí */}
+                {(() => {
+                  const breakdown = getStudentFeeBreakdown(selectedStudentDetail.className, feeItems, 22);
+                  return (
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-1 border-b border-slate-200">
+                        <span>Hạng mục thu ({selectedStudentDetail.className})</span>
+                        <span>Định mức</span>
+                      </div>
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {breakdown.monthlyItems.map((item, idx) => (
+                          <div key={item.id || idx} className="flex justify-between items-center text-[11px]">
+                            <span className="text-slate-600 font-medium">{item.name}:</span>
+                            <span className="font-bold text-slate-800">{formatCurrency(item.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+                        <span className="font-extrabold text-slate-800 text-xs">Tổng học phí tháng:</span>
+                        <span className="font-black text-indigo-600 text-sm">
+                          {formatCurrency(selectedStudentDetail.amount)}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Trạng thái & Thao tác đóng tiền nhanh */}
                 <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-slate-600 block">Học phí định mức tháng:</span>
-                    <span className="font-black text-indigo-600 text-base">{formatCurrency(selectedStudentDetail.amount)}</span>
-                  </div>
-                  <div>
+                    <span className="text-[11px] font-bold text-slate-500 block">Trạng thái học phí:</span>
                     {selectedStudentDetail.tuitionStatus === "PAID" ? (
-                      <span className="inline-flex items-center gap-1 bg-emerald-500 text-white px-3 py-1 rounded-full font-bold text-xs">
+                      <span className="inline-flex items-center gap-1 bg-emerald-500 text-white px-3 py-1 rounded-full font-bold text-xs mt-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Đã đóng
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-full font-bold text-xs">
+                      <span className="inline-flex items-center gap-1 bg-amber-500 text-white px-3 py-1 rounded-full font-bold text-xs mt-1">
                         <AlertTriangle className="w-3.5 h-3.5" /> Chưa đóng
                       </span>
+                    )}
+                  </div>
+                  <div>
+                    {selectedStudentDetail.tuitionStatus !== "PAID" ? (
+                      <button
+                        onClick={async () => {
+                          const stId = selectedStudentDetail.id;
+                          const stAmount = selectedStudentDetail.amount;
+                          const breakdown = getStudentFeeBreakdown(selectedStudentDetail.className, feeItems, 22);
+
+                          setSelectedStudentDetail((prev) => (prev ? { ...prev, tuitionStatus: "PAID" } : null));
+                          setStudents((prev) =>
+                            prev.map((s) => (s.id === stId ? { ...s, tuitionStatus: "PAID" } : s))
+                          );
+
+                          await saveInvoicePaymentToDB({
+                            studentId: stId,
+                            status: "PAID",
+                            amount: stAmount,
+                            paymentMethod: "CASH",
+                            breakdownJson: JSON.stringify(breakdown),
+                          });
+                        }}
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
+                      >
+                        Xác nhận đã thu
+                      </button>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const stId = selectedStudentDetail.id;
+                          const stAmount = selectedStudentDetail.amount;
+
+                          setSelectedStudentDetail((prev) => (prev ? { ...prev, tuitionStatus: "UNPAID" } : null));
+                          setStudents((prev) =>
+                            prev.map((s) => (s.id === stId ? { ...s, tuitionStatus: "UNPAID" } : s))
+                          );
+
+                          await saveInvoicePaymentToDB({
+                            studentId: stId,
+                            status: "UNPAID",
+                            amount: stAmount,
+                          });
+                        }}
+                        className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                      >
+                        Đổi sang Chưa đóng
+                      </button>
                     )}
                   </div>
                 </div>
