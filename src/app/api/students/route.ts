@@ -32,7 +32,28 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    let { firstName, lastName, name, birthDate, gender, parentName, parentPhone, classId, className, address } = body;
+    let {
+      code,
+      firstName,
+      lastName,
+      name,
+      birthDate,
+      gender,
+      ethnicity,
+      nationality,
+      residence,
+      fatherName,
+      fatherJob,
+      fatherPhone,
+      motherName,
+      motherJob,
+      motherPhone,
+      parentName,
+      parentPhone,
+      classId,
+      className,
+      address,
+    } = body;
 
     // Tự tách name thành firstName & lastName nếu client truyền `name`
     if (name && (!firstName || !lastName)) {
@@ -41,9 +62,23 @@ export async function POST(request: Request) {
       firstName = parts.slice(1).join(" ") || parts[0] || "Học sinh";
     }
 
-    if (!firstName || !parentName || !parentPhone) {
+    // Tự động suy ra tên và số điện thoại liên hệ đại diện nếu chưa nhập trực tiếp
+    if (!parentName) {
+      parentName = fatherName || motherName || "Phụ huynh bé";
+    }
+    if (!parentPhone) {
+      parentPhone = fatherPhone || motherPhone || "0900000000";
+    }
+    if (!address && residence) {
+      address = residence;
+    }
+    if (!residence && address) {
+      residence = address;
+    }
+
+    if (!firstName) {
       return NextResponse.json(
-        { error: "Vui lòng nhập đầy đủ thông tin tên học sinh và số điện thoại phụ huynh." },
+        { error: "Vui lòng nhập đầy đủ thông tin tên học sinh." },
         { status: 400 }
       );
     }
@@ -72,15 +107,31 @@ export async function POST(request: Request) {
       classId = existingClass.id;
     }
 
+    // Tự động sinh Mã học sinh nếu chưa truyền
+    if (!code) {
+      const totalCount = await prisma.student.count();
+      code = `HS${(totalCount + 1).toString().padStart(3, "0")}`;
+    }
+
     const newStudent = await prisma.student.create({
       data: {
+        code,
         firstName: firstName || "Học sinh",
         lastName: lastName || "Nguyễn",
         birthDate: birthDate ? new Date(birthDate) : new Date("2022-01-01"),
         gender: gender || "Nam",
+        ethnicity: ethnicity || "Kinh",
+        nationality: nationality || "Việt Nam",
+        residence: residence || address || "TP. Hồ Chí Minh",
+        fatherName: fatherName || null,
+        fatherJob: fatherJob || null,
+        fatherPhone: fatherPhone || null,
+        motherName: motherName || null,
+        motherJob: motherJob || null,
+        motherPhone: motherPhone || null,
         parentName,
         parentPhone,
-        address: address || "TP. Hồ Chí Minh",
+        address: address || residence || "TP. Hồ Chí Minh",
         classId,
       },
       include: {
@@ -101,7 +152,29 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    let { id, firstName, lastName, name, birthDate, gender, parentName, parentPhone, classId, className, address } = body;
+    let {
+      id,
+      code,
+      firstName,
+      lastName,
+      name,
+      birthDate,
+      gender,
+      ethnicity,
+      nationality,
+      residence,
+      fatherName,
+      fatherJob,
+      fatherPhone,
+      motherName,
+      motherJob,
+      motherPhone,
+      parentName,
+      parentPhone,
+      classId,
+      className,
+      address,
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Thiếu ID học sinh cần cập nhật." }, { status: 400 });
@@ -124,10 +197,23 @@ export async function PUT(request: Request) {
     }
 
     const updateData: any = {};
+    if (code !== undefined) updateData.code = code;
     if (firstName) updateData.firstName = firstName;
     if (lastName) updateData.lastName = lastName;
     if (birthDate) updateData.birthDate = new Date(birthDate);
     if (gender) updateData.gender = gender;
+    if (ethnicity !== undefined) updateData.ethnicity = ethnicity;
+    if (nationality !== undefined) updateData.nationality = nationality;
+    if (residence !== undefined) updateData.residence = residence;
+    
+    if (fatherName !== undefined) updateData.fatherName = fatherName;
+    if (fatherJob !== undefined) updateData.fatherJob = fatherJob;
+    if (fatherPhone !== undefined) updateData.fatherPhone = fatherPhone;
+
+    if (motherName !== undefined) updateData.motherName = motherName;
+    if (motherJob !== undefined) updateData.motherJob = motherJob;
+    if (motherPhone !== undefined) updateData.motherPhone = motherPhone;
+
     if (parentName) updateData.parentName = parentName;
     if (parentPhone) updateData.parentPhone = parentPhone;
     if (address !== undefined) updateData.address = address;

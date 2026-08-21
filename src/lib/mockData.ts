@@ -4,18 +4,21 @@ export interface Student {
   name: string;
   birthDate?: string;
   gender?: "Nam" | "Nữ";
-  ethnicity?: string; // Dân tộc (Kinh, Tay, Nung...)
+  ethnicity?: string; // Dân tộc (Kinh, Tày, Thái, Mường...)
   nationality?: string; // Quốc tịch (Việt Nam...)
+  residence?: string; // Nơi cư trú (Tạm trú / Thường trú)
   className: string;
   joinDate?: string;
   status?: "Đang học" | "Nghỉ học" | "Bảo lưu";
-  fatherName?: string;
-  fatherJob?: string;
-  motherName?: string;
-  motherJob?: string;
-  address?: string;
-  parentName: string;
-  parentPhone: string;
+  fatherName?: string; // Họ tên cha
+  fatherJob?: string; // Nghề nghiệp cha
+  fatherPhone?: string; // SĐT cha
+  motherName?: string; // Họ tên mẹ
+  motherJob?: string; // Nghề nghiệp mẹ
+  motherPhone?: string; // SĐT mẹ
+  address?: string; // Địa chỉ gia đình
+  parentName: string; // Người liên hệ chính
+  parentPhone: string; // SĐT liên hệ chính
   tuitionStatus: "PAID" | "UNPAID" | "OVERDUE";
   amount: number;
   absentDaysWithPermit?: number; // Số ngày nghỉ có phép trong tháng

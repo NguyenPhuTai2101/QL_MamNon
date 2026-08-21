@@ -5,8 +5,16 @@ import { Pool } from 'pg';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 
+let dbUrl = process.env.DATABASE_URL || '';
+if (dbUrl.includes('.pooler.supabase.com:5432')) {
+  dbUrl = dbUrl.replace(':5432', ':6543');
+  if (!dbUrl.includes('pgbouncer=true')) {
+    dbUrl += dbUrl.includes('?') ? '&pgbouncer=true' : '?pgbouncer=true';
+  }
+}
+
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: dbUrl,
   ssl: { rejectUnauthorized: false },
 });
 const adapter = new PrismaPg(pool);
@@ -14,6 +22,31 @@ const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Bắt đầu seed dữ liệu chuẩn theo file demo.docx vào PostgreSQL Database...');
+
+  // 0. Ensure Student columns exist
+  try {
+    const client = await pool.connect();
+    await client.query(`
+      ALTER TABLE "Student" 
+      ADD COLUMN IF NOT EXISTS "code" TEXT,
+      ADD COLUMN IF NOT EXISTS "ethnicity" TEXT DEFAULT 'Kinh',
+      ADD COLUMN IF NOT EXISTS "nationality" TEXT DEFAULT 'Việt Nam',
+      ADD COLUMN IF NOT EXISTS "residence" TEXT,
+      ADD COLUMN IF NOT EXISTS "fatherName" TEXT,
+      ADD COLUMN IF NOT EXISTS "fatherJob" TEXT,
+      ADD COLUMN IF NOT EXISTS "fatherPhone" TEXT,
+      ADD COLUMN IF NOT EXISTS "motherName" TEXT,
+      ADD COLUMN IF NOT EXISTS "motherJob" TEXT,
+      ADD COLUMN IF NOT EXISTS "motherPhone" TEXT;
+    `);
+    await client.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS "Student_code_key" ON "Student"("code");
+    `);
+    client.release();
+    console.log('✅ Cấu trúc bảng Student đã được đồng bộ chuẩn.');
+  } catch (e) {
+    console.warn('Lỗi kiểm tra cấu trúc bảng Student:', e);
+  }
 
   // 1. Clear old data gracefully
   try {
@@ -101,45 +134,75 @@ async function main() {
   // 4. Create Students according to demo.docx structure
   await prisma.student.create({
     data: {
-      firstName: 'Nguyễn Minh',
-      lastName: 'Khang',
+      code: 'HS001',
+      firstName: 'Minh Khang',
+      lastName: 'Nguyễn',
       birthDate: new Date('2023-04-15'),
       gender: 'Nam',
+      ethnicity: 'Kinh',
+      nationality: 'Việt Nam',
+      residence: '123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP.HCM',
+      fatherName: 'Nguyễn Minh Triết',
+      fatherJob: 'Kỹ sư CNTT',
+      fatherPhone: '0901234567',
+      motherName: 'Lê Thu Hà',
+      motherJob: 'Kế toán trưởng',
+      motherPhone: '0907654321',
       parentId: parentUser.id,
       parentName: 'Nguyễn Minh Triết',
       parentPhone: '0901234567',
-      address: '123 Nguyễn Trãi, Q.5, TP.HCM',
+      address: '123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP.HCM',
       classId: class12_24.id,
     },
   });
 
   await prisma.student.create({
     data: {
-      firstName: 'Lê Vy',
-      lastName: 'Anh',
+      code: 'HS002',
+      firstName: 'Vy Anh',
+      lastName: 'Lê',
       birthDate: new Date('2022-08-20'),
       gender: 'Nữ',
+      ethnicity: 'Kinh',
+      nationality: 'Việt Nam',
+      residence: '456 Lê Hồng Phong, Phường 1, Quận 10, TP.HCM',
+      fatherName: 'Lê Hoài Nam',
+      fatherJob: 'Bác sĩ Đa khoa',
+      fatherPhone: '0912345678',
+      motherName: 'Hoàng Mai Phương',
+      motherJob: 'Giáo viên THPT',
+      motherPhone: '0918765432',
       parentName: 'Lê Hoài Nam',
       parentPhone: '0912345678',
-      address: '456 Lê Hồng Phong, Q.10, TP.HCM',
+      address: '456 Lê Hồng Phong, Phường 1, Quận 10, TP.HCM',
       classId: class24_36.id,
     },
   });
 
   await prisma.student.create({
     data: {
-      firstName: 'Trần Bảo',
-      lastName: 'Nam',
+      code: 'HS003',
+      firstName: 'Bảo Nam',
+      lastName: 'Trần',
       birthDate: new Date('2021-11-10'),
       gender: 'Nam',
+      ethnicity: 'Kinh',
+      nationality: 'Việt Nam',
+      residence: '789 Cách Mạng Tháng 8, Phường 6, Quận 3, TP.HCM',
+      fatherName: 'Trần Quốc Bảo',
+      fatherJob: 'Kiến trúc sư',
+      fatherPhone: '0923456789',
+      motherName: 'Phạm Hồng Nhung',
+      motherJob: 'Dược sĩ',
+      motherPhone: '0929876543',
       parentName: 'Trần Quốc Bảo',
       parentPhone: '0923456789',
-      address: '789 Cách Mạng Tháng 8, Q.3, TP.HCM',
+      address: '789 Cách Mạng Tháng 8, Phường 6, Quận 3, TP.HCM',
       classId: class3_5.id,
     },
   });
 
-  console.log('✅ Đã tạo hồ sơ đầy đủ học sinh (Mã HS, Họ tên, Ngày sinh, Giới tính, Lớp, Phụ huynh)');
+  console.log('✅ Đã tạo hồ sơ đầy đủ học sinh & phụ huynh (Mã HS, Họ tên, Ngày sinh, Giới tính, Dân tộc, Quốc tịch, Nơi cư trú, Cha mẹ)');
 
   // 5. Seed 18 Ingredients matching Section 4 of demo.docx exactly
   const rawIngredients = [

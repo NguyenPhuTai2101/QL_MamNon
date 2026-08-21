@@ -35,10 +35,24 @@ model Class {
 
 model Student {
   id            String         @id @default(uuid())
+  code          String?        @unique // Mã học sinh (VD: HS-2026-001)
   firstName     String
   lastName      String
   birthDate     DateTime
   gender        String         // Nam / Nữ
+  ethnicity     String?        @default("Kinh")     // Dân tộc
+  nationality   String?        @default("Việt Nam") // Quốc tịch
+  residence     String?        // Nơi cư trú (Tạm trú / Thường trú)
+  
+  // Thông tin phụ huynh chi tiết theo từng bé
+  fatherName    String?        // Họ tên cha
+  fatherJob     String?        // Nghề nghiệp cha
+  fatherPhone   String?        // Số điện thoại cha
+  motherName    String?        // Họ tên mẹ
+  motherJob     String?        // Nghề nghiệp mẹ
+  motherPhone   String?        // Số điện thoại mẹ
+
+  // Thông tin liên hệ đại diện & tài khoản
   parentId      String?
   parent        User?          @relation(fields: [parentId], references: [id])
   parentName    String

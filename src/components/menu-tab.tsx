@@ -285,6 +285,86 @@ function generateDynamicWeeksList(baseDate = new Date()) {
   return list;
 }
 
+// Chuẩn hóa và phân loại đơn vị tính
+export function normalizeUnit(
+  unitStr?: string,
+): "weight_volume" | "count" {
+  if (!unitStr) return "weight_volume";
+  const u = unitStr.toLowerCase().trim();
+  if (
+    u === "kg" ||
+    u === "kilo" ||
+    u === "g" ||
+    u === "gram" ||
+    u === "gam" ||
+    u === "lít" ||
+    u === "lit" ||
+    u === "l" ||
+    u === "ml" ||
+    u === "cc"
+  ) {
+    return "weight_volume";
+  }
+  if (
+    u === "quả" ||
+    u === "qua" ||
+    u === "trái" ||
+    u === "trai" ||
+    u === "hộp" ||
+    u === "hop" ||
+    u === "cái" ||
+    u === "cai" ||
+    u === "gói" ||
+    u === "goi" ||
+    u === "bịch" ||
+    u === "bich" ||
+    u === "lon" ||
+    u === "ổ" ||
+    u === "bình" ||
+    u === "binh" ||
+    u === "chai" ||
+    u === "bó" ||
+    u === "bo"
+  ) {
+    return "count";
+  }
+  return "weight_volume";
+}
+
+// Tính chi phí nguyên liệu cho 1 học sinh (xử lý chuẩn xác kg/g/lít/quả/hộp)
+export function calculateIngCostPerKid(
+  gramsOrQtyPerKid: number,
+  unitStr: string,
+  unitPrice: number,
+): number {
+  const type = normalizeUnit(unitStr);
+  if (type === "weight_volume") {
+    // Với kg, lít: đơn giá tính theo 1000g (1kg / 1 lít), gramsOrQtyPerKid là số gram (hoặc ml)
+    return Math.round((gramsOrQtyPerKid / 1000) * unitPrice);
+  } else {
+    // Với quả, hộp, cái: nếu nhập số lượng lẻ (vd: 1 hộp, 0.5 quả) -> nhân trực tiếp
+    const count =
+      gramsOrQtyPerKid > 10 ? gramsOrQtyPerKid / 1000 : gramsOrQtyPerKid;
+    return Math.round(count * unitPrice);
+  }
+}
+
+// Tính tổng định lượng cần dùng theo sĩ số học sinh
+export function calculateTheoreticalQty(
+  gramsOrQtyPerKid: number,
+  unitStr: string,
+  kidCount: number,
+): number {
+  const type = normalizeUnit(unitStr);
+  if (type === "weight_volume") {
+    return parseFloat(((kidCount * gramsOrQtyPerKid) / 1000).toFixed(2));
+  } else {
+    const count =
+      gramsOrQtyPerKid > 10 ? gramsOrQtyPerKid / 1000 : gramsOrQtyPerKid;
+    return Math.ceil(kidCount * count);
+  }
+}
+
 export default function MenuTab() {
   // Lịch sử các tuần làm việc tự động tính theo ngày thực tế
   const weeksList = useMemo(() => generateDynamicWeeksList(), []);
@@ -374,15 +454,13 @@ export default function MenuTab() {
     if (wh.category === "PROTEIN") stdGrams = wh.name.includes("heo") ? 70 : 50;
     if (wh.category === "CARB") stdGrams = 80;
     if (wh.category === "VEG") stdGrams = 50;
-    if (wh.category === "FRUIT_DAIRY") stdGrams = wh.unit === "lít" ? 180 : 60;
+    if (wh.category === "FRUIT_DAIRY") {
+      const u = (wh.unit || "").toLowerCase().trim();
+      stdGrams = u === "lít" || u === "lit" || u === "l" ? 180 : 60;
+    }
     if (wh.category === "SPICE_OTHER") stdGrams = 10;
 
-    if (wh.unit === "kg" || wh.unit === "lít") {
-      return parseFloat(((kidCount * stdGrams) / 1000).toFixed(2));
-    } else if (wh.unit === "quả" || wh.unit === "hộp") {
-      return Math.ceil((kidCount * stdGrams) / 40);
-    }
-    return 1;
+    return calculateTheoreticalQty(stdGrams, wh.unit, kidCount);
   };
 
   // Tải danh sách nguyên liệu và số lượng tồn kho từ CSDL
@@ -492,21 +570,11 @@ export default function MenuTab() {
       const stock = whMatch ? whMatch.stockQuantity : 0;
       const price = ing.unitPrice || whMatch?.unitPrice || 0;
 
-      let theoretical = 0;
-      if (ing.unit === "kg" || ing.unit === "lít" || ing.unit === "g") {
-        theoretical = parseFloat(
-          ((kidCount * ing.gramsPerKid) / 1000).toFixed(2),
-        );
-      } else if (ing.unit === "quả" || ing.unit === "hộp") {
-        theoretical = Math.ceil(
-          kidCount * (ing.gramsPerKid >= 1 ? ing.gramsPerKid : ing.gramsPerKid / 40),
-        );
-      } else {
-        theoretical = parseFloat(
-          ((kidCount * ing.gramsPerKid) / 1000).toFixed(2),
-        );
-      }
-
+      const theoretical = calculateTheoreticalQty(
+        ing.gramsPerKid,
+        ing.unit,
+        kidCount,
+      );
       const neededBuy = Math.max(
         0,
         parseFloat((theoretical - stock).toFixed(2)),
@@ -719,15 +787,11 @@ export default function MenuTab() {
       prev.map((item) => {
         let theoretical = item.theoreticalQty;
         if (item.standardPerKidGrams) {
-          if (item.unit === "kg" || item.unit === "lít") {
-            theoretical = parseFloat(
-              ((validCount * item.standardPerKidGrams) / 1000).toFixed(2),
-            );
-          } else if (item.unit === "quả" || item.unit === "hộp") {
-            theoretical = Math.ceil(
-              (validCount * item.standardPerKidGrams) / 40,
-            );
-          }
+          theoretical = calculateTheoreticalQty(
+            item.standardPerKidGrams,
+            item.unit,
+            validCount,
+          );
         }
         return {
           ...item,
@@ -974,10 +1038,26 @@ export default function MenuTab() {
     setIsMenuModalOpen(true);
   };
 
+  // Chọn nguyên liệu từ kho trong Modal Thực đơn và tự động gợi ý định lượng mặc định
+  const handleSelectWarehouseForMenu = (whId: string) => {
+    setSelectedWarehouseForMenu(whId);
+    const wh = warehouseInventory.find((w) => w.id === whId);
+    if (wh) {
+      const type = normalizeUnit(wh.unit);
+      if (type === "count") {
+        setMenuIngQtyGrams(1); // 1 quả / 1 hộp
+      } else {
+        setMenuIngQtyGrams(50); // 50g
+      }
+    }
+  };
+
   // Thêm nguyên liệu từ kho vào bữa ăn trong Modal Thực đơn
   const handleAddWarehouseIngToMenu = () => {
     if (!selectedWarehouseForMenu) return;
-    const wh = warehouseInventory.find((w) => w.id === selectedWarehouseForMenu);
+    const wh = warehouseInventory.find(
+      (w) => w.id === selectedWarehouseForMenu,
+    );
     if (!wh) return;
 
     const newIng: MenuIngredientItem = {
@@ -1014,17 +1094,9 @@ export default function MenuTab() {
   const totalMenuIngredientsCostPerKid = useMemo(() => {
     if (!menuForm.ingredients || menuForm.ingredients.length === 0) return 0;
     return menuForm.ingredients.reduce((acc, ing) => {
-      let cost = 0;
-      if (ing.unit === "kg" || ing.unit === "lít" || ing.unit === "g") {
-        cost = (ing.gramsPerKid / 1000) * ing.unitPrice;
-      } else if (ing.unit === "quả" || ing.unit === "hộp") {
-        cost =
-          (ing.gramsPerKid >= 1 ? ing.gramsPerKid : ing.gramsPerKid / 40) *
-          ing.unitPrice;
-      } else {
-        cost = (ing.gramsPerKid / 1000) * ing.unitPrice;
-      }
-      return acc + cost;
+      return (
+        acc + calculateIngCostPerKid(ing.gramsPerKid, ing.unit, ing.unitPrice)
+      );
     }, 0);
   }, [menuForm.ingredients]);
 
@@ -2346,7 +2418,7 @@ export default function MenuTab() {
                       <select
                         value={selectedWarehouseForMenu}
                         onChange={(e) =>
-                          setSelectedWarehouseForMenu(e.target.value)
+                          handleSelectWarehouseForMenu(e.target.value)
                         }
                         className="w-full px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-500 cursor-pointer"
                       >
@@ -2365,18 +2437,29 @@ export default function MenuTab() {
                       </label>
                       <input
                         type="number"
-                        min="1"
+                        min="0.1"
                         step="1"
                         value={menuIngQtyGrams}
                         onChange={(e) =>
                           setMenuIngQtyGrams(parseFloat(e.target.value) || 0)
                         }
                         className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-black text-indigo-700 text-center focus:bg-white focus:outline-none focus:border-indigo-500"
-                        placeholder="g / trẻ"
+                        placeholder="Số lượng"
                       />
-                      <span className="text-xs font-bold text-slate-500 shrink-0">
-                        g/trẻ
-                      </span>
+                      {(() => {
+                        const selWh = warehouseInventory.find(
+                          (w) => w.id === selectedWarehouseForMenu,
+                        );
+                        const isCount = normalizeUnit(selWh?.unit) === "count";
+                        const uLabel = isCount
+                          ? `${selWh?.unit || "cái"}/trẻ`
+                          : `${(selWh?.unit || "").toLowerCase().trim() === "lít" ? "ml" : "g"}/trẻ`;
+                        return (
+                          <span className="text-xs font-bold text-slate-500 shrink-0">
+                            {uLabel}
+                          </span>
+                        );
+                      })()}
 
                       <button
                         type="button"
@@ -2423,18 +2506,20 @@ export default function MenuTab() {
                           {menuForm.ingredients
                             .filter((i) => i.meal === activeMenuMealTab)
                             .map((ing) => {
-                              const costPerKid =
-                                ing.unit === "kg" ||
-                                ing.unit === "lít" ||
-                                ing.unit === "g"
-                                  ? Math.round(
-                                      (ing.gramsPerKid / 1000) * ing.unitPrice,
-                                    )
-                                  : Math.round(
-                                      (ing.gramsPerKid >= 1
-                                        ? ing.gramsPerKid
-                                        : ing.gramsPerKid / 40) * ing.unitPrice,
-                                    );
+                              const costPerKid = calculateIngCostPerKid(
+                                ing.gramsPerKid,
+                                ing.unit,
+                                ing.unitPrice,
+                              );
+                              const isCount =
+                                normalizeUnit(ing.unit) === "count";
+                              const unitLabel = isCount
+                                ? ing.unit
+                                : (ing.unit || "")
+                                      .toLowerCase()
+                                      .trim() === "lít"
+                                  ? "ml"
+                                  : "g";
 
                               return (
                                 <tr
@@ -2453,10 +2538,7 @@ export default function MenuTab() {
                                   </td>
                                   <td className="py-2 px-3 text-center font-bold text-indigo-700">
                                     <span className="bg-indigo-50 px-2 py-0.5 rounded-full">
-                                      {ing.gramsPerKid}{" "}
-                                      {ing.unit === "quả" || ing.unit === "hộp"
-                                        ? ing.unit
-                                        : "g"}
+                                      {ing.gramsPerKid} {unitLabel}
                                     </span>
                                   </td>
                                   <td className="py-2 px-3 text-slate-600 font-medium">

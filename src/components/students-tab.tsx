@@ -43,9 +43,20 @@ interface StudentRecord {
   id: string;
   code?: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   gender?: "Nam" | "Nữ";
   birthDate?: string;
+  ethnicity?: string;
+  nationality?: string;
+  residence?: string;
   className: string;
+  fatherName?: string;
+  fatherJob?: string;
+  fatherPhone?: string;
+  motherName?: string;
+  motherJob?: string;
+  motherPhone?: string;
   parentName: string;
   parentPhone: string;
   address?: string;
@@ -64,6 +75,10 @@ interface ClassRecord {
   capacity?: number;
 }
 
+const COMMON_ETHNICITIES = [
+  "Kinh", "Tày", "Thái", "Mường", "H'Mông", "Dao", "Khmer", "Hoa", "Nùng", "Gia Rai", "Ê Đê", "Ba Na", "Chăm", "Khác"
+];
+
 export default function StudentsTab() {
   const [subTab, setSubTab] = useState<"students" | "classes">("students");
   const [students, setStudents] = useState<StudentRecord[]>([]);
@@ -76,24 +91,35 @@ export default function StudentsTab() {
   const [selectedClassFilter, setSelectedClassFilter] = useState("ALL");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState("ALL");
 
-  // Modals
-  const [showAddStudentModal, setShowAddStudentModal] = useState(false);
+  // Modals & Forms
+  const [showStudentModal, setShowStudentModal] = useState(false);
+  const [isEditingStudent, setIsEditingStudent] = useState(false);
+  const [studentModalTab, setStudentModalTab] = useState<"student" | "parent">("student");
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<StudentRecord | null>(null);
-  const [editingClass, setEditingClass] = useState<ClassRecord | null>(null);
 
-  // Forms
-  const [studentForm, setStudentForm] = useState({
+  const initialStudentForm = {
+    id: "",
+    code: "",
     name: "",
     gender: "Nam" as "Nam" | "Nữ",
-    birthDate: "2021-05-15",
-    className: "Mầm 1",
+    birthDate: "2022-01-01",
+    ethnicity: "Kinh",
+    nationality: "Việt Nam",
+    residence: "",
+    className: "12 – 24 tháng",
+    fatherName: "",
+    fatherJob: "",
+    fatherPhone: "",
+    motherName: "",
+    motherJob: "",
+    motherPhone: "",
     parentName: "",
     parentPhone: "",
     address: "",
-    joinDate: new Date().toISOString().split("T")[0],
-    amount: 3200000,
-  });
+  };
+
+  const [studentForm, setStudentForm] = useState(initialStudentForm);
 
   const [classForm, setClassForm] = useState({
     name: "",
@@ -140,20 +166,31 @@ export default function StudentsTab() {
 
         const mapped: StudentRecord[] = resStudents.map((st: any) => {
           const inv = invMap[st.id] || (st.invoices && st.invoices.length > 0 ? st.invoices[0] : null) || null;
-          const className = st.class?.name || "Mầm 1";
+          const className = st.class?.name || "12 – 24 tháng";
           const effAmount = getStudentEffectiveAmount({ className, invoice: inv }, loadedFees, 22);
 
           return {
             id: st.id,
-            code: `HS0${st.id.slice(-3)}`,
+            code: st.code || `HS0${st.id.slice(-3)}`,
             name: `${st.lastName} ${st.firstName}`.trim(),
+            firstName: st.firstName,
+            lastName: st.lastName,
             className: className,
             gender: st.gender || "Nam",
-            birthDate: st.birthDate ? new Date(st.birthDate).toISOString().split("T")[0] : "2021-05-15",
-            parentName: st.parentName || "Phụ huynh",
-            parentPhone: st.parentPhone || "0900000000",
-            address: st.address || "Hà Nội",
-            joinDate: st.enrollmentDate ? new Date(st.enrollmentDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+            birthDate: st.birthDate ? new Date(st.birthDate).toISOString().split("T")[0] : "2022-01-01",
+            ethnicity: st.ethnicity || "Kinh",
+            nationality: st.nationality || "Việt Nam",
+            residence: st.residence || st.address || "",
+            fatherName: st.fatherName || "",
+            fatherJob: st.fatherJob || "",
+            fatherPhone: st.fatherPhone || "",
+            motherName: st.motherName || "",
+            motherJob: st.motherJob || "",
+            motherPhone: st.motherPhone || "",
+            parentName: st.parentName || st.fatherName || st.motherName || "Phụ huynh",
+            parentPhone: st.parentPhone || st.fatherPhone || st.motherPhone || "0900000000",
+            address: st.address || st.residence || "TP. Hồ Chí Minh",
+            joinDate: st.createdAt ? new Date(st.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
             tuitionStatus: (inv?.status as any) || "UNPAID",
             amount: effAmount,
             invoice: inv,
@@ -180,60 +217,146 @@ export default function StudentsTab() {
       const matchSearch =
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.parentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.fatherName && s.fatherName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.motherName && s.motherName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         s.parentPhone.includes(searchTerm) ||
+        (s.fatherPhone && s.fatherPhone.includes(searchTerm)) ||
+        (s.motherPhone && s.motherPhone.includes(searchTerm)) ||
+        (s.residence && s.residence.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (s.ethnicity && s.ethnicity.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase()));
       return matchClass && matchStatus && matchSearch;
     });
   }, [students, selectedClassFilter, selectedStatusFilter, searchTerm]);
 
-  // Thêm học sinh mới
-  const handleAddStudent = async (e: React.FormEvent) => {
+  // Mở modal thêm học sinh mới
+  const handleOpenAddModal = () => {
+    setIsEditingStudent(false);
+    setStudentModalTab("student");
+    setStudentForm({
+      ...initialStudentForm,
+      className: classes[0]?.name || "12 – 24 tháng",
+    });
+    setShowStudentModal(true);
+  };
+
+  // Mở modal sửa học sinh
+  const handleOpenEditModal = (st: StudentRecord) => {
+    setIsEditingStudent(true);
+    setStudentModalTab("student");
+    setStudentForm({
+      id: st.id,
+      code: st.code || "",
+      name: st.name || "",
+      gender: (st.gender as "Nam" | "Nữ") || "Nam",
+      birthDate: st.birthDate || "2022-01-01",
+      ethnicity: st.ethnicity || "Kinh",
+      nationality: st.nationality || "Việt Nam",
+      residence: st.residence || st.address || "",
+      className: st.className || "12 – 24 tháng",
+      fatherName: st.fatherName || "",
+      fatherJob: st.fatherJob || "",
+      fatherPhone: st.fatherPhone || "",
+      motherName: st.motherName || "",
+      motherJob: st.motherJob || "",
+      motherPhone: st.motherPhone || "",
+      parentName: st.parentName || st.fatherName || st.motherName || "",
+      parentPhone: st.parentPhone || st.fatherPhone || st.motherPhone || "",
+      address: st.address || st.residence || "",
+    });
+    setShowStudentModal(true);
+  };
+
+  // Lưu học sinh (Thêm mới hoặc Cập nhật)
+  const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentForm.name || !studentForm.parentName || !studentForm.parentPhone) {
-      alert("Vui lòng nhập đầy đủ họ tên bé, tên phụ huynh và số điện thoại!");
+    if (!studentForm.name.trim()) {
+      alert("Vui lòng nhập họ và tên của học sinh!");
       return;
     }
 
+    // Tự động suy ra tên và SĐT liên hệ chính nếu chưa điền
+    const finalParentName =
+      studentForm.parentName.trim() ||
+      studentForm.fatherName.trim() ||
+      studentForm.motherName.trim() ||
+      "Phụ huynh bé";
+    const finalParentPhone =
+      studentForm.parentPhone.trim() ||
+      studentForm.fatherPhone.trim() ||
+      studentForm.motherPhone.trim() ||
+      "0900000000";
+    const finalAddress =
+      studentForm.address.trim() ||
+      studentForm.residence.trim() ||
+      "TP. Hồ Chí Minh";
+    const finalResidence =
+      studentForm.residence.trim() ||
+      studentForm.address.trim() ||
+      "TP. Hồ Chí Minh";
+
     try {
       const nameParts = studentForm.name.trim().split(" ");
-      const firstName = nameParts.pop() || "";
-      const lastName = nameParts.join(" ") || "Bé";
+      const lastName = nameParts[0] || "Nguyễn";
+      const firstName = nameParts.slice(1).join(" ") || nameParts[0] || "Bé";
+
+      const payload = {
+        id: studentForm.id,
+        code: studentForm.code.trim() || undefined,
+        firstName,
+        lastName,
+        name: studentForm.name.trim(),
+        gender: studentForm.gender,
+        birthDate: studentForm.birthDate,
+        ethnicity: studentForm.ethnicity.trim() || "Kinh",
+        nationality: studentForm.nationality.trim() || "Việt Nam",
+        residence: finalResidence,
+        className: studentForm.className,
+        fatherName: studentForm.fatherName.trim() || undefined,
+        fatherJob: studentForm.fatherJob.trim() || undefined,
+        fatherPhone: studentForm.fatherPhone.trim() || undefined,
+        motherName: studentForm.motherName.trim() || undefined,
+        motherJob: studentForm.motherJob.trim() || undefined,
+        motherPhone: studentForm.motherPhone.trim() || undefined,
+        parentName: finalParentName,
+        parentPhone: finalParentPhone,
+        address: finalAddress,
+      };
 
       const res = await fetch("/api/students", {
-        method: "POST",
+        method: isEditingStudent ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          gender: studentForm.gender,
-          birthDate: studentForm.birthDate,
-          className: studentForm.className,
-          parentName: studentForm.parentName,
-          parentPhone: studentForm.parentPhone,
-          address: studentForm.address,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
-      if (data.id || data.success) {
-        alert("🎉 Đã thêm hồ sơ học sinh mới thành công vào CSDL!");
-        setShowAddStudentModal(false);
-        setStudentForm({
-          name: "",
-          gender: "Nam",
-          birthDate: "2021-05-15",
-          className: classes[0]?.name || "Mầm 1",
-          parentName: "",
-          parentPhone: "",
-          address: "",
-          joinDate: new Date().toISOString().split("T")[0],
-          amount: 3200000,
-        });
+      if (data.id || data.success || data.data) {
+        alert(
+          isEditingStudent
+            ? "🎉 Đã cập nhật thông tin học sinh và phụ huynh thành công!"
+            : "🎉 Đã tiếp nhận hồ sơ học sinh & thông tin phụ huynh thành công!"
+        );
+        setShowStudentModal(false);
+        if (selectedStudentDetail && selectedStudentDetail.id === studentForm.id) {
+          // Cập nhật selectedStudentDetail nếu đang mở
+          setSelectedStudentDetail((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  ...payload,
+                  code: payload.code || prev.code,
+                  name: studentForm.name.trim(),
+                }
+              : null
+          );
+        }
         loadData();
+      } else {
+        alert(data.error || "Không thể lưu thông tin học sinh.");
       }
     } catch (err) {
       console.error(err);
-      alert("Không thể lưu học sinh mới.");
+      alert("Không thể lưu thông tin học sinh.");
     }
   };
 
@@ -294,30 +417,71 @@ export default function StudentsTab() {
 
   // Xuất Excel
   const handleExportExcel = () => {
-    const headers = ["Mã HS", "Họ và Tên", "Giới tính", "Ngày sinh", "Lớp", "Phụ Huynh", "SĐT", "Địa chỉ", "Học phí"];
+    const headers = [
+      "Mã HS",
+      "Họ và Tên",
+      "Giới tính",
+      "Ngày sinh",
+      "Dân tộc",
+      "Quốc tịch",
+      "Nơi cư trú",
+      "Lớp",
+      "Họ tên Cha",
+      "Nghề nghiệp Cha",
+      "SĐT Cha",
+      "Họ tên Mẹ",
+      "Nghề nghiệp Mẹ",
+      "SĐT Mẹ",
+      "Liên hệ chính",
+      "SĐT Liên hệ",
+      "Địa chỉ",
+      "Học phí",
+      "Trạng thái",
+    ];
     const rows = filteredStudents.map((s) => [
       s.code,
       s.name,
       s.gender || "Nam",
       s.birthDate || "",
+      s.ethnicity || "Kinh",
+      s.nationality || "Việt Nam",
+      s.residence || "",
       s.className,
+      s.fatherName || "",
+      s.fatherJob || "",
+      s.fatherPhone || "",
+      s.motherName || "",
+      s.motherJob || "",
+      s.motherPhone || "",
       s.parentName,
       s.parentPhone,
       s.address || "",
       formatCurrency(s.amount),
+      s.tuitionStatus === "PAID" ? "Đã đóng" : s.tuitionStatus === "OVERDUE" ? "Quá hạn" : "Chưa đóng",
     ]);
     exportToExcel("Danh_Sach_Hoc_Sinh_Toan_Truong", headers, rows);
   };
 
   // Xuất PDF
   const handleExportPDF = () => {
-    const headers = ["Mã HS", "Họ và Tên", "Lớp", "Phụ Huynh", "SĐT", "Trạng Thái"];
+    const headers = [
+      "Mã HS",
+      "Họ và Tên",
+      "Lớp",
+      "Dân tộc",
+      "Cha (SĐT/Nghề)",
+      "Mẹ (SĐT/Nghề)",
+      "Cư trú",
+      "Trạng Thái",
+    ];
     const rows = filteredStudents.map((s) => [
       s.code,
       s.name,
       s.className,
-      s.parentName,
-      s.parentPhone,
+      s.ethnicity || "Kinh",
+      s.fatherName ? `${s.fatherName} (${s.fatherPhone || s.fatherJob || "---"})` : "---",
+      s.motherName ? `${s.motherName} (${s.motherPhone || s.motherJob || "---"})` : "---",
+      s.residence || s.address || "---",
       s.tuitionStatus === "PAID" ? "Đã đóng" : "Chưa đóng",
     ]);
     exportToPDF("DANH SÁCH HỌC SINH MẦM NON", headers, rows);
@@ -337,14 +501,14 @@ export default function StudentsTab() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Quản Lý Học Sinh & Lớp Học
+                  Quản Lý Học Sinh & Phụ Huynh
                 </h1>
                 <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
                   {students.length} học sinh
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Quản trị danh bạ học sinh, phân bổ lớp học, hồ sơ phụ huynh và theo dõi học vụ toàn trường.
+                Quản trị danh bạ học sinh, hồ sơ phụ huynh (Cha/Mẹ/Nghề nghiệp/SĐT), nơi cư trú và học vụ toàn trường.
               </p>
             </div>
           </div>
@@ -377,7 +541,7 @@ export default function StudentsTab() {
 
             {subTab === "students" ? (
               <button
-                onClick={() => setShowAddStudentModal(true)}
+                onClick={handleOpenAddModal}
                 className="flex items-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white px-4 py-2.5 rounded-2xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -404,11 +568,11 @@ export default function StudentsTab() {
           {/* Action Bar (Search, Filter, Export) */}
           <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2.5 flex-1">
-              <div className="relative flex-1 min-w-[200px]">
+              <div className="relative flex-1 min-w-[220px]">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Tìm theo tên học sinh, phụ huynh, SĐT..."
+                  placeholder="Tìm theo tên học sinh, cha/mẹ, SĐT, nơi cư trú, mã HS..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
@@ -466,9 +630,9 @@ export default function StudentsTab() {
                   <tr className="bg-slate-50/80 border-b border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3.5 px-4">Học Sinh</th>
                     <th className="py-3.5 px-4">Lớp Học</th>
-                    <th className="py-3.5 px-4">Phụ Huynh & SĐT</th>
-                    <th className="py-3.5 px-4">Ngày Sinh</th>
-                    <th className="py-3.5 px-4">Học Phí Tháng</th>
+                    <th className="py-3.5 px-4">Thông Tin Cha & Mẹ</th>
+                    <th className="py-3.5 px-4">Cư Trú & SĐT Liên Hệ</th>
+                    <th className="py-3.5 px-4">Học Phí</th>
                     <th className="py-3.5 px-4">Trạng Thái</th>
                     <th className="py-3.5 px-4 text-right">Thao Tác</th>
                   </tr>
@@ -489,10 +653,19 @@ export default function StudentsTab() {
                               {st.name.slice(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-extrabold text-slate-900">{st.name}</div>
-                              <span className="text-[10px] text-slate-400 font-mono font-medium">
-                                Mã: {st.code}
-                              </span>
+                              <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                                <span>{st.name}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                  st.gender === "Nữ" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+                                }`}>
+                                  {st.gender || "Nam"}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono font-medium mt-0.5">
+                                <span>Mã: <strong className="text-indigo-600 font-bold">{st.code}</strong></span>
+                                <span>•</span>
+                                <span>Dân tộc: {st.ethnicity || "Kinh"}</span>
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -502,13 +675,31 @@ export default function StudentsTab() {
                           </span>
                         </td>
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-800">{st.parentName}</div>
-                          <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-slate-400" /> {st.parentPhone}
+                          <div className="space-y-0.5">
+                            {st.fatherName ? (
+                              <div className="text-[11px] text-slate-700">
+                                <span className="font-bold text-slate-800">Cha:</span> {st.fatherName}
+                                {st.fatherJob && <span className="text-slate-400 text-[10px]"> ({st.fatherJob})</span>}
+                              </div>
+                            ) : null}
+                            {st.motherName ? (
+                              <div className="text-[11px] text-slate-700">
+                                <span className="font-bold text-slate-800">Mẹ:</span> {st.motherName}
+                                {st.motherJob && <span className="text-slate-400 text-[10px]"> ({st.motherJob})</span>}
+                              </div>
+                            ) : null}
+                            {!st.fatherName && !st.motherName && (
+                              <div className="text-[11px] font-bold text-slate-800">{st.parentName}</div>
+                            )}
                           </div>
                         </td>
-                        <td className="py-3.5 px-4 text-slate-600 font-medium">
-                          {st.birthDate || "---"}
+                        <td className="py-3.5 px-4">
+                          <div className="font-bold text-indigo-600 font-mono flex items-center gap-1">
+                            <Phone className="w-3 h-3 text-slate-400" /> {st.parentPhone}
+                          </div>
+                          <div className="text-[11px] text-slate-500 truncate max-w-[180px]" title={st.residence || st.address || ""}>
+                            {st.residence || st.address || "---"}
+                          </div>
                         </td>
                         <td className="py-3.5 px-4 font-black text-slate-900 text-sm">
                           {formatCurrency(st.amount)}
@@ -536,6 +727,13 @@ export default function StudentsTab() {
                               title="Xem hồ sơ 360 độ"
                             >
                               <Eye className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditModal(st)}
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
+                              title="Chỉnh sửa thông tin học sinh & phụ huynh"
+                            >
+                              <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDeleteStudent(st.id, st.name)}
@@ -618,120 +816,349 @@ export default function StudentsTab() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL: TIẾP NHẬN HỌC SINH MỚI */}
+      {/* MODAL: TIẾP NHẬN / CHỈNH SỬA HỒ SƠ HỌC SINH & PHỤ HUYNH */}
       {/* ========================================================================= */}
-      {showAddStudentModal && (
+      {showStudentModal && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn">
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn my-8">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+                  <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
                     <Users className="w-5 h-5" />
                   </div>
-                  <h3 className="font-black text-slate-900 text-base">Tiếp Nhận Hồ Sơ Học Sinh Mới</h3>
+                  <div>
+                    <h3 className="font-black text-slate-900 text-base">
+                      {isEditingStudent ? "Chỉnh Sửa Hồ Sơ Học Sinh & Phụ Huynh" : "Tiếp Nhận Hồ Sơ Học Sinh Mới"}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {isEditingStudent
+                        ? `Cập nhật thông tin cho học sinh mã ${studentForm.code || studentForm.id}`
+                        : "Điền đầy đủ thông tin cá nhân của bé và phụ huynh (Cha, Mẹ, Nghề nghiệp, SĐT)"}
+                    </p>
+                  </div>
                 </div>
                 <button
-                  onClick={() => setShowAddStudentModal(false)}
+                  onClick={() => setShowStudentModal(false)}
                   className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <form onSubmit={handleAddStudent} className="space-y-4 mt-4 text-xs">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">
-                    Họ và tên học sinh <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="VD: Nguyễn Bảo An"
-                    value={studentForm.name}
-                    onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
+              {/* Modal Tabs Switcher */}
+              <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl mt-4">
+                <button
+                  type="button"
+                  onClick={() => setStudentModalTab("student")}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    studentModalTab === "student"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>👶 1. Thông Tin Học Sinh</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStudentModalTab("parent")}
+                  className={`flex-1 py-2 px-3 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    studentModalTab === "parent"
+                      ? "bg-white text-indigo-600 shadow-sm"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>👨‍👩‍👧 2. Thông Tin Phụ Huynh (Cha & Mẹ)</span>
+                </button>
+              </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Giới tính</label>
-                    <select
-                      value={studentForm.gender}
-                      onChange={(e) => setStudentForm({ ...studentForm, gender: e.target.value as any })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                    >
-                      <option value="Nam">Bé Nam</option>
-                      <option value="Nữ">Bé Nữ</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Xếp vào lớp</label>
-                    <select
-                      value={studentForm.className}
-                      onChange={(e) => setStudentForm({ ...studentForm, className: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800"
-                    >
-                      {classes.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          Lớp {c.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
+              <form onSubmit={handleSaveStudent} className="space-y-4 mt-4 text-xs">
+                {/* TAB 1: THÔNG TIN HỌC SINH */}
+                {studentModalTab === "student" && (
+                  <div className="space-y-3.5 animate-fadeIn">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">
+                          Mã học sinh <span className="text-slate-400 font-normal">(Tùy chọn)</span>
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="VD: HS001 (Tự sinh nếu trống)"
+                          value={studentForm.code}
+                          onChange={(e) => setStudentForm({ ...studentForm, code: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-indigo-500 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">
+                          Xếp vào lớp học <span className="text-rose-500">*</span>
+                        </label>
+                        <select
+                          value={studentForm.className}
+                          onChange={(e) => setStudentForm({ ...studentForm, className: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                        >
+                          {classes.map((c) => (
+                            <option key={c.id} value={c.name}>
+                              Lớp {c.name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Họ tên Phụ huynh <span className="text-rose-500">*</span></label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="VD: Nguyễn Văn Hùng"
-                      value={studentForm.parentName}
-                      onChange={(e) => setStudentForm({ ...studentForm, parentName: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Số điện thoại <span className="text-rose-500">*</span></label>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="VD: 0912345678"
-                      value={studentForm.parentPhone}
-                      onChange={(e) => setStudentForm({ ...studentForm, parentPhone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div className="sm:col-span-2">
+                        <label className="font-bold text-slate-700 block mb-1">
+                          Họ và tên học sinh <span className="text-rose-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="VD: Nguyễn Bảo An"
+                          value={studentForm.name}
+                          onChange={(e) => setStudentForm({ ...studentForm, name: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Giới tính</label>
+                        <select
+                          value={studentForm.gender}
+                          onChange={(e) => setStudentForm({ ...studentForm, gender: e.target.value as any })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="Nam">Bé Nam</option>
+                          <option value="Nữ">Bé Nữ</option>
+                        </select>
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Địa chỉ thường trú</label>
-                  <input
-                    type="text"
-                    placeholder="VD: Số 123 Đường Cầu Giấy, Hà Nội"
-                    value={studentForm.address}
-                    onChange={(e) => setStudentForm({ ...studentForm, address: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Ngày sinh</label>
+                        <input
+                          type="date"
+                          value={studentForm.birthDate}
+                          onChange={(e) => setStudentForm({ ...studentForm, birthDate: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Dân tộc</label>
+                        <select
+                          value={studentForm.ethnicity}
+                          onChange={(e) => setStudentForm({ ...studentForm, ethnicity: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                        >
+                          {COMMON_ETHNICITIES.map((eth) => (
+                            <option key={eth} value={eth}>
+                              {eth}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Quốc tịch</label>
+                        <input
+                          type="text"
+                          placeholder="VD: Việt Nam"
+                          value={studentForm.nationality}
+                          onChange={(e) => setStudentForm({ ...studentForm, nationality: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
 
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">
+                        Cư trú: <span className="text-slate-400 font-normal">(Nơi ở hiện tại / Tạm trú / Thường trú của bé)</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="VD: 123 Nguyễn Trãi, P. Bến Thành, Q.1, TP.HCM"
+                        value={studentForm.residence}
+                        onChange={(e) => setStudentForm({ ...studentForm, residence: e.target.value })}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-2xl flex items-center justify-between">
+                      <span className="text-indigo-800 text-[11px] font-semibold">
+                        👉 Tiếp theo: Điền thông tin Cha & Mẹ ở tab Phụ huynh
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setStudentModalTab("parent")}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs transition-colors cursor-pointer"
+                      >
+                        Sang thông tin Phụ huynh →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 2: THÔNG TIN PHỤ HUYNH */}
+                {studentModalTab === "parent" && (
+                  <div className="space-y-4 animate-fadeIn">
+                    {/* Thông tin Cha */}
+                    <div className="p-3.5 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-2.5">
+                      <div className="font-black text-blue-900 text-xs flex items-center gap-1.5">
+                        <span>👨 Thông Tin Cha</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Họ tên cha</label>
+                          <input
+                            type="text"
+                            placeholder="VD: Nguyễn Minh Triết"
+                            value={studentForm.fatherName}
+                            onChange={(e) => setStudentForm({ ...studentForm, fatherName: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Nghề nghiệp cha</label>
+                          <input
+                            type="text"
+                            placeholder="VD: Kỹ sư CNTT"
+                            value={studentForm.fatherJob}
+                            onChange={(e) => setStudentForm({ ...studentForm, fatherJob: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Số điện thoại cha</label>
+                          <input
+                            type="tel"
+                            placeholder="VD: 0901234567"
+                            value={studentForm.fatherPhone}
+                            onChange={(e) => setStudentForm({ ...studentForm, fatherPhone: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-blue-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Thông tin Mẹ */}
+                    <div className="p-3.5 bg-rose-50/50 rounded-2xl border border-rose-100 space-y-2.5">
+                      <div className="font-black text-rose-900 text-xs flex items-center gap-1.5">
+                        <span>👩 Thông Tin Mẹ</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Họ tên mẹ</label>
+                          <input
+                            type="text"
+                            placeholder="VD: Lê Thu Hà"
+                            value={studentForm.motherName}
+                            onChange={(e) => setStudentForm({ ...studentForm, motherName: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-rose-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Nghề nghiệp mẹ</label>
+                          <input
+                            type="text"
+                            placeholder="VD: Kế toán trưởng"
+                            value={studentForm.motherJob}
+                            onChange={(e) => setStudentForm({ ...studentForm, motherJob: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-rose-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">Số điện thoại mẹ</label>
+                          <input
+                            type="tel"
+                            placeholder="VD: 0907654321"
+                            value={studentForm.motherPhone}
+                            onChange={(e) => setStudentForm({ ...studentForm, motherPhone: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-rose-500 font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Người đại diện liên hệ chính & Địa chỉ */}
+                    <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                      <div className="font-black text-slate-800 text-xs flex items-center justify-between">
+                        <span>📞 Thông Tin Liên Lạc Chính & Địa Chỉ Gia Đình</span>
+                        <span className="text-[10px] text-slate-400 font-normal">(Nhận SMS/Zalo thông báo nhà trường)</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">
+                            Người đại diện liên hệ chính <span className="text-slate-400 font-normal">(Tùy chọn)</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="VD: Cha hoặc Mẹ (tự động điền nếu để trống)"
+                            value={studentForm.parentName}
+                            onChange={(e) => setStudentForm({ ...studentForm, parentName: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-slate-900 focus:outline-none focus:border-indigo-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-bold text-slate-700 block mb-1">
+                            Số điện thoại liên hệ chính <span className="text-rose-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            placeholder="VD: 0901234567 (Hoặc SĐT Cha / Mẹ)"
+                            value={studentForm.parentPhone}
+                            onChange={(e) => setStudentForm({ ...studentForm, parentPhone: e.target.value })}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-semibold text-indigo-600 focus:outline-none focus:border-indigo-500 font-mono"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">Địa chỉ gia đình</label>
+                        <input
+                          type="text"
+                          placeholder="VD: 123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP.HCM"
+                          value={studentForm.address}
+                          onChange={(e) => setStudentForm({ ...studentForm, address: e.target.value })}
+                          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl font-medium text-slate-900 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <button
                     type="button"
-                    onClick={() => setShowAddStudentModal(false)}
+                    onClick={() => setShowStudentModal(false)}
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition-colors cursor-pointer"
                   >
                     Hủy
                   </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-600/20 cursor-pointer"
-                  >
-                    Lưu Hồ Sơ
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {studentModalTab === "student" ? (
+                      <button
+                        type="button"
+                        onClick={() => setStudentModalTab("parent")}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold transition-colors cursor-pointer"
+                      >
+                        Tiếp: Phụ Huynh →
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setStudentModalTab("student")}
+                        className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded-xl font-bold transition-colors cursor-pointer"
+                      >
+                        ← Quay lại Học Sinh
+                      </button>
+                    )}
+                    <button
+                      type="submit"
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-600/20 cursor-pointer"
+                    >
+                      {isEditingStudent ? "Cập Nhật Hồ Sơ" : "Lưu Hồ Sơ Hoàn Tất"}
+                    </button>
+                  </div>
                 </div>
               </form>
             </div>
@@ -812,57 +1239,162 @@ export default function StudentsTab() {
       )}
 
       {/* ========================================================================= */}
-      {/* DRAWER / MODAL: HỒ SƠ CHI TIẾT 360 ĐỘ CỦA HỌC SINH */}
+      {/* DRAWER / MODAL: HỒ SƠ CHI TIẾT 360 ĐỘ CỦA HỌC SINH & PHỤ HUYNH */}
       {/* ========================================================================= */}
       {selectedStudentDetail && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn space-y-4">
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn space-y-4 my-8 max-h-[90vh] overflow-y-auto">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 text-white font-black text-base flex items-center justify-center shadow-md">
                     {selectedStudentDetail.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
-                    <h3 className="font-black text-slate-900 text-base">{selectedStudentDetail.name}</h3>
-                    <span className="text-xs text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded-md">
-                      Mã HS: {selectedStudentDetail.code} | Lớp {selectedStudentDetail.className}
+                    <h3 className="font-black text-slate-900 text-base flex items-center gap-2">
+                      <span>{selectedStudentDetail.name}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                        selectedStudentDetail.gender === "Nữ" ? "bg-rose-100 text-rose-700" : "bg-blue-100 text-blue-700"
+                      }`}>
+                        {selectedStudentDetail.gender || "Nam"}
+                      </span>
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 mt-0.5">
+                      <span className="bg-indigo-50 px-2 py-0.5 rounded-md font-mono">
+                        Mã HS: {selectedStudentDetail.code}
+                      </span>
+                      <span>•</span>
+                      <span className="bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md">
+                        Lớp {selectedStudentDetail.className}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      const st = selectedStudentDetail;
+                      handleOpenEditModal(st);
+                    }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                    title="Sửa hồ sơ"
+                  >
+                    <Edit className="w-3.5 h-3.5" />
+                    <span>Sửa hồ sơ</span>
+                  </button>
+                  <button
+                    onClick={() => setSelectedStudentDetail(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3.5 text-xs">
+                {/* 1. THÔNG TIN CÁ NHÂN HỌC SINH */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                  <div className="font-extrabold text-slate-900 pb-1 border-b border-slate-200 text-xs flex items-center gap-1.5">
+                    <span>👶 Thông Tin Cá Nhân Học Sinh</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Mã học sinh:</span>
+                      <span className="font-extrabold text-indigo-600 font-mono">{selectedStudentDetail.code}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Giới tính:</span>
+                      <span className="font-extrabold text-slate-900">{selectedStudentDetail.gender || "Nam"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Ngày sinh:</span>
+                      <span className="font-extrabold text-slate-900">{selectedStudentDetail.birthDate || "---"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Dân tộc:</span>
+                      <span className="font-extrabold text-slate-900">{selectedStudentDetail.ethnicity || "Kinh"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Quốc tịch:</span>
+                      <span className="font-extrabold text-slate-900">{selectedStudentDetail.nationality || "Việt Nam"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Lớp học:</span>
+                      <span className="font-extrabold text-indigo-700">{selectedStudentDetail.className}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-start justify-between pt-1">
+                    <span className="text-slate-500 font-bold shrink-0">Cư trú:</span>
+                    <span className="font-medium text-slate-800 text-right ml-2">
+                      {selectedStudentDetail.residence || selectedStudentDetail.address || "---"}
                     </span>
                   </div>
                 </div>
-                <button
-                  onClick={() => setSelectedStudentDetail(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-700 rounded-xl hover:bg-slate-100 cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
 
-              <div className="space-y-3 text-xs">
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-2">
-                  <div className="flex justify-between py-1 border-b border-slate-200/60">
-                    <span className="text-slate-500 font-bold">Giới tính:</span>
-                    <span className="font-extrabold text-slate-900">{selectedStudentDetail.gender || "Nam"}</span>
+                {/* 2. THÔNG TIN PHỤ HUYNH (CHA & MẸ) */}
+                <div className="p-4 bg-indigo-50/40 rounded-2xl border border-indigo-100 space-y-3">
+                  <div className="font-extrabold text-indigo-950 pb-1 border-b border-indigo-100 text-xs flex items-center justify-between">
+                    <span>👨‍👩‍👧 Thông Tin Phụ Huynh Theo Từng Bé</span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200/60">
-                    <span className="text-slate-500 font-bold">Ngày sinh:</span>
-                    <span className="font-extrabold text-slate-900">{selectedStudentDetail.birthDate || "---"}</span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Card Cha */}
+                    <div className="p-3 bg-white rounded-xl border border-blue-100 shadow-2xs space-y-1.5">
+                      <div className="font-bold text-blue-900 text-[11px] flex items-center gap-1">
+                        <span>👨 Thông tin Cha:</span>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Họ tên:</span>{" "}
+                        <strong className="text-slate-900">{selectedStudentDetail.fatherName || "Chưa cập nhật"}</strong>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Nghề nghiệp:</span>{" "}
+                        <span className="text-slate-800 font-medium">{selectedStudentDetail.fatherJob || "---"}</span>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">SĐT:</span>{" "}
+                        <span className="font-bold text-blue-600 font-mono">{selectedStudentDetail.fatherPhone || "---"}</span>
+                      </div>
+                    </div>
+
+                    {/* Card Mẹ */}
+                    <div className="p-3 bg-white rounded-xl border border-rose-100 shadow-2xs space-y-1.5">
+                      <div className="font-bold text-rose-900 text-[11px] flex items-center gap-1">
+                        <span>👩 Thông tin Mẹ:</span>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Họ tên:</span>{" "}
+                        <strong className="text-slate-900">{selectedStudentDetail.motherName || "Chưa cập nhật"}</strong>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">Nghề nghiệp:</span>{" "}
+                        <span className="text-slate-800 font-medium">{selectedStudentDetail.motherJob || "---"}</span>
+                      </div>
+                      <div className="text-[11px]">
+                        <span className="text-slate-500">SĐT:</span>{" "}
+                        <span className="font-bold text-rose-600 font-mono">{selectedStudentDetail.motherPhone || "---"}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200/60">
-                    <span className="text-slate-500 font-bold">Phụ huynh liên hệ:</span>
-                    <span className="font-extrabold text-slate-900">{selectedStudentDetail.parentName}</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-200/60">
-                    <span className="text-slate-500 font-bold">Số điện thoại:</span>
-                    <span className="font-extrabold text-indigo-600 font-mono">{selectedStudentDetail.parentPhone}</span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-500 font-bold">Địa chỉ:</span>
-                    <span className="font-medium text-slate-800">{selectedStudentDetail.address || "---"}</span>
+
+                  {/* Liên hệ chính & Địa chỉ */}
+                  <div className="p-2.5 bg-white/80 rounded-xl border border-indigo-100/80 space-y-1 text-[11px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">Người liên hệ chính:</span>
+                      <span className="font-extrabold text-slate-900">{selectedStudentDetail.parentName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">SĐT liên hệ:</span>
+                      <span className="font-extrabold text-indigo-600 font-mono">{selectedStudentDetail.parentPhone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500 font-bold">Địa chỉ gia đình:</span>
+                      <span className="font-medium text-slate-800 text-right">{selectedStudentDetail.address || "---"}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Chi tiết bóc tách học phí */}
+                {/* 3. CHI TIẾT BÓC TÁCH HỌC PHÍ */}
                 {(() => {
                   const breakdown = getStudentFeeBreakdown(
                     selectedStudentDetail.className,
@@ -876,7 +1408,7 @@ export default function StudentsTab() {
                         <span>Hạng mục thu ({selectedStudentDetail.className})</span>
                         <span>Định mức</span>
                       </div>
-                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                      <div className="space-y-1.5 max-h-32 overflow-y-auto">
                         {breakdown.monthlyItems.map((item, idx) => (
                           <div key={item.id || idx} className="flex justify-between items-center text-[11px]">
                             <div className="flex items-center gap-1.5">
@@ -900,7 +1432,7 @@ export default function StudentsTab() {
                 })()}
 
                 {/* Trạng thái & Thao tác đóng tiền nhanh */}
-                <div className="p-4 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
+                <div className="p-3.5 bg-indigo-50/60 rounded-2xl border border-indigo-100 flex items-center justify-between">
                   <div>
                     <span className="text-[11px] font-bold text-slate-500 block">Trạng thái học phí:</span>
                     {selectedStudentDetail.tuitionStatus === "PAID" ? (

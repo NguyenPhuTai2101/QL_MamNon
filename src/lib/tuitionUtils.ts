@@ -356,6 +356,9 @@ export function getVietQRBreakdownDetails(
     breakdown.monthlyItems.find((i) => i.name.toLowerCase().includes("nhịp") || i.name.toLowerCase().includes("múa") || i.name.toLowerCase().includes("âm nhạc"))?.amount || 0;
 
   return {
+    items: breakdown.items,
+    monthlyItems: breakdown.monthlyItems,
+    oneTimeItems: breakdown.oneTimeItems,
     baseTuition: baseTuition || (breakdown.totalMonthly > 0 ? breakdown.totalMonthly - mealFee - english - rhythmDance - mathLogic : 1800000),
     semiBoarding,
     mealFee,
@@ -367,6 +370,7 @@ export function getVietQRBreakdownDetails(
     refundMealFee: 0,
     discountAmount: breakdown.discountAmount || 0,
     discountPercent: breakdown.discountPercent || 0,
+    totalMonthly: breakdown.totalMonthly,
   };
 }
 
