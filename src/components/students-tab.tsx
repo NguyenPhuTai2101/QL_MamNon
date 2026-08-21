@@ -61,6 +61,7 @@ interface StudentRecord {
   parentPhone: string;
   address?: string;
   joinDate?: string;
+  enrollmentDate?: string;
   tuitionStatus: "PAID" | "UNPAID" | "OVERDUE";
   amount: number;
   invoice?: any;
@@ -108,6 +109,7 @@ export default function StudentsTab() {
     nationality: "Việt Nam",
     residence: "",
     className: "12 – 24 tháng",
+    enrollmentDate: new Date().toISOString().split("T")[0],
     fatherName: "",
     fatherJob: "",
     fatherPhone: "",
@@ -169,6 +171,10 @@ export default function StudentsTab() {
           const className = st.class?.name || "12 – 24 tháng";
           const effAmount = getStudentEffectiveAmount({ className, invoice: inv }, loadedFees, 22);
 
+          const enrollDateStr = st.enrollmentDate
+            ? new Date(st.enrollmentDate).toISOString().split("T")[0]
+            : (st.createdAt ? new Date(st.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+
           return {
             id: st.id,
             code: st.code || `HS0${st.id.slice(-3)}`,
@@ -190,7 +196,8 @@ export default function StudentsTab() {
             parentName: st.parentName || st.fatherName || st.motherName || "Phụ huynh",
             parentPhone: st.parentPhone || st.fatherPhone || st.motherPhone || "0900000000",
             address: st.address || st.residence || "TP. Hồ Chí Minh",
-            joinDate: st.createdAt ? new Date(st.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+            joinDate: enrollDateStr,
+            enrollmentDate: enrollDateStr,
             tuitionStatus: (inv?.status as any) || "UNPAID",
             amount: effAmount,
             invoice: inv,
@@ -235,6 +242,7 @@ export default function StudentsTab() {
     setStudentModalTab("student");
     setStudentForm({
       ...initialStudentForm,
+      enrollmentDate: new Date().toISOString().split("T")[0],
       className: classes[0]?.name || "12 – 24 tháng",
     });
     setShowStudentModal(true);
@@ -254,6 +262,7 @@ export default function StudentsTab() {
       nationality: st.nationality || "Việt Nam",
       residence: st.residence || st.address || "",
       className: st.className || "12 – 24 tháng",
+      enrollmentDate: st.enrollmentDate || st.joinDate || new Date().toISOString().split("T")[0],
       fatherName: st.fatherName || "",
       fatherJob: st.fatherJob || "",
       fatherPhone: st.fatherPhone || "",
@@ -321,6 +330,7 @@ export default function StudentsTab() {
         parentName: finalParentName,
         parentPhone: finalParentPhone,
         address: finalAddress,
+        enrollmentDate: studentForm.enrollmentDate,
       };
 
       const res = await fetch("/api/students", {
@@ -426,6 +436,7 @@ export default function StudentsTab() {
       "Quốc tịch",
       "Nơi cư trú",
       "Lớp",
+      "Ngày nhập học",
       "Họ tên Cha",
       "Nghề nghiệp Cha",
       "SĐT Cha",
@@ -447,6 +458,7 @@ export default function StudentsTab() {
       s.nationality || "Việt Nam",
       s.residence || "",
       s.className,
+      s.enrollmentDate || s.joinDate || "",
       s.fatherName || "",
       s.fatherJob || "",
       s.fatherPhone || "",
@@ -876,14 +888,14 @@ export default function StudentsTab() {
                 {/* TAB 1: THÔNG TIN HỌC SINH */}
                 {studentModalTab === "student" && (
                   <div className="space-y-3.5 animate-fadeIn">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label className="font-bold text-slate-700 block mb-1">
                           Mã học sinh <span className="text-slate-400 font-normal">(Tùy chọn)</span>
                         </label>
                         <input
                           type="text"
-                          placeholder="VD: HS001 (Tự sinh nếu trống)"
+                          placeholder="VD: HS001 (Tự sinh)"
                           value={studentForm.code}
                           onChange={(e) => setStudentForm({ ...studentForm, code: e.target.value })}
                           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-900 focus:outline-none focus:border-indigo-500 font-mono"
@@ -904,6 +916,17 @@ export default function StudentsTab() {
                             </option>
                           ))}
                         </select>
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">
+                          Ngày nhập học <span className="text-indigo-600">*</span>
+                        </label>
+                        <input
+                          type="date"
+                          value={studentForm.enrollmentDate}
+                          onChange={(e) => setStudentForm({ ...studentForm, enrollmentDate: e.target.value })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 focus:outline-none focus:border-indigo-500"
+                        />
                       </div>
                     </div>
 
@@ -1321,6 +1344,10 @@ export default function StudentsTab() {
                     <div className="flex justify-between py-1 border-b border-slate-200/60">
                       <span className="text-slate-500 font-bold">Lớp học:</span>
                       <span className="font-extrabold text-indigo-700">{selectedStudentDetail.className}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Ngày nhập học:</span>
+                      <span className="font-extrabold text-emerald-700">{selectedStudentDetail.enrollmentDate || selectedStudentDetail.joinDate || "---"}</span>
                     </div>
                   </div>
                   <div className="flex items-start justify-between pt-1">

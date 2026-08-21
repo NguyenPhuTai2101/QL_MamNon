@@ -9,6 +9,7 @@ export interface Student {
   residence?: string; // Nơi cư trú (Tạm trú / Thường trú)
   className: string;
   joinDate?: string;
+  enrollmentDate?: string; // Ngày nhập học của bé
   status?: "Đang học" | "Nghỉ học" | "Bảo lưu";
   fatherName?: string; // Họ tên cha
   fatherJob?: string; // Nghề nghiệp cha

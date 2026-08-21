@@ -58,6 +58,7 @@ model Student {
   parentName    String
   parentPhone   String
   address       String?
+  enrollmentDate DateTime?     @default(now()) // Ngày nhập học của bé
   classId       String
   class         Class          @relation(fields: [classId], references: [id])
   invoices      Invoice[]

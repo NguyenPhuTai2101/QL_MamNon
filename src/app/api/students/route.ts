@@ -132,6 +132,7 @@ export async function POST(request: Request) {
         parentName,
         parentPhone,
         address: address || residence || "TP. Hồ Chí Minh",
+        enrollmentDate: body.enrollmentDate ? new Date(body.enrollmentDate) : new Date(),
         classId,
       },
       include: {
@@ -171,6 +172,7 @@ export async function PUT(request: Request) {
       motherPhone,
       parentName,
       parentPhone,
+      enrollmentDate,
       classId,
       className,
       address,
@@ -205,6 +207,7 @@ export async function PUT(request: Request) {
     if (ethnicity !== undefined) updateData.ethnicity = ethnicity;
     if (nationality !== undefined) updateData.nationality = nationality;
     if (residence !== undefined) updateData.residence = residence;
+    if (enrollmentDate !== undefined) updateData.enrollmentDate = new Date(enrollmentDate);
     
     if (fatherName !== undefined) updateData.fatherName = fatherName;
     if (fatherJob !== undefined) updateData.fatherJob = fatherJob;
