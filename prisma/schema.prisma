@@ -59,6 +59,7 @@ model Student {
   parentPhone   String
   address       String?
   enrollmentDate DateTime?     @default(now()) // Ngày nhập học của bé
+  status        String?        @default("STUDYING") // Trạng thái học tập: STUDYING (Đang học), GRADUATED (Đã ra trường), RESERVED (Bảo lưu), TRANSFERRED (Chuyển trường), DROPPED (Đã nghỉ học)
   classId       String
   class         Class          @relation(fields: [classId], references: [id])
   invoices      Invoice[]

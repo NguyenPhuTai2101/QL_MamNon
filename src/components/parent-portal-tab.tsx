@@ -329,7 +329,7 @@ export default function ParentPortalTab() {
 
       {/* VietQR Modal */}
       {showQRModal && (() => {
-        const qrDetails = getVietQRBreakdownDetails(child.className, feeItems, 22, child.tuitionAmount);
+        const qrDetails = getVietQRBreakdownDetails(child, feeItems, child.tuitionAmount);
         return (
           <VietQRModal
             studentName={child.name}
@@ -346,13 +346,15 @@ export default function ParentPortalTab() {
               setChild((prev) => ({ ...prev, tuitionStatus: "PAID" }));
               setShowQRModal(false);
               if (child.id) {
-                await saveInvoicePaymentToDB({
-                  studentId: child.id,
-                  status: "PAID",
-                  amount: child.tuitionAmount,
-                  paymentMethod: "QR",
-                  breakdownJson: JSON.stringify(getStudentFeeBreakdown(child.className, feeItems, 22)),
-                });
+                await saveInvoicePaymentToDB(
+                  child.id,
+                  new Date().getMonth() + 1,
+                  new Date().getFullYear(),
+                  child.tuitionAmount,
+                  "PAID",
+                  "QR",
+                  getStudentFeeBreakdown(child, feeItems)
+                );
               }
             }}
           />

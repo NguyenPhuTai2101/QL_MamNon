@@ -1,16 +1,90 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// GET: Lấy danh sách điểm danh theo ngày hoặc học sinh
+// GET: Lấy danh sách điểm danh theo ngày, khoảng ngày (tuần), tháng hoặc học sinh/lớp
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get("date");
+    const startDateStr = searchParams.get("startDate");
+    const endDateStr = searchParams.get("endDate");
+    const monthStr = searchParams.get("month");
+    const yearStr = searchParams.get("year");
     const classId = searchParams.get("classId");
+    const className = searchParams.get("className");
+    const studentId = searchParams.get("studentId");
 
+    // Xây dựng điều kiện lọc theo Lớp hoặc Học sinh
+    const classFilter = classId
+      ? { student: { classId } }
+      : className && className !== "ALL"
+      ? { student: { class: { name: className } } }
+      : {};
+
+    const studentFilter = studentId ? { studentId } : {};
+
+    // 1. Nếu lọc theo khoảng ngày (startDate & endDate - Phục vụ thống kê tuần)
+    if (startDateStr && endDateStr) {
+      const start = new Date(startDateStr);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDateStr);
+      end.setHours(23, 59, 59, 999);
+
+      const attendances = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: start,
+            lte: end,
+          },
+          ...studentFilter,
+          ...classFilter,
+        },
+        include: {
+          student: {
+            include: {
+              class: true,
+            },
+          },
+        },
+        orderBy: { date: "asc" },
+      });
+
+      return NextResponse.json(attendances);
+    }
+
+    // 2. Nếu lọc theo Tháng & Năm (Phục vụ thống kê tháng & hoàn tiền ăn)
+    if (monthStr && yearStr) {
+      const month = parseInt(monthStr);
+      const year = parseInt(yearStr);
+      const startOfMonth = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      const endOfMonth = new Date(year, month, 0, 23, 59, 59, 999);
+
+      const attendances = await prisma.attendance.findMany({
+        where: {
+          date: {
+            gte: startOfMonth,
+            lte: endOfMonth,
+          },
+          ...studentFilter,
+          ...classFilter,
+        },
+        include: {
+          student: {
+            include: {
+              class: true,
+            },
+          },
+        },
+        orderBy: { date: "asc" },
+      });
+
+      return NextResponse.json(attendances);
+    }
+
+    // 3. Mặc định: Lọc theo 1 ngày cụ thể
     const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(new Date(targetDate).setHours(0, 0, 0, 0));
+    const endOfDay = new Date(new Date(targetDate).setHours(23, 59, 59, 999));
 
     const attendances = await prisma.attendance.findMany({
       where: {
@@ -18,10 +92,15 @@ export async function GET(request: Request) {
           gte: startOfDay,
           lte: endOfDay,
         },
-        ...(classId ? { student: { classId } } : {}),
+        ...studentFilter,
+        ...classFilter,
       },
       include: {
-        student: true,
+        student: {
+          include: {
+            class: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });

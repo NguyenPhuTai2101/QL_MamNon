@@ -113,32 +113,74 @@ export async function POST(request: Request) {
       code = `HS${(totalCount + 1).toString().padStart(3, "0")}`;
     }
 
-    const newStudent = await prisma.student.create({
-      data: {
-        code,
-        firstName: firstName || "Học sinh",
-        lastName: lastName || "Nguyễn",
-        birthDate: birthDate ? new Date(birthDate) : new Date("2022-01-01"),
-        gender: gender || "Nam",
-        ethnicity: ethnicity || "Kinh",
-        nationality: nationality || "Việt Nam",
-        residence: residence || address || "TP. Hồ Chí Minh",
-        fatherName: fatherName || null,
-        fatherJob: fatherJob || null,
-        fatherPhone: fatherPhone || null,
-        motherName: motherName || null,
-        motherJob: motherJob || null,
-        motherPhone: motherPhone || null,
-        parentName,
-        parentPhone,
-        address: address || residence || "TP. Hồ Chí Minh",
-        enrollmentDate: body.enrollmentDate ? new Date(body.enrollmentDate) : new Date(),
-        classId,
-      },
-      include: {
-        class: true,
-      },
-    });
+    let newStudent;
+    try {
+      newStudent = await prisma.student.create({
+        data: {
+          code,
+          firstName: firstName || "Học sinh",
+          lastName: lastName || "Nguyễn",
+          birthDate: birthDate ? new Date(birthDate) : new Date("2022-01-01"),
+          gender: gender || "Nam",
+          ethnicity: ethnicity || "Kinh",
+          nationality: nationality || "Việt Nam",
+          residence: residence || address || "TP. Hồ Chí Minh",
+          fatherName: fatherName || null,
+          fatherJob: fatherJob || null,
+          fatherPhone: fatherPhone || null,
+          motherName: motherName || null,
+          motherJob: motherJob || null,
+          motherPhone: motherPhone || null,
+          parentName,
+          parentPhone,
+          address: address || residence || "TP. Hồ Chí Minh",
+          enrollmentDate: body.enrollmentDate ? new Date(body.enrollmentDate) : null,
+          status: body.status || "STUDYING",
+          classId,
+        },
+        include: {
+          class: true,
+        },
+      });
+    } catch (createErr: any) {
+      if (createErr.message && (createErr.message.includes("status") || createErr.message.includes("Unknown argument"))) {
+        newStudent = await prisma.student.create({
+          data: {
+            code,
+            firstName: firstName || "Học sinh",
+            lastName: lastName || "Nguyễn",
+            birthDate: birthDate ? new Date(birthDate) : new Date("2022-01-01"),
+            gender: gender || "Nam",
+            ethnicity: ethnicity || "Kinh",
+            nationality: nationality || "Việt Nam",
+            residence: residence || address || "TP. Hồ Chí Minh",
+            fatherName: fatherName || null,
+            fatherJob: fatherJob || null,
+            fatherPhone: fatherPhone || null,
+            motherName: motherName || null,
+            motherJob: motherJob || null,
+            motherPhone: motherPhone || null,
+            parentName,
+            parentPhone,
+            address: address || residence || "TP. Hồ Chí Minh",
+            enrollmentDate: body.enrollmentDate ? new Date(body.enrollmentDate) : null,
+            classId,
+          },
+          include: {
+            class: true,
+          },
+        });
+        if (body.status) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "Student" SET "status" = $1 WHERE id = $2`,
+            body.status,
+            newStudent.id
+          );
+        }
+      } else {
+        throw createErr;
+      }
+    }
 
     return NextResponse.json(newStudent, { status: 201 });
   } catch (error: any) {
@@ -173,6 +215,7 @@ export async function PUT(request: Request) {
       parentName,
       parentPhone,
       enrollmentDate,
+      status,
       classId,
       className,
       address,
@@ -207,7 +250,8 @@ export async function PUT(request: Request) {
     if (ethnicity !== undefined) updateData.ethnicity = ethnicity;
     if (nationality !== undefined) updateData.nationality = nationality;
     if (residence !== undefined) updateData.residence = residence;
-    if (enrollmentDate !== undefined) updateData.enrollmentDate = new Date(enrollmentDate);
+    if (enrollmentDate !== undefined) updateData.enrollmentDate = enrollmentDate ? new Date(enrollmentDate) : null;
+    if (status !== undefined) updateData.status = status;
     
     if (fatherName !== undefined) updateData.fatherName = fatherName;
     if (fatherJob !== undefined) updateData.fatherJob = fatherJob;
@@ -222,11 +266,33 @@ export async function PUT(request: Request) {
     if (address !== undefined) updateData.address = address;
     if (classId) updateData.classId = classId;
 
-    const updatedStudent = await prisma.student.update({
-      where: { id },
-      data: updateData,
-      include: { class: true },
-    });
+    let updatedStudent;
+    try {
+      updatedStudent = await prisma.student.update({
+        where: { id },
+        data: updateData,
+        include: { class: true },
+      });
+    } catch (updateErr: any) {
+      // Nếu Prisma Client in-memory instance cũ chưa nhận argument `status`, fallback update status bằng executeRawUnsafe
+      if (updateErr.message && (updateErr.message.includes("status") || updateErr.message.includes("Unknown argument"))) {
+        const { status: stValue, ...safeUpdateData } = updateData;
+        if (stValue !== undefined) {
+          await prisma.$executeRawUnsafe(
+            `UPDATE "Student" SET "status" = $1 WHERE id = $2`,
+            stValue,
+            id
+          );
+        }
+        updatedStudent = await prisma.student.update({
+          where: { id },
+          data: safeUpdateData,
+          include: { class: true },
+        });
+      } else {
+        throw updateErr;
+      }
+    }
 
     return NextResponse.json({ success: true, data: updatedStudent });
   } catch (error: any) {

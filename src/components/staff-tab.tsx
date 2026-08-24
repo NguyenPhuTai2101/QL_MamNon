@@ -20,10 +20,12 @@ import {
   DollarSign,
   FileSpreadsheet,
   Printer,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
+import { ToastNotification, ConfirmDeleteModal, ToastState } from "@/components/crud-feedback";
 
 type Position = 'TEACHER' | 'ASSISTANT' | 'COOK' | 'GUARD' | 'ADMIN_STAFF';
 type Status = 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED';
@@ -67,19 +69,22 @@ export default function StaffTab() {
   const [searchQuery, setSearchQuery] = useState('');
   const [positionFilter, setPositionFilter] = useState<Position | 'ALL'>('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'edit' | 'delete' }>({
-    show: false,
-    message: '',
-    type: 'success',
+  // CRUD Animation & Feedback states
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [highlightType, setHighlightType] = useState<"add" | "edit">("add");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    staff: Staff | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    staff: null,
+    isLoading: false,
   });
-
-  const showToast = (message: string, type: 'success' | 'edit' | 'delete' = 'success') => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast((prev) => ({ ...prev, show: false }));
-    }, 3500);
-  };
+  const [editingStaffId, setEditingStaffId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/staff')
@@ -187,14 +192,57 @@ export default function StaffTab() {
       .toUpperCase();
   };
 
+  const handlePromptDelete = (staff: Staff) => {
+    setDeleteModal({
+      isOpen: true,
+      staff,
+      isLoading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.staff) return;
+    const staffToDelete = deleteModal.staff;
+    setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      await fetch(`/api/staff?id=${staffToDelete.id}`, { method: 'DELETE' });
+
+      setDeletingId(staffToDelete.id);
+      setDeleteModal({ isOpen: false, staff: null, isLoading: false });
+
+      setTimeout(() => {
+        setStaffList((prev) => prev.filter((item) => item.id !== staffToDelete.id));
+        setDeletingId(null);
+        setToast({
+          type: "delete",
+          title: "Đã xóa nhân sự",
+          message: `Đã xóa hồ sơ "${staffToDelete.fullName}" khỏi hệ thống.`
+        });
+      }, 350);
+    } catch (err: any) {
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+      setToast({
+        type: "error",
+        title: "Lỗi xóa hồ sơ",
+        message: err.message || "Không thể xóa hồ sơ nhân sự lúc này."
+      });
+    }
+  };
+
   const handleSaveStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.fullName || !formData.phone) {
-      alert('Vui lòng điền đầy đủ Họ và tên và Số điện thoại!');
+      setToast({
+        type: "error",
+        title: "Thiếu thông tin",
+        message: "Vui lòng điền đầy đủ Họ và tên và Số điện thoại!"
+      });
       return;
     }
 
     const savedName = formData.fullName;
+    setIsSubmitting(true);
 
     try {
       if (editingStaffId) {
@@ -205,7 +253,15 @@ export default function StaffTab() {
           )
         );
         setIsAddModalOpen(false);
-        showToast(`Đã cập nhật thành công hồ sơ nhân viên "${savedName}"!`, 'edit');
+        setHighlightType("edit");
+        setHighlightedId(editingStaffId);
+        setToast({
+          type: "success",
+          title: "Cập nhật thành công",
+          message: `Đã cập nhật hồ sơ "${savedName}".`
+        });
+
+        setTimeout(() => setHighlightedId(null), 2500);
 
         await fetch('/api/staff', {
           method: 'PUT',
@@ -236,7 +292,16 @@ export default function StaffTab() {
 
         setStaffList((prev) => [tempStaff, ...prev]);
         setIsAddModalOpen(false);
-        showToast(`Đã thêm mới hồ sơ nhân viên "${savedName}" thành công!`, 'success');
+        setHighlightType("add");
+        setHighlightedId(tempId);
+
+        setToast({
+          type: "success",
+          title: "Thêm nhân sự mới thành công",
+          message: `Đã lưu hồ sơ nhân viên "${savedName}".`
+        });
+
+        setTimeout(() => setHighlightedId(null), 2500);
 
         const res = await fetch('/api/staff', {
           method: 'POST',
@@ -257,21 +322,13 @@ export default function StaffTab() {
       resetForm();
     } catch (err) {
       console.error('Lỗi lưu nhân viên vào DB:', err);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    const target = staffList.find((s) => s.id === id);
-    const targetName = target ? target.fullName : 'nhân viên';
-
-    if (confirm(`Bạn có chắc chắn muốn xóa hồ sơ nhân viên "${targetName}" khỏi CSDL?`)) {
-      setStaffList(staffList.filter((item) => item.id !== id));
-      showToast(`Đã xóa thành công hồ sơ "${targetName}" khỏi hệ thống!`, 'delete');
-      try {
-        await fetch(`/api/staff?id=${id}`, { method: 'DELETE' });
-      } catch (err) {
-        console.error('Lỗi xóa nhân viên khỏi DB:', err);
-      }
+      setToast({
+        type: "error",
+        title: "Lỗi lưu hồ sơ",
+        message: "Không thể lưu dữ liệu nhân sự vào máy chủ."
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -377,6 +434,20 @@ export default function StaffTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Dynamic Toast Feedback */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xóa hồ sơ nhân sự"
+        itemName={deleteModal.staff ? `${deleteModal.staff.fullName} (${POSITION_MAP[deleteModal.staff.position]?.label})` : ""}
+        itemType="hồ sơ nhân sự"
+        isLoading={deleteModal.isLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, staff: null, isLoading: false })}
+      />
+
       {/* 1. ERP MODULE HEADER BANNER */}
       <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
@@ -574,8 +645,18 @@ export default function StaffTab() {
                   ) : (
                     filteredStaff.map((staff) => {
                       const posInfo = POSITION_MAP[staff.position];
+                      const isHighlighted = highlightedId === staff.id;
+                      const isDeleting = deletingId === staff.id;
+
                       return (
-                        <tr key={staff.id}>
+                        <tr
+                          key={staff.id}
+                          className={cn(
+                            "transition-all duration-300",
+                            isHighlighted && (highlightType === "add" ? "animate-row-add" : "animate-row-edit"),
+                            isDeleting && "animate-row-delete"
+                          )}
+                        >
                           <td>
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 text-white flex items-center justify-center font-extrabold text-xs shadow-sm ring-2 ring-indigo-50 shrink-0">
@@ -645,14 +726,14 @@ export default function StaffTab() {
                             <div className="flex items-center justify-end gap-2">
                               <button
                                 onClick={() => handleOpenEditModal(staff)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 active:scale-90 rounded-lg transition-all cursor-pointer"
                                 title="Chỉnh sửa hồ sơ"
                               >
                                 <Edit3 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => handleDelete(staff.id)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                onClick={() => handlePromptDelete(staff)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-lg transition-all cursor-pointer"
                                 title="Xóa nhân viên"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -1050,60 +1131,23 @@ export default function StaffTab() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-60 active:scale-95"
                   >
-                    <UserCog className="w-4 h-4" />
-                    {editingStaffId ? 'Cập nhật hồ sơ nhân viên' : 'Lưu hồ sơ nhân viên mới'}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang lưu hồ sơ...</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserCog className="w-4 h-4" />
+                        <span>{editingStaffId ? 'Cập nhật hồ sơ nhân viên' : 'Lưu hồ sơ nhân viên mới'}</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        </Portal>
-      )}
-
-      {/* Toast Notification Banner */}
-      {toast.show && (
-        <Portal>
-          <div className="fixed top-6 right-6 z-[9999] animate-slide-in-right">
-            <div
-              className={`flex items-center gap-3.5 px-5 py-4 rounded-2xl shadow-2xl border backdrop-blur-xl transition-all ${
-                toast.type === 'success'
-                  ? 'bg-emerald-950/90 text-white border-emerald-500/40 shadow-emerald-950/40'
-                  : toast.type === 'edit'
-                  ? 'bg-indigo-950/90 text-white border-indigo-500/40 shadow-indigo-950/40'
-                  : 'bg-rose-950/90 text-white border-rose-500/40 shadow-rose-950/40'
-              }`}
-            >
-              <div
-                className={`p-2.5 rounded-xl shrink-0 ${
-                  toast.type === 'success'
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : toast.type === 'edit'
-                    ? 'bg-indigo-500/20 text-indigo-400'
-                    : 'bg-rose-500/20 text-rose-400'
-                }`}
-              >
-                {toast.type === 'success' && <CheckCircle2 className="w-5 h-5 animate-bounce" />}
-                {toast.type === 'edit' && <UserCog className="w-5 h-5 animate-pulse" />}
-                {toast.type === 'delete' && <Trash2 className="w-5 h-5 animate-bounce" />}
-              </div>
-
-              <div>
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-200">
-                  {toast.type === 'success' && 'Tạo Mới Thành Công'}
-                  {toast.type === 'edit' && 'Cập Nhật Thành Công'}
-                  {toast.type === 'delete' && 'Đã Xóa Dữ Liệu'}
-                </h4>
-                <p className="text-xs font-semibold text-white mt-0.5">{toast.message}</p>
-              </div>
-
-              <button
-                onClick={() => setToast({ ...toast, show: false })}
-                className="ml-4 p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
           </div>
         </Portal>

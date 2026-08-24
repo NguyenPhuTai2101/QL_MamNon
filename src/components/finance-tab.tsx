@@ -17,10 +17,13 @@ import {
   TrendingDown, 
   CheckCircle2,
   Download,
-  Printer
+  Printer,
+  Loader2,
+  CreditCard
 } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { exportToExcel, exportToPDF } from '@/lib/exportUtils';
+import { ToastNotification, ConfirmDeleteModal, ToastState } from "@/components/crud-feedback";
 
 type TransactionType = 'INCOME' | 'EXPENSE';
 type IncomeCategory = 'TUITION' | 'MEAL_FEE' | 'PARENT_FUND' | 'OTHER_INCOME';
@@ -81,6 +84,21 @@ export default function FinanceTab() {
       .catch((err) => console.error('Lỗi tải Sổ Thu Chi từ DB:', err));
   }, []);
 
+  // CRUD Animation & Feedback states
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: Transaction | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    isLoading: false,
+  });
+
   const [addForm, setAddForm] = useState<{
     date: string;
     type: TransactionType;
@@ -118,14 +136,42 @@ export default function FinanceTab() {
   const balance = totalIncome - totalExpense;
   const transactionCount = transactions.filter(t => t.date.startsWith(filterMonth)).length;
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa bút toán này khỏi CSDL?')) {
-      setTransactions(transactions.filter(t => t.id !== id));
-      try {
-        await fetch(`/api/transactions?id=${id}`, { method: 'DELETE' });
-      } catch (err) {
-        console.error('Lỗi xóa bút toán:', err);
-      }
+  const handlePromptDelete = (item: Transaction) => {
+    setDeleteModal({
+      isOpen: true,
+      item,
+      isLoading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.item) return;
+    const itemToDelete = deleteModal.item;
+    setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      await fetch(`/api/transactions?id=${itemToDelete.id}`, { method: 'DELETE' });
+
+      // Animate exit
+      setDeletingId(itemToDelete.id);
+      setDeleteModal({ isOpen: false, item: null, isLoading: false });
+
+      setTimeout(() => {
+        setTransactions((prev) => prev.filter((t) => t.id !== itemToDelete.id));
+        setDeletingId(null);
+        setToast({
+          type: "delete",
+          title: "Đã xóa bút toán",
+          message: `Đã xóa giao dịch "${itemToDelete.description}" (${formatCurrency(itemToDelete.amount)}) khỏi sổ quỹ.`
+        });
+      }, 350);
+    } catch (err: any) {
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+      setToast({
+        type: "error",
+        title: "Lỗi xóa bút toán",
+        message: err.message || "Không thể xóa bút toán lúc này."
+      });
     }
   };
 
@@ -133,9 +179,11 @@ export default function FinanceTab() {
     e.preventDefault();
     if (!addForm.amount || !addForm.description) return;
 
+    setIsSubmitting(true);
     try {
+      const generatedId = Date.now().toString();
       const newTransaction: Transaction = {
-        id: Date.now().toString(),
+        id: generatedId,
         date: addForm.date,
         type: addForm.type,
         category: addForm.category,
@@ -144,11 +192,20 @@ export default function FinanceTab() {
         createdBy: 'Admin',
       };
 
-      setTransactions([newTransaction, ...transactions]);
+      setTransactions((prev) => [newTransaction, ...prev]);
       setIsAddModalOpen(false);
+      setHighlightedId(generatedId);
+
+      setToast({
+        type: "success",
+        title: "Tạo bút toán thành công",
+        message: `Đã ghi nhận bút toán ${newTransaction.type === 'INCOME' ? 'Thu' : 'Chi'}: ${formatCurrency(newTransaction.amount)}.`
+      });
+
+      setTimeout(() => setHighlightedId(null), 2500);
 
       // Lưu bút toán vào CSDL Supabase
-      await fetch('/api/transactions', {
+      const res = await fetch('/api/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -160,8 +217,22 @@ export default function FinanceTab() {
           createdBy: newTransaction.createdBy,
         }),
       });
+      const data = await res.json();
+      if (data?.data?.id) {
+        // Cập nhật id thật từ DB nếu có
+        setTransactions((prev) =>
+          prev.map((t) => (t.id === generatedId ? { ...t, id: data.data.id } : t))
+        );
+      }
     } catch (err) {
       console.error('Lỗi tạo bút toán:', err);
+      setToast({
+        type: "error",
+        title: "Lỗi lưu bút toán",
+        message: "Không thể lưu bút toán vào máy chủ."
+      });
+    } finally {
+      setIsSubmitting(false);
     }
 
     setAddForm({
@@ -209,24 +280,38 @@ export default function FinanceTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
-      {/* 1. ERP MODULE HEADER BANNER */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+      {/* Toast Feedback */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xóa bút toán thu chi"
+        itemName={deleteModal.item ? `${deleteModal.item.description} (${formatCurrency(deleteModal.item.amount)})` : ""}
+        itemType="bút toán"
+        isLoading={deleteModal.isLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, item: null, isLoading: false })}
+      />
+
+      {/* 1. Header Toolbar */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
-              <Wallet className="w-6 h-6" />
+            <div className="p-3 bg-gradient-to-br from-emerald-500 via-teal-600 to-indigo-600 rounded-2xl text-white shadow-md shadow-emerald-500/20 shrink-0">
+              <CreditCard className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Sổ Thu Chi & Quỹ Tài Chính Trường
+                  Quản Lý Sổ Quỹ Thu Chi & Dòng Tiền
                 </h1>
-                <span className="text-xs font-extrabold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
-                  Kế toán dòng tiền
+                <span className="text-xs font-extrabold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Tháng {filterMonth}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Quản lý toàn bộ dòng tiền vào - ra, thu học phí và các khoản chi phí vận hành toàn trường.
+                Theo dõi dòng tiền thu học phí, tiền ăn, hoạt động và các khoản mục chi phí trường học.
               </p>
             </div>
           </div>
@@ -234,8 +319,8 @@ export default function FinanceTab() {
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
             <button
               onClick={handleExportExcel}
-              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
-              title="Xuất file Excel CSV"
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Xuất file Excel"
             >
               <Download className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Xuất Excel</span>
@@ -243,8 +328,8 @@ export default function FinanceTab() {
 
             <button
               onClick={handleExportPDF}
-              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
-              title="In PDF sổ quỹ thu chi"
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="In PDF sổ thu chi"
             >
               <Printer className="w-4 h-4 text-slate-500 shrink-0" />
               <span>In PDF</span>
@@ -252,66 +337,62 @@ export default function FinanceTab() {
 
             <button
               onClick={() => setIsAddModalOpen(true)}
-              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-95 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap cursor-pointer"
             >
               <Plus className="w-4 h-4 shrink-0" />
-              <span>Tạo Bút Toán Mới</span>
+              <span>Tạo Bút Toán Thu Chi</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Top Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Thu Tháng</p>
-              <h3 className="text-2xl font-bold text-emerald-600 mt-1">{formatCurrency(totalIncome)}</h3>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Tổng Thu Tháng</p>
+              <h3 className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">{formatCurrency(totalIncome)}</h3>
             </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
               <ArrowUpRight className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-rose-500" />
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Chi Tháng</p>
-              <h3 className="text-2xl font-bold text-rose-600 mt-1">{formatCurrency(totalExpense)}</h3>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Tổng Chi Tháng</p>
+              <h3 className="text-xl sm:text-2xl font-black text-rose-600 mt-1">{formatCurrency(totalExpense)}</h3>
             </div>
-            <div className="p-3 bg-rose-50 text-rose-600 rounded-xl">
+            <div className="p-3 bg-rose-50 text-rose-600 rounded-2xl">
               <ArrowDownRight className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Số Dư Quỹ Hiện Tại</p>
-              <h3 className={`text-2xl font-bold mt-1 ${balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Số Dư Quỹ Hiện Tại</p>
+              <h3 className={`text-xl sm:text-2xl font-black mt-1 ${balance >= 0 ? 'text-slate-800' : 'text-rose-600'}`}>
                 {formatCurrency(balance)}
               </h3>
             </div>
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
               <Wallet className="w-5 h-5" />
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-sky-500" />
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Số Bút Toán</p>
-              <h3 className="text-2xl font-bold text-slate-800 mt-1">{transactionCount} <span className="text-sm font-medium text-slate-500">giao dịch</span></h3>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Số Bút Toán</p>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-800 mt-1">{transactionCount} <span className="text-xs font-bold text-slate-400">giao dịch</span></h3>
             </div>
-            <div className="p-3 bg-sky-50 text-sky-600 rounded-xl">
+            <div className="p-3 bg-sky-50 text-sky-600 rounded-2xl">
               <Calendar className="w-5 h-5" />
             </div>
           </div>
@@ -393,43 +474,55 @@ export default function FinanceTab() {
                   </td>
                 </tr>
               ) : (
-                filteredTransactions.map((item) => (
-                  <tr key={item.id}>
-                    <td className="font-mono text-xs text-slate-500 font-bold">
-                      {item.date}
-                    </td>
-                    <td>
-                      {item.type === 'INCOME' ? (
-                        <span className="badge-pill badge-pill-emerald">
-                          <ArrowUpRight className="w-3.5 h-3.5" /> Thu tiền
-                        </span>
-                      ) : (
-                        <span className="badge-pill badge-pill-rose">
-                          <ArrowDownRight className="w-3.5 h-3.5" /> Chi tiền
-                        </span>
+                filteredTransactions.map((item) => {
+                  const isHighlighted = highlightedId === item.id;
+                  const isDeleting = deletingId === item.id;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={cn(
+                        "transition-all duration-300",
+                        isHighlighted && "animate-row-add",
+                        isDeleting && "animate-row-delete"
                       )}
-                    </td>
-                    <td>
-                      <span className="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-slate-200/60">
-                        {CATEGORY_LABELS[item.category]}
-                      </span>
-                    </td>
-                    <td className="font-semibold text-slate-900">{item.description}</td>
-                    <td className={`font-black text-sm ${item.type === 'INCOME' ? 'text-emerald-700' : 'text-rose-700'}`}>
-                      {item.type === 'INCOME' ? '+' : '-'}{formatCurrency(item.amount)}
-                    </td>
-                    <td className="text-slate-500 text-xs font-semibold">{item.createdBy}</td>
-                    <td className="text-right">
-                      <button
-                        onClick={() => handleDelete(item.id)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Xóa bút toán"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                    >
+                      <td className="font-mono text-xs text-slate-500 font-bold">
+                        {item.date}
+                      </td>
+                      <td>
+                        {item.type === 'INCOME' ? (
+                          <span className="badge-pill badge-pill-emerald">
+                            <ArrowUpRight className="w-3.5 h-3.5" /> Thu tiền
+                          </span>
+                        ) : (
+                          <span className="badge-pill badge-pill-rose">
+                            <ArrowDownRight className="w-3.5 h-3.5" /> Chi tiền
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-slate-200/60">
+                          {CATEGORY_LABELS[item.category]}
+                        </span>
+                      </td>
+                      <td className="font-semibold text-slate-900">{item.description}</td>
+                      <td className={`font-black text-sm ${item.type === 'INCOME' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                        {item.type === 'INCOME' ? '+' : '-'}{formatCurrency(item.amount)}
+                      </td>
+                      <td className="text-slate-500 text-xs font-semibold">{item.createdBy}</td>
+                      <td className="text-right">
+                        <button
+                          onClick={() => handlePromptDelete(item)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-lg transition-all cursor-pointer"
+                          title="Xóa bút toán"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -439,8 +532,8 @@ export default function FinanceTab() {
       {/* Add Transaction Modal */}
       {isAddModalOpen && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-modal-backdrop">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col animate-modal-content">
               {/* Top Ribbon Accent */}
               <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
 
@@ -552,10 +645,20 @@ export default function FinanceTab() {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-60 active:scale-95"
                   >
-                    <Plus className="w-4 h-4" />
-                    Lưu giao dịch tài chính
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang lưu giao dịch...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Lưu giao dịch tài chính</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

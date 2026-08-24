@@ -118,7 +118,12 @@ export default function ReportsTab() {
       item.amount,
       `${item.percentage}%`
     ]);
-    exportToExcel(`Bao_Cao_Doanh_Thu_${timeFilter.replace(/\s+/g, "_")}`, headers, rows);
+    const summary = [
+      { label: "Kỳ báo cáo", value: timeFilter },
+      { label: "Tổng doanh thu thực tế", value: formatCurrency(totalServicesRevenue) },
+      { label: "Số trẻ chưa hoàn tất học phí", value: `${debtList.length} học sinh` }
+    ];
+    exportToExcel(`Bao_Cao_Doanh_Thu_${timeFilter.replace(/\s+/g, "_")}`, headers, rows, summary);
   };
 
   const handleExportPDF = () => {

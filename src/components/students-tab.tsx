@@ -29,15 +29,55 @@ import {
   CreditCard,
   Utensils,
   BookOpen,
+  Loader2,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import { ToastNotification, ConfirmDeleteModal, ToastState } from "@/components/crud-feedback";
 import {
   type TuitionFeeItem,
   getStudentFeeBreakdown,
   getStudentEffectiveAmount,
   saveInvoicePaymentToDB,
 } from "@/lib/tuitionUtils";
+
+export type StudentAcademicStatus = "STUDYING" | "GRADUATED" | "RESERVED" | "TRANSFERRED" | "DROPPED";
+
+export const STUDENT_STATUS_MAP: Record<
+  StudentAcademicStatus,
+  { label: string; bg: string; dot: string; icon: string }
+> = {
+  STUDYING: {
+    label: "Đang học",
+    bg: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dot: "bg-emerald-500",
+    icon: "🟢",
+  },
+  GRADUATED: {
+    label: "Đã ra trường",
+    bg: "bg-purple-50 text-purple-700 border-purple-200",
+    dot: "bg-purple-500",
+    icon: "🎓",
+  },
+  RESERVED: {
+    label: "Bảo lưu",
+    bg: "bg-amber-50 text-amber-700 border-amber-200",
+    dot: "bg-amber-500",
+    icon: "⏸️",
+  },
+  TRANSFERRED: {
+    label: "Chuyển trường",
+    bg: "bg-blue-50 text-blue-700 border-blue-200",
+    dot: "bg-blue-500",
+    icon: "🔄",
+  },
+  DROPPED: {
+    label: "Đã nghỉ học",
+    bg: "bg-slate-100 text-slate-700 border-slate-300",
+    dot: "bg-slate-500",
+    icon: "🔴",
+  },
+};
 
 interface StudentRecord {
   id: string;
@@ -62,6 +102,7 @@ interface StudentRecord {
   address?: string;
   joinDate?: string;
   enrollmentDate?: string;
+  status?: StudentAcademicStatus;
   tuitionStatus: "PAID" | "UNPAID" | "OVERDUE";
   amount: number;
   invoice?: any;
@@ -99,6 +140,22 @@ export default function StudentsTab() {
   const [showAddClassModal, setShowAddClassModal] = useState(false);
   const [selectedStudentDetail, setSelectedStudentDetail] = useState<StudentRecord | null>(null);
 
+  // CRUD Animation & Feedback states
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [highlightType, setHighlightType] = useState<"add" | "edit">("add");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    student: StudentRecord | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    student: null,
+    isLoading: false,
+  });
+
   const initialStudentForm = {
     id: "",
     code: "",
@@ -109,7 +166,8 @@ export default function StudentsTab() {
     nationality: "Việt Nam",
     residence: "",
     className: "12 – 24 tháng",
-    enrollmentDate: new Date().toISOString().split("T")[0],
+    enrollmentDate: "",
+    status: "STUDYING" as StudentAcademicStatus,
     fatherName: "",
     fatherJob: "",
     fatherPhone: "",
@@ -173,7 +231,7 @@ export default function StudentsTab() {
 
           const enrollDateStr = st.enrollmentDate
             ? new Date(st.enrollmentDate).toISOString().split("T")[0]
-            : (st.createdAt ? new Date(st.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0]);
+            : "";
 
           return {
             id: st.id,
@@ -198,6 +256,7 @@ export default function StudentsTab() {
             address: st.address || st.residence || "TP. Hồ Chí Minh",
             joinDate: enrollDateStr,
             enrollmentDate: enrollDateStr,
+            status: (st.status || "STUDYING") as StudentAcademicStatus,
             tuitionStatus: (inv?.status as any) || "UNPAID",
             amount: effAmount,
             invoice: inv,
@@ -220,7 +279,7 @@ export default function StudentsTab() {
   const filteredStudents = useMemo(() => {
     return students.filter((s) => {
       const matchClass = selectedClassFilter === "ALL" || s.className === selectedClassFilter;
-      const matchStatus = selectedStatusFilter === "ALL" || s.tuitionStatus === selectedStatusFilter;
+      const matchStatus = selectedStatusFilter === "ALL" || (s.status || "STUDYING") === selectedStatusFilter;
       const matchSearch =
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.parentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -242,7 +301,8 @@ export default function StudentsTab() {
     setStudentModalTab("student");
     setStudentForm({
       ...initialStudentForm,
-      enrollmentDate: new Date().toISOString().split("T")[0],
+      enrollmentDate: "",
+      status: "STUDYING",
       className: classes[0]?.name || "12 – 24 tháng",
     });
     setShowStudentModal(true);
@@ -262,7 +322,8 @@ export default function StudentsTab() {
       nationality: st.nationality || "Việt Nam",
       residence: st.residence || st.address || "",
       className: st.className || "12 – 24 tháng",
-      enrollmentDate: st.enrollmentDate || st.joinDate || new Date().toISOString().split("T")[0],
+      enrollmentDate: st.enrollmentDate || "",
+      status: (st.status || "STUDYING") as StudentAcademicStatus,
       fatherName: st.fatherName || "",
       fatherJob: st.fatherJob || "",
       fatherPhone: st.fatherPhone || "",
@@ -276,13 +337,58 @@ export default function StudentsTab() {
     setShowStudentModal(true);
   };
 
+  // Prompt Delete Confirmation Modal
+  const handlePromptDelete = (student: StudentRecord) => {
+    setDeleteModal({
+      isOpen: true,
+      student,
+      isLoading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.student) return;
+    const studentToDelete = deleteModal.student;
+    setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      await fetch(`/api/students?id=${studentToDelete.id}`, { method: "DELETE" });
+
+      setDeletingId(studentToDelete.id);
+      setDeleteModal({ isOpen: false, student: null, isLoading: false });
+
+      setTimeout(() => {
+        setStudents((prev) => prev.filter((s) => s.id !== studentToDelete.id));
+        setDeletingId(null);
+        setToast({
+          type: "delete",
+          title: "Đã xóa hồ sơ",
+          message: `Đã xóa học sinh "${studentToDelete.name}" khỏi hệ thống CSDL.`
+        });
+      }, 350);
+    } catch (e) {
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+      setToast({
+        type: "error",
+        title: "Lỗi xóa học sinh",
+        message: "Không thể xóa hồ sơ học sinh lúc này."
+      });
+    }
+  };
+
   // Lưu học sinh (Thêm mới hoặc Cập nhật)
   const handleSaveStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentForm.name.trim()) {
-      alert("Vui lòng nhập họ và tên của học sinh!");
+      setToast({
+        type: "error",
+        title: "Thiếu thông tin",
+        message: "Vui lòng nhập họ và tên của học sinh!"
+      });
       return;
     }
+
+    setIsSubmitting(true);
 
     // Tự động suy ra tên và SĐT liên hệ chính nếu chưa điền
     const finalParentName =
@@ -331,6 +437,7 @@ export default function StudentsTab() {
         parentPhone: finalParentPhone,
         address: finalAddress,
         enrollmentDate: studentForm.enrollmentDate,
+        status: studentForm.status || "STUDYING",
       };
 
       const res = await fetch("/api/students", {
@@ -341,14 +448,22 @@ export default function StudentsTab() {
 
       const data = await res.json();
       if (data.id || data.success || data.data) {
-        alert(
-          isEditingStudent
-            ? "🎉 Đã cập nhật thông tin học sinh và phụ huynh thành công!"
-            : "🎉 Đã tiếp nhận hồ sơ học sinh & thông tin phụ huynh thành công!"
-        );
         setShowStudentModal(false);
+        const targetId = data.id || data.data?.id || studentForm.id;
+        setHighlightType(isEditingStudent ? "edit" : "add");
+        setHighlightedId(targetId);
+
+        setToast({
+          type: "success",
+          title: isEditingStudent ? "Cập nhật hồ sơ thành công" : "Tiếp nhận học sinh mới",
+          message: isEditingStudent
+            ? `Đã cập nhật hồ sơ học sinh "${studentForm.name}".`
+            : `Đã lưu hồ sơ học sinh "${studentForm.name}" vào lớp ${studentForm.className}.`
+        });
+
+        setTimeout(() => setHighlightedId(null), 2500);
+
         if (selectedStudentDetail && selectedStudentDetail.id === studentForm.id) {
-          // Cập nhật selectedStudentDetail nếu đang mở
           setSelectedStudentDetail((prev) =>
             prev
               ? {
@@ -362,23 +477,21 @@ export default function StudentsTab() {
         }
         loadData();
       } else {
-        alert(data.error || "Không thể lưu thông tin học sinh.");
+        setToast({
+          type: "error",
+          title: "Lỗi lưu hồ sơ",
+          message: data.error || "Không thể lưu thông tin học sinh."
+        });
       }
     } catch (err) {
       console.error(err);
-      alert("Không thể lưu thông tin học sinh.");
-    }
-  };
-
-  // Xóa học sinh
-  const handleDeleteStudent = async (id: string, name: string) => {
-    if (!confirm(`Bạn có chắc chắn muốn xóa học sinh "${name}" khỏi hệ thống?`)) return;
-    try {
-      await fetch(`/api/students?id=${id}`, { method: "DELETE" });
-      setStudents((prev) => prev.filter((s) => s.id !== id));
-      alert(`Đã xóa học sinh "${name}" thành công!`);
-    } catch (e) {
-      alert("Lỗi khi xóa học sinh.");
+      setToast({
+        type: "error",
+        title: "Lỗi lưu hồ sơ",
+        message: "Không thể lưu thông tin học sinh lên máy chủ."
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -469,7 +582,7 @@ export default function StudentsTab() {
       s.parentPhone,
       s.address || "",
       formatCurrency(s.amount),
-      s.tuitionStatus === "PAID" ? "Đã đóng" : s.tuitionStatus === "OVERDUE" ? "Quá hạn" : "Chưa đóng",
+      STUDENT_STATUS_MAP[s.status || "STUDYING"]?.label || "Đang học",
     ]);
     exportToExcel("Danh_Sach_Hoc_Sinh_Toan_Truong", headers, rows);
   };
@@ -494,13 +607,27 @@ export default function StudentsTab() {
       s.fatherName ? `${s.fatherName} (${s.fatherPhone || s.fatherJob || "---"})` : "---",
       s.motherName ? `${s.motherName} (${s.motherPhone || s.motherJob || "---"})` : "---",
       s.residence || s.address || "---",
-      s.tuitionStatus === "PAID" ? "Đã đóng" : "Chưa đóng",
+      STUDENT_STATUS_MAP[s.status || "STUDYING"]?.label || "Đang học",
     ]);
     exportToPDF("DANH SÁCH HỌC SINH MẦM NON", headers, rows);
   };
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Toast Feedback */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xóa học sinh"
+        itemName={deleteModal.student ? `${deleteModal.student.name} (${deleteModal.student.code || 'HS'})` : ""}
+        itemType="hồ sơ học sinh"
+        isLoading={deleteModal.isLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, student: null, isLoading: false })}
+      />
+
       {/* ========================================================================= */}
       {/* 1. ERP MODULE HEADER BANNER */}
       {/* ========================================================================= */}
@@ -609,10 +736,12 @@ export default function StudentsTab() {
                 onChange={(e) => setSelectedStatusFilter(e.target.value)}
                 className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold text-slate-700 focus:outline-none"
               >
-                <option value="ALL">Tất cả trạng thái học phí</option>
-                <option value="PAID">Đã thanh toán</option>
-                <option value="UNPAID">Chưa thanh toán</option>
-                <option value="OVERDUE">Quá hạn</option>
+                <option value="ALL">Tất cả trạng thái học tập</option>
+                <option value="STUDYING">🟢 Đang học</option>
+                <option value="GRADUATED">🎓 Đã ra trường</option>
+                <option value="RESERVED">⏸️ Bảo lưu</option>
+                <option value="TRANSFERRED">🔄 Chuyển trường</option>
+                <option value="DROPPED">🔴 Đã nghỉ học</option>
               </select>
             </div>
 
@@ -644,7 +773,6 @@ export default function StudentsTab() {
                     <th className="py-3.5 px-4">Lớp Học</th>
                     <th className="py-3.5 px-4">Thông Tin Cha & Mẹ</th>
                     <th className="py-3.5 px-4">Cư Trú & SĐT Liên Hệ</th>
-                    <th className="py-3.5 px-4">Học Phí</th>
                     <th className="py-3.5 px-4">Trạng Thái</th>
                     <th className="py-3.5 px-4 text-right">Thao Tác</th>
                   </tr>
@@ -652,112 +780,118 @@ export default function StudentsTab() {
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {filteredStudents.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="text-center py-12 text-slate-400">
+                      <td colSpan={6} className="text-center py-12 text-slate-400">
                         {isLoading ? "Đang tải danh sách học sinh..." : "Chưa có học sinh nào phù hợp bộ lọc."}
                       </td>
                     </tr>
                   ) : (
-                    filteredStudents.map((st) => (
-                      <tr key={st.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-xs shadow-sm">
-                              {st.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                                <span>{st.name}</span>
-                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
-                                  st.gender === "Nữ" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
-                                }`}>
-                                  {st.gender || "Nam"}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono font-medium mt-0.5">
-                                <span>Mã: <strong className="text-indigo-600 font-bold">{st.code}</strong></span>
-                                <span>•</span>
-                                <span>Dân tộc: {st.ethnicity || "Kinh"}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-xl text-xs border border-indigo-100">
-                            Lớp {st.className}
-                          </span>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="space-y-0.5">
-                            {st.fatherName ? (
-                              <div className="text-[11px] text-slate-700">
-                                <span className="font-bold text-slate-800">Cha:</span> {st.fatherName}
-                                {st.fatherJob && <span className="text-slate-400 text-[10px]"> ({st.fatherJob})</span>}
-                              </div>
-                            ) : null}
-                            {st.motherName ? (
-                              <div className="text-[11px] text-slate-700">
-                                <span className="font-bold text-slate-800">Mẹ:</span> {st.motherName}
-                                {st.motherJob && <span className="text-slate-400 text-[10px]"> ({st.motherJob})</span>}
-                              </div>
-                            ) : null}
-                            {!st.fatherName && !st.motherName && (
-                              <div className="text-[11px] font-bold text-slate-800">{st.parentName}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4">
-                          <div className="font-bold text-indigo-600 font-mono flex items-center gap-1">
-                            <Phone className="w-3 h-3 text-slate-400" /> {st.parentPhone}
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate max-w-[180px]" title={st.residence || st.address || ""}>
-                            {st.residence || st.address || "---"}
-                          </div>
-                        </td>
-                        <td className="py-3.5 px-4 font-black text-slate-900 text-sm">
-                          {formatCurrency(st.amount)}
-                        </td>
-                        <td className="py-3.5 px-4">
-                          {st.tuitionStatus === "PAID" ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Đã đóng
-                            </span>
-                          ) : st.tuitionStatus === "OVERDUE" ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                              <XCircle className="w-3 h-3 text-rose-600" /> Quá hạn
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                              <AlertTriangle className="w-3 h-3 text-amber-600" /> Chưa đóng
-                            </span>
+                    filteredStudents.map((st) => {
+                      const isHighlighted = highlightedId === st.id;
+                      const isDeleting = deletingId === st.id;
+
+                      return (
+                        <tr
+                          key={st.id}
+                          className={cn(
+                            "hover:bg-slate-50/80 transition-all duration-300",
+                            isHighlighted && (highlightType === "add" ? "animate-row-add" : "animate-row-edit"),
+                            isDeleting && "animate-row-delete"
                           )}
-                        </td>
-                        <td className="py-3.5 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => setSelectedStudentDetail(st)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-colors cursor-pointer"
-                              title="Xem hồ sơ 360 độ"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditModal(st)}
-                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors cursor-pointer"
-                              title="Chỉnh sửa thông tin học sinh & phụ huynh"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteStudent(st.id, st.name)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                              title="Xóa học sinh"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-xs shadow-sm">
+                                {st.name.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
+                                  <span>{st.name}</span>
+                                  <span className={`text-[10px] px-1.5 py-0.2 rounded font-bold ${
+                                    st.gender === "Nữ" ? "bg-rose-50 text-rose-600" : "bg-blue-50 text-blue-600"
+                                  }`}>
+                                    {st.gender || "Nam"}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 font-mono font-medium mt-0.5">
+                                  <span>Mã: <strong className="text-indigo-600 font-bold">{st.code}</strong></span>
+                                  <span>•</span>
+                                  <span>Dân tộc: {st.ethnicity || "Kinh"}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span className="inline-block bg-indigo-50 text-indigo-700 font-bold px-2.5 py-1 rounded-xl text-xs border border-indigo-100">
+                              Lớp {st.className}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="space-y-0.5">
+                              {st.fatherName ? (
+                                <div className="text-[11px] text-slate-700">
+                                  <span className="font-bold text-slate-800">Ba:</span> {st.fatherName}
+                                  {st.fatherJob && <span className="text-slate-400 text-[10px]"> ({st.fatherJob})</span>}
+                                </div>
+                              ) : null}
+                              {st.motherName ? (
+                                <div className="text-[11px] text-slate-700">
+                                  <span className="font-bold text-slate-800">Mẹ:</span> {st.motherName}
+                                  {st.motherJob && <span className="text-slate-400 text-[10px]"> ({st.motherJob})</span>}
+                                </div>
+                              ) : null}
+                              {!st.fatherName && !st.motherName && (
+                                <div className="text-[11px] font-bold text-slate-800">{st.parentName}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-indigo-600 font-mono flex items-center gap-1">
+                              <Phone className="w-3 h-3 text-slate-400" /> {st.parentPhone}
+                            </div>
+                            <div className="text-[11px] text-slate-500 truncate max-w-[180px]" title={st.residence || st.address || ""}>
+                              {st.residence || st.address || "---"}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {(() => {
+                              const currStatus = (st.status || "STUDYING") as StudentAcademicStatus;
+                              const conf = STUDENT_STATUS_MAP[currStatus] || STUDENT_STATUS_MAP.STUDYING;
+                              return (
+                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold border ${conf.bg}`}>
+                                  <span>{conf.icon}</span>
+                                  <span>{conf.label}</span>
+                                </span>
+                              );
+                            })()}
+                          </td>
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => setSelectedStudentDetail(st)}
+                                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 active:scale-90 rounded-xl transition-all cursor-pointer"
+                                title="Xem hồ sơ 360 độ"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleOpenEditModal(st)}
+                                className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 active:scale-90 rounded-xl transition-all cursor-pointer"
+                                title="Chỉnh sửa thông tin học sinh & phụ huynh"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handlePromptDelete(st)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-xl transition-all cursor-pointer"
+                                title="Xóa học sinh"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -832,8 +966,8 @@ export default function StudentsTab() {
       {/* ========================================================================= */}
       {showStudentModal && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-fadeIn my-8">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-modal-backdrop">
+            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 animate-modal-content my-8">
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <div className="flex items-center gap-2.5">
                   <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl">
@@ -888,7 +1022,7 @@ export default function StudentsTab() {
                 {/* TAB 1: THÔNG TIN HỌC SINH */}
                 {studentModalTab === "student" && (
                   <div className="space-y-3.5 animate-fadeIn">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       <div>
                         <label className="font-bold text-slate-700 block mb-1">
                           Mã học sinh <span className="text-slate-400 font-normal">(Tùy chọn)</span>
@@ -919,7 +1053,7 @@ export default function StudentsTab() {
                       </div>
                       <div>
                         <label className="font-bold text-slate-700 block mb-1">
-                          Ngày nhập học <span className="text-indigo-600">*</span>
+                          Ngày nhập học <span className="text-slate-400 font-normal">(Tùy chọn)</span>
                         </label>
                         <input
                           type="date"
@@ -927,6 +1061,22 @@ export default function StudentsTab() {
                           onChange={(e) => setStudentForm({ ...studentForm, enrollmentDate: e.target.value })}
                           className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-indigo-700 focus:outline-none focus:border-indigo-500"
                         />
+                      </div>
+                      <div>
+                        <label className="font-bold text-slate-700 block mb-1">
+                          Trạng thái học tập <span className="text-indigo-600">*</span>
+                        </label>
+                        <select
+                          value={studentForm.status}
+                          onChange={(e) => setStudentForm({ ...studentForm, status: e.target.value as any })}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="STUDYING">🟢 Đang học</option>
+                          <option value="GRADUATED">🎓 Đã ra trường</option>
+                          <option value="RESERVED">⏸️ Bảo lưu</option>
+                          <option value="TRANSFERRED">🔄 Chuyển trường</option>
+                          <option value="DROPPED">🔴 Đã nghỉ học</option>
+                        </select>
                       </div>
                     </div>
 
@@ -1177,9 +1327,17 @@ export default function StudentsTab() {
                     )}
                     <button
                       type="submit"
-                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-600/20 cursor-pointer"
+                      disabled={isSubmitting}
+                      className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-60 flex items-center gap-2"
                     >
-                      {isEditingStudent ? "Cập Nhật Hồ Sơ" : "Lưu Hồ Sơ Hoàn Tất"}
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Đang lưu...</span>
+                        </>
+                      ) : (
+                        <span>{isEditingStudent ? "Cập Nhật Hồ Sơ" : "Lưu Hồ Sơ Hoàn Tất"}</span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1281,6 +1439,15 @@ export default function StudentsTab() {
                       }`}>
                         {selectedStudentDetail.gender || "Nam"}
                       </span>
+                      {(() => {
+                        const currStatus = (selectedStudentDetail.status || "STUDYING") as StudentAcademicStatus;
+                        const conf = STUDENT_STATUS_MAP[currStatus] || STUDENT_STATUS_MAP.STUDYING;
+                        return (
+                          <span className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold border ${conf.bg}`}>
+                            {conf.icon} {conf.label}
+                          </span>
+                        );
+                      })()}
                     </h3>
                     <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 mt-0.5">
                       <span className="bg-indigo-50 px-2 py-0.5 rounded-md font-mono">
@@ -1348,6 +1515,12 @@ export default function StudentsTab() {
                     <div className="flex justify-between py-1 border-b border-slate-200/60">
                       <span className="text-slate-500 font-bold">Ngày nhập học:</span>
                       <span className="font-extrabold text-emerald-700">{selectedStudentDetail.enrollmentDate || selectedStudentDetail.joinDate || "---"}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-200/60">
+                      <span className="text-slate-500 font-bold">Trạng thái:</span>
+                      <span className="font-extrabold text-slate-900">
+                        {STUDENT_STATUS_MAP[(selectedStudentDetail.status || "STUDYING") as StudentAcademicStatus]?.label || "Đang học"}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-start justify-between pt-1">
@@ -1424,11 +1597,11 @@ export default function StudentsTab() {
                 {/* 3. CHI TIẾT BÓC TÁCH HỌC PHÍ */}
                 {(() => {
                   const breakdown = getStudentFeeBreakdown(
-                    selectedStudentDetail.className,
+                    selectedStudentDetail,
                     feeItems,
-                    22,
                     selectedStudentDetail.invoice
                   );
+                  const itemsToShow = breakdown.items || [];
                   return (
                     <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
                       <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-1 border-b border-slate-200">
@@ -1436,12 +1609,12 @@ export default function StudentsTab() {
                         <span>Định mức</span>
                       </div>
                       <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                        {breakdown.monthlyItems.map((item, idx) => (
+                        {itemsToShow.map((item: any, idx: number) => (
                           <div key={item.id || idx} className="flex justify-between items-center text-[11px]">
                             <div className="flex items-center gap-1.5">
                               <span className="text-slate-600 font-medium">{item.name}:</span>
-                              {item.isElective && (
-                                <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-bold">Năng khiếu</span>
+                              {item.categoryName && item.categoryName !== "Gói học phí chuẩn" && (
+                                <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.2 rounded font-bold">Tự chọn</span>
                               )}
                             </div>
                             <span className="font-bold text-slate-800">{formatCurrency(item.amount)}</span>
@@ -1479,9 +1652,8 @@ export default function StudentsTab() {
                           const stId = selectedStudentDetail.id;
                           const stAmount = selectedStudentDetail.amount;
                           const breakdown = getStudentFeeBreakdown(
-                            selectedStudentDetail.className,
+                            selectedStudentDetail,
                             feeItems,
-                            22,
                             selectedStudentDetail.invoice
                           );
 
@@ -1490,13 +1662,15 @@ export default function StudentsTab() {
                             prev.map((s) => (s.id === stId ? { ...s, tuitionStatus: "PAID" } : s))
                           );
 
-                          await saveInvoicePaymentToDB({
-                            studentId: stId,
-                            status: "PAID",
-                            amount: stAmount,
-                            paymentMethod: "CASH",
-                            breakdownJson: JSON.stringify(breakdown),
-                          });
+                          await saveInvoicePaymentToDB(
+                            stId,
+                            new Date().getMonth() + 1,
+                            new Date().getFullYear(),
+                            stAmount,
+                            "PAID",
+                            "CASH",
+                            breakdown
+                          );
                         }}
                         className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer"
                       >
@@ -1513,11 +1687,14 @@ export default function StudentsTab() {
                             prev.map((s) => (s.id === stId ? { ...s, tuitionStatus: "UNPAID" } : s))
                           );
 
-                          await saveInvoicePaymentToDB({
-                            studentId: stId,
-                            status: "UNPAID",
-                            amount: stAmount,
-                          });
+                          await saveInvoicePaymentToDB(
+                            stId,
+                            new Date().getMonth() + 1,
+                            new Date().getFullYear(),
+                            stAmount,
+                            "UNPAID",
+                            "CASH"
+                          );
                         }}
                         className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
                       >

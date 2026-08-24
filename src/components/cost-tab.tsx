@@ -15,10 +15,12 @@ import {
   PieChart,
   Store,
   X,
-  Download
+  Download,
+  Loader2
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, cn } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import { ToastNotification, ConfirmDeleteModal, ToastState } from "@/components/crud-feedback";
 
 interface IngredientCost {
   id: string;
@@ -41,6 +43,21 @@ export default function CostTab() {
   const [ingredients, setIngredients] = useState<IngredientCost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // CRUD Animation & Feedback states
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    item: IngredientCost | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    item: null,
+    isLoading: false,
+  });
+
   const [newIngredient, setNewIngredient] = useState({
     code: "",
     name: "",
@@ -58,46 +75,56 @@ export default function CostTab() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          const mapped: IngredientCost[] = data.map((item: any, idx: number) => {
-            const rawCode = item.name.match(/\[(.*?)\]/)?.[1] || `TP00${idx + 1}`;
-            const cleanName = item.name.replace(/\[.*?\]/, "").trim();
+          const mapped: IngredientCost[] = data.map((item: any) => {
+            const rawName = item.name || "Nguyên liệu";
+            const codeMatch = rawName.match(/^\[(.*?)\]/);
+            const cleanName = rawName.replace(/^\[.*?\]\s*/, "");
+            const code = codeMatch ? codeMatch[1] : `TP0${item.id}`;
+            const unitPrice = item.unitPrice || 0;
+            const quantity = item.quantity || 0;
+
+            let supplier = "Chợ đầu mối";
+            if (item.notes && item.notes.includes("Nhà cung cấp: ")) {
+              supplier = item.notes.replace("Nhà cung cấp: ", "").trim();
+            }
+
+            let category = "Rau củ & Gia vị";
+            if (cleanName.includes("Thịt") || cleanName.includes("Cá") || cleanName.includes("Tôm") || cleanName.includes("Trứng")) {
+              category = "Thịt & Thức ăn chính";
+            } else if (cleanName.includes("Sữa") || cleanName.includes("Bánh") || cleanName.includes("Sữa chua")) {
+              category = "Sữa & Bữa phụ";
+            }
+
             return {
-              id: item.id,
-              code: rawCode,
+              id: item.id.toString(),
+              code,
               name: cleanName,
-              quantity: item.quantity,
-              unit: item.unit,
-              unitPrice: item.unitPrice,
-              total: item.totalCost || item.quantity * item.unitPrice,
-              supplier: item.notes?.replace("Nhà cung cấp: ", "") || "Chợ đầu mối",
-              date: item.date ? item.date.split("T")[0] : new Date().toISOString().split("T")[0],
-              category: idx % 2 === 0 ? "Thịt & Thức ăn chính" : "Rau củ & Gia vị",
+              quantity,
+              unit: item.unit || "kg",
+              unitPrice,
+              total: quantity * unitPrice,
+              supplier,
+              date: item.date ? item.date.split("T")[0] : "2026-08-10",
+              category,
             };
           });
           setIngredients(mapped);
-        } else {
-          setIngredients([
-            { id: "1", code: "TP001", name: "Thịt heo nạc đùi", quantity: 15, unit: "kg", unitPrice: 120000, total: 1800000, supplier: "Cửa hàng A", category: "Thịt & Thức ăn chính", date: "2026-08-01" },
-            { id: "2", code: "TP002", name: "Cá lóc phi lê tươi", quantity: 10, unit: "kg", unitPrice: 140000, total: 1400000, supplier: "Công ty Thực phẩm Sạch B", category: "Thịt & Thức ăn chính", date: "2026-08-02" },
-            { id: "3", code: "TP003", name: "Sữa tươi Vinamilk 100%", quantity: 3, unit: "thùng", unitPrice: 380000, total: 1140000, supplier: "Đại lý Vinamilk C", category: "Sữa & Đồ uống", date: "2026-08-03" },
-          ]);
         }
-        setIsLoading(false);
       })
-      .catch((err) => {
-        console.error("Lỗi tải nguyên liệu kho:", err);
-        setIsLoading(false);
-      });
+      .catch((err) => console.error("Lỗi tải thực phẩm từ DB:", err))
+      .finally(() => setIsLoading(false));
   }, []);
 
   const handleAddIngredient = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIngredient.name || newIngredient.quantity <= 0 || newIngredient.unitPrice <= 0) return;
 
+    setIsSubmitting(true);
     const total = newIngredient.quantity * newIngredient.unitPrice;
+    const generatedId = Date.now().toString();
     const addedCode = newIngredient.code || `TP0${ingredients.length + 10}`;
     const added: IngredientCost = {
-      id: Date.now().toString(),
+      id: generatedId,
       code: addedCode,
       name: newIngredient.name,
       quantity: Number(newIngredient.quantity),
@@ -109,11 +136,20 @@ export default function CostTab() {
       category: newIngredient.category,
     };
 
-    setIngredients([added, ...ingredients]);
+    setIngredients((prev) => [added, ...prev]);
     setShowAddModal(false);
+    setHighlightedId(generatedId);
+
+    setToast({
+      type: "success",
+      title: "Nhập kho thành công",
+      message: `Đã thêm thực phẩm "${added.name}" (${added.quantity} ${added.unit}) vào kho bếp.`
+    });
+
+    setTimeout(() => setHighlightedId(null), 2500);
 
     try {
-      await fetch("/api/ingredients", {
+      const res = await fetch("/api/ingredients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -125,21 +161,61 @@ export default function CostTab() {
           date: added.date,
         }),
       });
+      const data = await res.json();
+      if (data?.data?.id) {
+        setIngredients((prev) =>
+          prev.map((item) => (item.id === generatedId ? { ...item, id: data.data.id.toString() } : item))
+        );
+      }
     } catch (err) {
       console.error("Lỗi lưu thực phẩm vào DB:", err);
+      setToast({
+        type: "error",
+        title: "Lỗi lưu kho",
+        message: "Không thể lưu dữ liệu nguyên liệu lên máy chủ."
+      });
+    } finally {
+      setIsSubmitting(false);
     }
 
     setNewIngredient({ code: "", name: "", quantity: 0, unit: "kg", unitPrice: 0, supplier: "Cửa hàng A", category: "Thịt & Thức ăn chính", date: new Date().toISOString().split("T")[0] });
   };
 
-  const handleDeleteIngredient = async (id: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa thực phẩm này khỏi CSDL?")) {
-      setIngredients(ingredients.filter((item) => item.id !== id));
-      try {
-        await fetch(`/api/ingredients?id=${id}`, { method: "DELETE" });
-      } catch (err) {
-        console.error("Lỗi xóa thực phẩm khỏi DB:", err);
-      }
+  const handlePromptDelete = (item: IngredientCost) => {
+    setDeleteModal({
+      isOpen: true,
+      item,
+      isLoading: false,
+    });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.item) return;
+    const itemToDelete = deleteModal.item;
+    setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      await fetch(`/api/ingredients?id=${itemToDelete.id}`, { method: "DELETE" });
+
+      setDeletingId(itemToDelete.id);
+      setDeleteModal({ isOpen: false, item: null, isLoading: false });
+
+      setTimeout(() => {
+        setIngredients((prev) => prev.filter((item) => item.id !== itemToDelete.id));
+        setDeletingId(null);
+        setToast({
+          type: "delete",
+          title: "Đã xóa thực phẩm",
+          message: `Đã xóa mặt hàng "${itemToDelete.name}" khỏi danh mục kho bếp.`
+        });
+      }, 350);
+    } catch (err: any) {
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+      setToast({
+        type: "error",
+        title: "Lỗi xóa thực phẩm",
+        message: err.message || "Không thể xóa thực phẩm lúc này."
+      });
     }
   };
 
@@ -162,7 +238,12 @@ export default function CostTab() {
       item.supplier || "Chợ đầu mối",
       item.date
     ]);
-    exportToExcel(`Chi_Phi_Bep_Kho_Thuc_Pham_${selectedMonth}`, headers, rows);
+    const summary = [
+      { label: "Tháng báo cáo", value: selectedMonth },
+      { label: "Tổng chi phí thực tế", value: formatCurrency(totalMonthlyCost) },
+      { label: "Số mặt hàng xuất/nhập", value: `${filteredIngredients.length} loại` }
+    ];
+    exportToExcel(`Chi_Phi_Bep_Kho_Thuc_Pham_${selectedMonth}`, headers, rows, summary);
   };
 
   const handleExportPDF = () => {
@@ -178,16 +259,35 @@ export default function CostTab() {
     ]);
     const summary = [
       { label: "Tháng báo cáo", value: selectedMonth },
-      { label: "Tổng số mặt hàng nhập kho", value: `${filteredIngredients.length} thực phẩm` },
-      { label: "Tổng chi phí bếp", value: formatCurrency(totalMonthlyCost) }
+      { label: "Tổng chi phí thực tế", value: formatCurrency(totalMonthlyCost) },
+      { label: "Số mặt hàng xuất/nhập", value: `${filteredIngredients.length} loại` }
     ];
-    exportToPDF(`BÁO CÁO CHI PHÍ BẾP & KHO THỰC PHẨM - THÁNG ${selectedMonth}`, headers, rows, summary);
+    exportToPDF(
+      `BÁO CÁO CHI PHÍ BẾP & KHO NGUYÊN LIỆU THỰC PHẨM - THÁNG ${selectedMonth}`,
+      headers,
+      rows,
+      summary
+    );
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn pb-12">
-      {/* 1. ERP MODULE HEADER BANNER */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+    <div className="space-y-6 animate-fadeIn pb-12 font-sans">
+      {/* Toast Feedback */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xóa thực phẩm"
+        itemName={deleteModal.item ? `${deleteModal.item.name} (${deleteModal.item.quantity} ${deleteModal.item.unit})` : ""}
+        itemType="mặt hàng thực phẩm"
+        isLoading={deleteModal.isLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, item: null, isLoading: false })}
+      />
+
+      {/* 1. Header Toolbar */}
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-amber-500 via-orange-500 to-amber-600 rounded-2xl text-white shadow-md shadow-amber-500/20 shrink-0">
@@ -196,14 +296,14 @@ export default function CostTab() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Chi Phí Thực Phẩm & Mua Sắm Bếp Ăn
+                  Quản Lý Chi Phí & Định Mức Bếp Ăn
                 </h1>
                 <span className="text-xs font-extrabold bg-amber-50 text-amber-700 px-2.5 py-0.5 rounded-full border border-amber-200">
-                  Kho nguyên liệu
+                  Tháng {selectedMonth}
                 </span>
               </div>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Quản lý kho nguyên liệu, tính toán tự động Thành tiền = Số lượng × Đơn giá và Nhà cung cấp.
+                Quản lý kho nguyên liệu, tính toán định mức suất ăn và đối soát công nợ nhà cung cấp thực phẩm.
               </p>
             </div>
           </div>
@@ -211,8 +311,8 @@ export default function CostTab() {
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
             <button
               onClick={handleExportExcel}
-              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
-              title="Xuất file Excel CSV"
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Xuất file Excel"
             >
               <Download className="w-4 h-4 text-emerald-600 shrink-0" />
               <span>Xuất Excel</span>
@@ -220,8 +320,8 @@ export default function CostTab() {
 
             <button
               onClick={handleExportPDF}
-              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs whitespace-nowrap flex-1 sm:flex-initial cursor-pointer"
-              title="In PDF báo cáo kho"
+              className="h-9 px-3.5 inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="In PDF chi phí bếp"
             >
               <Printer className="w-4 h-4 text-slate-500 shrink-0" />
               <span>In PDF</span>
@@ -229,154 +329,159 @@ export default function CostTab() {
 
             <button
               onClick={() => setShowAddModal(true)}
-              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl text-xs font-extrabold shadow-md shadow-amber-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 active:scale-95 text-white rounded-xl text-xs font-extrabold shadow-md shadow-amber-500/20 transition-all whitespace-nowrap cursor-pointer"
             >
               <Plus className="w-4 h-4 shrink-0" />
-              <span>Thêm Thực Phẩm</span>
+              <span>Nhập Thực Phẩm Kho</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Top Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-indigo-500" />
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tổng Giá Trị Nhập Kho</span>
-            <h3 className="text-2xl font-extrabold text-indigo-600 mt-1">
-              {formatCurrency(totalMonthlyCost)}
-            </h3>
-            <span className="text-xs text-slate-500 font-medium mt-1 block">Tự động cộng dồn nguyên liệu</span>
-          </div>
-          <div className="p-4 rounded-xl bg-indigo-50 text-indigo-600">
-            <Calculator className="w-6 h-6" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Tổng Chi Thực Phẩm Tháng</p>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{formatCurrency(totalMonthlyCost)}</h3>
+            </div>
+            <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+              <DollarSign className="w-5 h-5" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-emerald-500" />
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Số Loại Thực Phẩm</span>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">{filteredIngredients.length} <span className="text-sm font-medium text-slate-500">mặt hàng</span></h3>
-            <span className="text-xs text-emerald-600 font-medium mt-1 block">✓ Đầy đủ dinh dưỡng</span>
-          </div>
-          <div className="p-4 rounded-xl bg-emerald-50 text-emerald-600">
-            <TrendingUp className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Định Mức Tiền Ăn / Trẻ</p>
+              <h3 className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">30.000 <span className="text-xs font-bold text-slate-400">đ/ngày</span></h3>
+            </div>
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-2xl">
+              <TrendingUp className="w-5 h-5" />
+            </div>
           </div>
         </div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between relative overflow-hidden">
-          <div className="absolute top-0 left-0 bottom-0 w-1.5 bg-purple-500" />
-          <div>
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Đơn Vị Cung Cấp</span>
-            <h3 className="text-2xl font-bold text-slate-800 mt-1">8 <span className="text-sm font-medium text-slate-500">nhà cung cấp</span></h3>
-            <span className="text-xs text-slate-500 font-medium mt-1 block">Cửa hàng A, B, Vinamilk...</span>
-          </div>
-          <div className="p-4 rounded-xl bg-purple-50 text-purple-600">
-            <Store className="w-6 h-6" />
+        <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs relative overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Mặt Hàng Trong Kho</p>
+              <h3 className="text-xl sm:text-2xl font-black text-slate-900 mt-1">{filteredIngredients.length} <span className="text-xs font-bold text-slate-400">loại thực phẩm</span></h3>
+            </div>
+            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+              <Store className="w-5 h-5" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Report Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Month selector */}
-          <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold">
-            <Filter className="w-4 h-4 text-indigo-600" />
-            <span className="text-xs text-slate-400">Tháng:</span>
-            <select
+      {/* Ingredients Table Container */}
+      <div className="table-pro-container">
+        <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-slate-50/50">
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <input
+              type="month"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              <option value="2026-08">Tháng 08 / 2026</option>
-              <option value="2026-07">Tháng 07 / 2026</option>
-              <option value="2026-06">Tháng 06 / 2026</option>
-            </select>
+              className="px-3.5 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 w-full sm:w-auto transition-all"
+            />
+
+            <div className="flex bg-slate-200/60 p-1 rounded-xl w-full sm:w-auto overflow-x-auto">
+              {["ALL", "Thịt & Thức ăn chính", "Rau củ & Gia vị", "Sữa & Bữa phụ"].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1 rounded-lg text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
+                    selectedCategory === cat ? "bg-white text-amber-700 shadow-2xs" : "text-slate-600"
+                  }`}
+                >
+                  {cat === "ALL" ? "Tất cả nhóm" : cat}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-2 bg-slate-50 px-3.5 py-2 border border-slate-200 rounded-xl text-sm font-semibold">
-            <span className="text-xs text-slate-400">Phân loại:</span>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
-            >
-              <option value="ALL">Tất cả nguyên liệu</option>
-              <option value="Thịt & Thức ăn chính">Thịt & Thức ăn chính</option>
-              <option value="Rau củ quả">Rau củ quả</option>
-              <option value="Sữa & Bữa phụ">Sữa & Bữa phụ</option>
-              <option value="Gia vị & Lương thực">Gia vị & Lương thực</option>
-            </select>
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Tìm tên thực phẩm, mã..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-1.5 bg-white border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 transition-all font-medium"
+            />
           </div>
-        </div>
-
-        {/* Keyword Search Input */}
-        <div className="relative w-full md:w-72">
-          <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Search className="w-4 h-4" />
-          </span>
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Tìm theo Mã TP, Tên, NCC..."
-            className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-2xl text-xs bg-white text-slate-900 focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 font-medium transition-all"
-          />
-        </div>
-      </div>
-
-      {/* Ingredient Expenditure Table */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden p-4 space-y-4">
-        <div className="flex justify-between items-center px-2">
-          <h3 className="font-bold text-slate-800 text-lg">Bảng Dữ Liệu Thực Phẩm Đầu Vào</h3>
-          <span className="text-xs font-bold bg-indigo-50 text-indigo-700 px-3 py-1 rounded-full">
-            Tổng giá trị: {formatCurrency(totalMonthlyCost)}
-          </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="table-pro">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-xs font-bold text-slate-400 uppercase">
-                <th className="px-4 py-3 rounded-l-xl">Mã TP</th>
-                <th className="px-4 py-3">Tên thực phẩm</th>
-                <th className="px-4 py-3">Đơn vị</th>
-                <th className="px-4 py-3">Số lượng</th>
-                <th className="px-4 py-3">Đơn giá (đ)</th>
-                <th className="px-4 py-3">Thành tiền (đ)</th>
-                <th className="px-4 py-3">Nhà cung cấp</th>
-                <th className="px-4 py-3 text-right rounded-r-xl">Xóa</th>
+              <tr>
+                <th>Mã TP</th>
+                <th>Tên thực phẩm</th>
+                <th>Nhóm thực phẩm</th>
+                <th>Số lượng</th>
+                <th>Đơn vị</th>
+                <th>Đơn giá (VNĐ)</th>
+                <th>Thành tiền (VNĐ)</th>
+                <th>Nhà cung cấp</th>
+                <th className="text-right">Thao tác</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {filteredIngredients.map((item) => (
-                <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-4 py-3.5 font-mono text-xs font-bold text-indigo-600">{item.code || `TP0${item.id}`}</td>
-                  <td className="px-4 py-3.5 font-semibold text-slate-800">{item.name}</td>
-                  <td className="px-4 py-3.5 text-slate-600 text-xs font-medium">{item.unit}</td>
-                  <td className="px-4 py-3.5 font-bold text-slate-800">{item.quantity}</td>
-                  <td className="px-4 py-3.5 text-slate-600 font-medium">{formatCurrency(item.unitPrice)}</td>
-                  <td className="px-4 py-3.5 font-extrabold text-indigo-600">{formatCurrency(item.total)}</td>
-                  <td className="px-4 py-3.5 text-slate-700 text-xs font-medium">
-                    <span className="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
-                      {item.supplier || "Chợ đầu mối"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-right">
-                    <button
-                      onClick={() => handleDeleteIngredient(item.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                      title="Xóa thực phẩm"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+            <tbody>
+              {filteredIngredients.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center text-slate-400 font-medium">
+                    Không có mặt hàng thực phẩm nào phù hợp.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredIngredients.map((item) => {
+                  const isHighlighted = highlightedId === item.id;
+                  const isDeleting = deletingId === item.id;
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className={cn(
+                        "transition-all duration-300",
+                        isHighlighted && "animate-row-add",
+                        isDeleting && "animate-row-delete"
+                      )}
+                    >
+                      <td className="font-mono text-xs font-bold text-amber-700 bg-amber-50/50 px-2.5 py-1 rounded-lg w-fit">
+                        {item.code || `TP0${item.id}`}
+                      </td>
+                      <td className="font-bold text-slate-900">{item.name}</td>
+                      <td>
+                        <span className="bg-slate-100 text-slate-700 font-bold px-2.5 py-1 rounded-lg text-xs border border-slate-200/60">
+                          {item.category}
+                        </span>
+                      </td>
+                      <td className="font-extrabold text-slate-900">{item.quantity}</td>
+                      <td className="text-slate-600 text-xs font-medium">{item.unit}</td>
+                      <td className="text-slate-700 font-medium">{formatCurrency(item.unitPrice)}</td>
+                      <td className="font-black text-amber-700">{formatCurrency(item.total)}</td>
+                      <td>
+                        <span className="bg-slate-50 text-slate-700 px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-200/50">
+                          {item.supplier || "Chợ đầu mối"}
+                        </span>
+                      </td>
+                      <td className="text-right">
+                        <button
+                          onClick={() => handlePromptDelete(item)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-lg transition-all cursor-pointer"
+                          title="Xóa thực phẩm"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -385,14 +490,14 @@ export default function CostTab() {
       {/* Add Ingredient Modal */}
       {showAddModal && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-modal-backdrop">
+            <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col animate-modal-content">
               {/* Top Ribbon Accent */}
-              <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 shrink-0" />
+              <div className="h-2 w-full bg-gradient-to-r from-amber-500 via-orange-500 to-indigo-500 shrink-0" />
 
               <div className="flex justify-between items-start p-6 pb-4 shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gradient-to-tr from-indigo-500 to-purple-600 text-white rounded-2xl shadow-md shadow-indigo-500/30">
+                  <div className="p-3 bg-gradient-to-tr from-amber-500 to-orange-600 text-white rounded-2xl shadow-md shadow-amber-500/30">
                     <Calculator className="w-6 h-6" />
                   </div>
                   <div>
@@ -417,7 +522,7 @@ export default function CostTab() {
                       placeholder="VD: TP016"
                       value={newIngredient.code}
                       onChange={(e) => setNewIngredient({ ...newIngredient, code: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm font-mono"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm font-mono"
                     />
                   </div>
 
@@ -429,7 +534,7 @@ export default function CostTab() {
                       placeholder="VD: Thịt bò tươi"
                       value={newIngredient.name}
                       onChange={(e) => setNewIngredient({ ...newIngredient, name: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
                     />
                   </div>
                 </div>
@@ -443,7 +548,7 @@ export default function CostTab() {
                       min="1"
                       value={newIngredient.quantity || ""}
                       onChange={(e) => setNewIngredient({ ...newIngredient, quantity: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold transition-all shadow-sm"
                     />
                   </div>
 
@@ -452,56 +557,82 @@ export default function CostTab() {
                     <select
                       value={newIngredient.unit}
                       onChange={(e) => setNewIngredient({ ...newIngredient, unit: e.target.value })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
                     >
-                      <option value="kg">kg</option>
-                      <option value="Quả">Quả</option>
-                      <option value="Hộp">Hộp</option>
-                      <option value="Chai">Chai</option>
-                      <option value="bao">bao</option>
+                      <option value="kg">kg (Kilogram)</option>
+                      <option value="con">con</option>
+                      <option value="quả">quả</option>
+                      <option value="bó">bó</option>
+                      <option value="lít">lít</option>
+                      <option value="hộp">hộp</option>
                       <option value="thùng">thùng</option>
                     </select>
                   </div>
 
                   <div>
-                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Đơn giá (đ) *</label>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Đơn giá (VNĐ) *</label>
                     <input
                       type="number"
                       required
-                      min="1000"
-                      step="1000"
+                      min="0"
+                      placeholder="120000"
                       value={newIngredient.unitPrice || ""}
                       onChange={(e) => setNewIngredient({ ...newIngredient, unitPrice: Number(e.target.value) })}
-                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold transition-all shadow-sm"
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold transition-all shadow-sm"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nhà Cung Cấp</label>
-                  <input
-                    type="text"
-                    placeholder="VD: Cửa hàng A, Vinamilk, Chợ đầu mối..."
-                    value={newIngredient.supplier}
-                    onChange={(e) => setNewIngredient({ ...newIngredient, supplier: e.target.value })}
-                    className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 text-sm font-semibold placeholder:text-slate-400 placeholder:font-normal transition-all shadow-sm"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nhóm Thực Phẩm</label>
+                    <select
+                      value={newIngredient.category}
+                      onChange={(e) => setNewIngredient({ ...newIngredient, category: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold transition-all shadow-sm cursor-pointer"
+                    >
+                      <option value="Thịt & Thức ăn chính">Thịt & Thức ăn chính</option>
+                      <option value="Rau củ & Gia vị">Rau củ & Gia vị</option>
+                      <option value="Sữa & Bữa phụ">Sữa & Bữa phụ</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-extrabold text-slate-500 block mb-1.5 uppercase tracking-wider">Nhà Cung Cấp</label>
+                    <input
+                      type="text"
+                      placeholder="VD: HTX Rau Sạch"
+                      value={newIngredient.supplier}
+                      onChange={(e) => setNewIngredient({ ...newIngredient, supplier: e.target.value })}
+                      className="w-full px-4 py-3 bg-slate-50/80 border border-slate-200/80 text-slate-900 rounded-2xl focus:bg-white focus:outline-none focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 text-sm font-semibold transition-all shadow-sm"
+                    />
+                  </div>
                 </div>
 
-                <div className="p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl flex justify-between items-center text-xs font-bold text-indigo-700">
-                  <span>Thành tiền tự động:</span>
-                  <span className="text-sm font-extrabold">
-                    {formatCurrency((newIngredient.quantity || 0) * (newIngredient.unitPrice || 0))}
+                <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900">Thành tiền ước tính:</span>
+                  <span className="text-lg font-black text-amber-700">
+                    {formatCurrency(newIngredient.quantity * newIngredient.unitPrice)}
                   </span>
                 </div>
 
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-indigo-500/25 flex items-center justify-center gap-2 text-sm"
+                    disabled={isSubmitting}
+                    className="w-full bg-gradient-to-r from-amber-500 via-amber-600 to-orange-600 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl transition-all shadow-xl shadow-amber-500/25 flex items-center justify-center gap-2 text-sm cursor-pointer disabled:opacity-60 active:scale-95"
                   >
-                    <Plus className="w-4 h-4" />
-                    Lưu thực phẩm vào kho
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang lưu nguyên liệu...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4" />
+                        <span>Lưu vào kho thực phẩm</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

@@ -128,7 +128,7 @@ body {
   border: 1px solid #e2e8f0;
 }
 
-/* Animation Keyframes */
+/* CRUD & Micro-Animation Keyframes */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -162,6 +162,101 @@ body {
   }
 }
 
+@keyframes rowFlashAdd {
+  0% {
+    background-color: rgba(16, 185, 129, 0.28) !important;
+    transform: scale(1.008);
+  }
+  50% {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes rowFlashEdit {
+  0% {
+    background-color: rgba(99, 102, 241, 0.28) !important;
+    transform: scale(1.008);
+  }
+  50% {
+    background-color: rgba(99, 102, 241, 0.15) !important;
+  }
+  100% {
+    background-color: transparent;
+    transform: scale(1);
+  }
+}
+
+@keyframes rowFlashDelete {
+  0% {
+    background-color: rgba(244, 63, 94, 0.28) !important;
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    background-color: rgba(244, 63, 94, 0.1) !important;
+    opacity: 0;
+    transform: translateX(-24px) scale(0.96);
+  }
+}
+
+@keyframes modalContentIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(18px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes modalBackdropIn {
+  0% {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  100% {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
+}
+
+@keyframes toastSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes progressBar {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-4px); }
+  40%, 80% { transform: translateX(4px); }
+}
+
+@keyframes bounceSoft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* CRUD Animation Utility Classes */
 .animate-fadeIn {
   animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -172,6 +267,38 @@ body {
 
 .animate-slide-in-right {
   animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-row-add {
+  animation: rowFlashAdd 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-row-edit {
+  animation: rowFlashEdit 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-row-delete {
+  animation: rowFlashDelete 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-backdrop {
+  animation: modalBackdropIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-modal-content {
+  animation: modalContentIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-toast {
+  animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shake {
+  animation: shake 0.4s ease-in-out;
+}
+
+.animate-bounce-soft {
+  animation: bounceSoft 2s infinite ease-in-out;
 }
 
 /* PWA Mobile Notch Safe Area Utilities */

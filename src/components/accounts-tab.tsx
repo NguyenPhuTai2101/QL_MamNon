@@ -17,8 +17,12 @@ import {
   CheckCircle2,
   Mail,
   Phone,
-  GraduationCap
+  GraduationCap,
+  Loader2,
+  Sparkles
 } from "lucide-react";
+import { ToastNotification, ConfirmDeleteModal, ToastState } from "@/components/crud-feedback";
+import { cn } from "@/lib/utils";
 
 interface UserAccount {
   id: string;
@@ -45,6 +49,22 @@ export default function AccountsTab() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserAccount | null>(null);
 
+  // CRUD Animation & Feedback states
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [highlightType, setHighlightType] = useState<"add" | "edit">("add");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    user: UserAccount | null;
+    isLoading: boolean;
+  }>({
+    isOpen: false,
+    user: null,
+    isLoading: false,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -55,7 +75,6 @@ export default function AccountsTab() {
     studentId: ""
   });
 
-  const [notification, setNotification] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Fetch Users & Students from DB
@@ -126,6 +145,7 @@ export default function AccountsTab() {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingUser) {
         // Cập nhật tài khoản
@@ -145,11 +165,18 @@ export default function AccountsTab() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Không thể cập nhật tài khoản.");
 
-        setNotification(`🎉 Đã cập nhật tài khoản "${formData.name}" thành công!`);
+        setToast({
+          type: "success",
+          title: "Cập nhật thành công",
+          message: `Đã cập nhật thông tin tài khoản "${formData.name}".`
+        });
+        setHighlightType("edit");
+        setHighlightedId(editingUser.id);
       } else {
         // Tạo tài khoản mới
         if (!formData.username || !formData.password) {
           setErrorMsg("Vui lòng nhập Tên đăng nhập và Mật khẩu!");
+          setIsSubmitting(false);
           return;
         }
 
@@ -161,30 +188,65 @@ export default function AccountsTab() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Không thể tạo tài khoản.");
 
-        setNotification(`🎉 Đã tạo tài khoản mới "${formData.name}" thành công!`);
+        setToast({
+          type: "success",
+          title: "Tạo tài khoản mới thành công",
+          message: `Đã thêm tài khoản "${formData.name}" vào hệ thống.`
+        });
+        setHighlightType("add");
+        if (data.data?.id) {
+          setHighlightedId(data.data.id);
+        }
       }
 
       setIsAddModalOpen(false);
       fetchUsersAndStudents();
-      setTimeout(() => setNotification(null), 4000);
+      setTimeout(() => setHighlightedId(null), 2500);
     } catch (err: any) {
       setErrorMsg(err.message || "Đã xảy ra lỗi khi lưu thông tin.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDeleteUser = async (id: string, name: string) => {
-    if (confirm(`Bạn có chắc chắn muốn xóa tài khoản "${name}" khỏi CSDL?`)) {
-      try {
-        const res = await fetch(`/api/users?id=${id}`, { method: "DELETE" });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Không thể xóa tài khoản.");
+  const handlePromptDelete = (user: UserAccount) => {
+    setDeleteModal({
+      isOpen: true,
+      user,
+      isLoading: false,
+    });
+  };
 
-        setNotification(`🎉 Đã xóa tài khoản "${name}" thành công!`);
-        fetchUsersAndStudents();
-        setTimeout(() => setNotification(null), 4000);
-      } catch (err: any) {
-        alert(err.message || "Lỗi xóa tài khoản.");
-      }
+  const handleConfirmDelete = async () => {
+    if (!deleteModal.user) return;
+    const userToDelete = deleteModal.user;
+    setDeleteModal((prev) => ({ ...prev, isLoading: true }));
+
+    try {
+      const res = await fetch(`/api/users?id=${userToDelete.id}`, { method: "DELETE" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Không thể xóa tài khoản.");
+
+      // Kích hoạt hiệu ứng biến mất dòng đỏ
+      setDeletingId(userToDelete.id);
+      setDeleteModal({ isOpen: false, user: null, isLoading: false });
+
+      setTimeout(() => {
+        setUsers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+        setDeletingId(null);
+        setToast({
+          type: "delete",
+          title: "Đã xóa tài khoản",
+          message: `Đã xóa tài khoản "${userToDelete.name}" khỏi CSDL.`
+        });
+      }, 350);
+    } catch (err: any) {
+      setDeleteModal((prev) => ({ ...prev, isLoading: false }));
+      setToast({
+        type: "error",
+        title: "Lỗi xóa tài khoản",
+        message: err.message || "Không thể xóa tài khoản lúc này."
+      });
     }
   };
 
@@ -206,8 +268,22 @@ export default function AccountsTab() {
 
   return (
     <div className="space-y-6 animate-fadeIn pb-12">
+      {/* Dynamic Toast Feedback */}
+      <ToastNotification toast={toast} onClose={() => setToast(null)} />
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmDeleteModal
+        isOpen={deleteModal.isOpen}
+        title="Xác nhận xóa tài khoản"
+        itemName={deleteModal.user?.name || ""}
+        itemType="tài khoản người dùng"
+        isLoading={deleteModal.isLoading}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteModal({ isOpen: false, user: null, isLoading: false })}
+      />
+
       {/* 1. ERP MODULE HEADER BANNER */}
-      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-sm">
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-gradient-to-br from-indigo-500 via-purple-600 to-indigo-700 rounded-2xl text-white shadow-md shadow-indigo-500/20 shrink-0">
@@ -231,7 +307,7 @@ export default function AccountsTab() {
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full lg:w-auto justify-start sm:justify-end">
             <button
               onClick={handleOpenAddModal}
-              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
+              className="h-9 px-4 inline-flex items-center justify-center gap-1.5 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 active:scale-95 text-white rounded-xl text-xs font-extrabold shadow-md shadow-indigo-600/20 transition-all whitespace-nowrap w-full sm:w-auto cursor-pointer"
             >
               <Plus className="w-4 h-4 shrink-0" />
               <span>Tạo Tài Khoản Mới</span>
@@ -239,13 +315,6 @@ export default function AccountsTab() {
           </div>
         </div>
       </div>
-
-      {notification && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-extrabold flex items-center gap-2 animate-fadeIn">
-          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-          {notification}
-        </div>
-      )}
 
       {/* Users Table Container */}
       <div className="table-pro-container">
@@ -328,8 +397,18 @@ export default function AccountsTab() {
               ) : (
                 filteredUsers.map((user) => {
                   const initials = getInitials(user.name);
+                  const isHighlighted = highlightedId === user.id;
+                  const isDeleting = deletingId === user.id;
+
                   return (
-                    <tr key={user.id}>
+                    <tr
+                      key={user.id}
+                      className={cn(
+                        "transition-all duration-300",
+                        isHighlighted && (highlightType === "add" ? "animate-row-add" : "animate-row-edit"),
+                        isDeleting && "animate-row-delete"
+                      )}
+                    >
                       <td>
                         <div className="flex items-center gap-3">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-extrabold text-xs shadow-sm ring-2 ${
@@ -396,14 +475,14 @@ export default function AccountsTab() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => handleOpenEditModal(user)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 active:scale-90 rounded-lg transition-all cursor-pointer"
                             title="Chỉnh sửa tài khoản"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleDeleteUser(user.id, user.name)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            onClick={() => handlePromptDelete(user)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 active:scale-90 rounded-lg transition-all cursor-pointer"
                             title="Xóa tài khoản"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -422,8 +501,8 @@ export default function AccountsTab() {
       {/* Add / Edit User Modal */}
       {isAddModalOpen && (
         <Portal>
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-            <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-modal-backdrop">
+            <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl relative border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col animate-modal-content">
               <div className="h-2 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 shrink-0" />
               
               <div className="flex justify-between items-center p-6 pb-4 border-b border-slate-100 shrink-0">
@@ -448,7 +527,7 @@ export default function AccountsTab() {
 
               <form onSubmit={handleSubmitForm} className="p-6 space-y-4 overflow-y-auto flex-1">
                 {errorMsg && (
-                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold">
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold animate-shake">
                     {errorMsg}
                   </div>
                 )}
@@ -566,16 +645,25 @@ export default function AccountsTab() {
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => setIsAddModalOpen(false)}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer disabled:opacity-60"
                   >
                     Hủy bỏ
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-indigo-600/20 cursor-pointer"
+                    disabled={isSubmitting}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-extrabold transition-all shadow-md shadow-indigo-600/20 flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-60 active:scale-95"
                   >
-                    {editingUser ? "Lưu thay đổi" : "Tạo tài khoản"}
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Đang lưu...</span>
+                      </>
+                    ) : (
+                      <span>{editingUser ? "Lưu thay đổi" : "Tạo tài khoản"}</span>
+                    )}
                   </button>
                 </div>
               </form>
