@@ -28,6 +28,43 @@ export async function GET() {
   }
 }
 
+async function generateNextStudentCode(requestedCode?: string): Promise<string> {
+  if (requestedCode && requestedCode.trim()) {
+    const clean = requestedCode.trim();
+    const existing = await prisma.student.findUnique({
+      where: { code: clean },
+    });
+    if (!existing) {
+      return clean;
+    }
+  }
+
+  const allStudents = await prisma.student.findMany({
+    select: { code: true },
+  });
+
+  let maxNum = 0;
+  for (const s of allStudents) {
+    if (s.code) {
+      const match = s.code.match(/\d+/);
+      if (match) {
+        const num = parseInt(match[0], 10);
+        if (!isNaN(num) && num > maxNum) {
+          maxNum = num;
+        }
+      }
+    }
+  }
+
+  let nextNum = maxNum + 1;
+  let candidate = `HS${nextNum.toString().padStart(3, "0")}`;
+  while (allStudents.some((s) => s.code === candidate)) {
+    nextNum++;
+    candidate = `HS${nextNum.toString().padStart(3, "0")}`;
+  }
+  return candidate;
+}
+
 // POST: Thêm học sinh mới vào Supabase PostgreSQL
 export async function POST(request: Request) {
   try {
@@ -107,11 +144,8 @@ export async function POST(request: Request) {
       classId = existingClass.id;
     }
 
-    // Tự động sinh Mã học sinh nếu chưa truyền
-    if (!code) {
-      const totalCount = await prisma.student.count();
-      code = `HS${(totalCount + 1).toString().padStart(3, "0")}`;
-    }
+    // Tự động sinh Mã học sinh an toàn, không bao giờ trùng lặp
+    code = await generateNextStudentCode(code);
 
     let newStudent;
     try {
@@ -242,7 +276,21 @@ export async function PUT(request: Request) {
     }
 
     const updateData: any = {};
-    if (code !== undefined) updateData.code = code;
+    if (code !== undefined && code.trim()) {
+      const cleanCode = code.trim();
+      const existingWithCode = await prisma.student.findUnique({
+        where: { code: cleanCode },
+      });
+      if (existingWithCode && existingWithCode.id !== id) {
+        return NextResponse.json(
+          {
+            error: `Mã học sinh "${cleanCode}" đã thuộc về bé ${existingWithCode.lastName} ${existingWithCode.firstName}. Vui lòng chọn mã khác!`,
+          },
+          { status: 400 }
+        );
+      }
+      updateData.code = cleanCode;
+    }
     if (firstName) updateData.firstName = firstName;
     if (lastName) updateData.lastName = lastName;
     if (birthDate) updateData.birthDate = new Date(birthDate);
