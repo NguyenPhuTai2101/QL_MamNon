@@ -110,6 +110,25 @@ export async function DELETE(request: Request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const dateStr = searchParams.get("date");
+    const startDateStr = searchParams.get("startDate");
+    const endDateStr = searchParams.get("endDate");
+
+    if (startDateStr && endDateStr) {
+      const start = new Date(startDateStr);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(endDateStr);
+      end.setHours(23, 59, 59, 999);
+
+      await prisma.dailyMenu.deleteMany({
+        where: {
+          date: {
+            gte: start,
+            lte: end,
+          },
+        },
+      });
+      return NextResponse.json({ success: true, message: "Đã xóa toàn bộ thực đơn tùy chỉnh trong khoảng thời gian này." });
+    }
 
     if (id) {
       await prisma.dailyMenu.delete({

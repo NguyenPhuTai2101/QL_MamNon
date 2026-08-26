@@ -40,9 +40,15 @@ import {
   Filter,
   CheckSquare,
   Square,
+  BookOpen,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import {
+  DEFAULT_ROTATING_WEEKS,
+  getWeekIndexInMonth,
+  getTemplateMenuForDate,
+} from "@/lib/rotating-menu";
 
 export interface MenuIngredientItem {
   id: string;
@@ -66,6 +72,8 @@ export interface DailyMenuItem {
   snack: string;
   costPerStudent: number;
   ingredients?: MenuIngredientItem[];
+  isCustom?: boolean;
+  weekTemplateNum?: number;
 }
 
 export interface WarehouseItem {
@@ -395,7 +403,7 @@ export default function MenuTab() {
     costPerStudent: number;
     ingredients: MenuIngredientItem[];
   }>({
-    date: new Date().toISOString().split("T")[0],
+    date: formatDateToISO(new Date()),
     breakfast: "",
     lunch: "",
     snack: "",
@@ -417,7 +425,7 @@ export default function MenuTab() {
   // PHẦN 2: ĐỊNH LƯỢNG THỰC TẾ ĐI CHỢ & LIÊN KẾT TỒN KHO
   // =========================================================================
   const [selectedGroceryDate, setSelectedGroceryDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
+    formatDateToISO(new Date()),
   );
   const [groceryKidCount, setGroceryKidCount] = useState<number>(25);
   const [mealFeePerKid, setMealFeePerKid] = useState<number>(30000);
@@ -472,22 +480,51 @@ export default function MenuTab() {
         const mapped: WarehouseItem[] = data.map((item: any, idx: number) => {
           const rawCode =
             item.name.match(/\[(.*?)\]/)?.[1] ||
-            `TP0${idx + 1 < 10 ? `0${idx + 1}` : idx + 1}`;
+            `TP${idx + 1 < 100 ? (idx + 1 < 10 ? `00${idx + 1}` : `0${idx + 1}`) : idx + 1}`;
           const cleanName = item.name.replace(/\[.*?\]/, "").trim();
+
+          let parsedCategory: WarehouseItem["category"] = "PROTEIN";
+          if (
+            item.notes?.includes("Phân loại: CARB") ||
+            item.notes?.includes("CARB")
+          ) {
+            parsedCategory = "CARB";
+          } else if (
+            item.notes?.includes("Phân loại: VEG") ||
+            item.notes?.includes("VEG") ||
+            item.notes?.includes("Rau")
+          ) {
+            parsedCategory = "VEG";
+          } else if (
+            item.notes?.includes("Phân loại: FRUIT_DAIRY") ||
+            item.notes?.includes("FRUIT_DAIRY") ||
+            item.notes?.includes("Sữa") ||
+            item.notes?.includes("Bánh")
+          ) {
+            parsedCategory = "FRUIT_DAIRY";
+          } else if (
+            item.notes?.includes("Phân loại: SPICE_OTHER") ||
+            item.notes?.includes("SPICE_OTHER") ||
+            item.notes?.includes("GIA VỊ") ||
+            item.notes?.includes("Gia vị")
+          ) {
+            parsedCategory = "SPICE_OTHER";
+          }
+
+          const supplierName =
+            item.notes?.match(/NCC:\s*([^|]+)/)?.[1]?.trim() ||
+            item.notes?.replace("Nhà cung cấp: ", "") ||
+            "CÔNG TY TNHH MTV TM - DV THƯỢNG HẢO";
+
           return {
             id: item.id,
             code: rawCode,
             name: cleanName,
-            category: (item.notes?.includes("Rau")
-              ? "VEG"
-              : item.notes?.includes("Sữa")
-                ? "FRUIT_DAIRY"
-                : "PROTEIN") as any,
+            category: parsedCategory,
             stockQuantity: item.quantity || 0,
             unit: item.unit || "kg",
             unitPrice: item.unitPrice || 0,
-            supplier:
-              item.notes?.replace("Nhà cung cấp: ", "") || "Kho Bếp Trường",
+            supplier: supplierName,
           };
         });
         setWarehouseInventory(mapped);
@@ -500,52 +537,88 @@ export default function MenuTab() {
     }
   };
 
-  // Tải danh sách thực đơn từ CSDL theo tuần được chọn
+  // Tải danh sách thực đơn theo tuần được chọn (kết hợp CSDL và thực đơn 4 tuần luân phiên)
   const loadMenus = async () => {
     setIsLoadingMenus(true);
     const currWeek = weeksList[selectedWeekIndex];
+    const monday = new Date(currWeek.start);
+    const weekIdx = getWeekIndexInMonth(monday);
+    const templateWeek = DEFAULT_ROTATING_WEEKS[weekIdx];
+
     try {
       const res = await fetch(
         `/api/menus?startDate=${currWeek.start}&endDate=${currWeek.end}`,
       );
       const data = await res.json();
-      if (Array.isArray(data)) {
-        const dayNames = [
-          "Chủ Nhật",
-          "Thứ Hai",
-          "Thứ Ba",
-          "Thứ Tư",
-          "Thứ Năm",
-          "Thứ Sáu",
-          "Thứ Bảy",
-        ];
-        const mapped: DailyMenuItem[] = data.map((m: any) => {
-          const d = new Date(m.date);
-          const dateStr = d.toISOString().split("T")[0];
+      const dbMenus = Array.isArray(data) ? data : [];
+
+      const dayNames = [
+        "Thứ Hai",
+        "Thứ Ba",
+        "Thứ Tư",
+        "Thứ Năm",
+        "Thứ Sáu",
+        "Thứ Bảy",
+      ];
+
+      // Xây dựng đủ 6 ngày làm việc trong tuần (Thứ 2 đến Thứ 7)
+      const weekItems: DailyMenuItem[] = [];
+
+      for (let offset = 0; offset < 6; offset++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + offset);
+        const dateStr = formatDateToISO(d);
+
+        // Tìm xem ngày này đã được tùy chỉnh và lưu trong CSDL chưa
+        const existing = dbMenus.find((m: any) => {
+          const mDateStr = formatDateToISO(new Date(m.date));
+          return mDateStr === dateStr || String(m.date).startsWith(dateStr);
+        });
+
+        if (existing) {
           let parsedIngredients: MenuIngredientItem[] = [];
-          if (m.ingredientsJson) {
+          if (existing.ingredientsJson) {
             try {
               parsedIngredients =
-                typeof m.ingredientsJson === "string"
-                  ? JSON.parse(m.ingredientsJson)
-                  : m.ingredientsJson;
+                typeof existing.ingredientsJson === "string"
+                  ? JSON.parse(existing.ingredientsJson)
+                  : existing.ingredientsJson;
             } catch (err) {
               console.error("Failed to parse ingredientsJson", err);
             }
           }
-          return {
-            id: m.id,
+
+          weekItems.push({
+            id: existing.id,
             date: dateStr,
-            dayOfWeek: dayNames[d.getDay()] || "Thứ Hai",
-            breakfast: m.breakfast || "",
-            lunch: m.lunch || "",
-            snack: m.snack || "",
-            costPerStudent: m.costPerStudent || 30000,
+            dayOfWeek: dayNames[offset],
+            breakfast: existing.breakfast || "",
+            lunch: existing.lunch || "",
+            snack: existing.snack || "",
+            costPerStudent: existing.costPerStudent || 30000,
             ingredients: parsedIngredients,
-          };
-        });
-        setWeeklyMenus(mapped);
+            isCustom: true,
+            weekTemplateNum: weekIdx + 1,
+          });
+        } else {
+          // Chưa có trong DB -> Tự động nạp mẫu thực đơn của tuần luân phiên
+          const tplDay = templateWeek.days[offset] || templateWeek.days[0];
+          weekItems.push({
+            id: `default-${dateStr}`,
+            date: dateStr,
+            dayOfWeek: dayNames[offset],
+            breakfast: tplDay.breakfast,
+            lunch: tplDay.lunch,
+            snack: tplDay.snack,
+            costPerStudent: 30000,
+            ingredients: tplDay.ingredients || [],
+            isCustom: false,
+            weekTemplateNum: weekIdx + 1,
+          });
+        }
       }
+
+      setWeeklyMenus(weekItems);
     } catch (e) {
       console.error(e);
     } finally {
@@ -641,8 +714,24 @@ export default function MenuTab() {
         });
         setGroceryItems(mapped);
       } else {
-        // Tự động kiểm tra xem ngày này đã có thực đơn với danh sách nguyên liệu chưa
-        const matchingMenu = weeklyMenus.find((m) => m.date === dateStr);
+        // Tự động kiểm tra xem ngày này đã có thực đơn với danh sách nguyên liệu chưa (CSDL hoặc Mẫu 4 tuần)
+        let matchingMenu = weeklyMenus.find((m) => m.date === dateStr);
+        if (!matchingMenu) {
+          const tpl = getTemplateMenuForDate(new Date(dateStr));
+          matchingMenu = {
+            id: `default-${dateStr}`,
+            date: dateStr,
+            dayOfWeek: tpl.day.dayOfWeek,
+            breakfast: tpl.day.breakfast,
+            lunch: tpl.day.lunch,
+            snack: tpl.day.snack,
+            costPerStudent: 30000,
+            ingredients: tpl.day.ingredients || [],
+            isCustom: false,
+            weekTemplateNum: tpl.weekNumber,
+          };
+        }
+
         if (
           matchingMenu &&
           matchingMenu.ingredients &&
@@ -666,15 +755,25 @@ export default function MenuTab() {
 
   // Nút chủ động tải lại/đồng bộ nguyên liệu từ Thực đơn ngày
   const handleSyncGroceriesFromDailyMenu = () => {
-    const matchingMenu = weeklyMenus.find(
+    let matchingMenu = weeklyMenus.find(
       (m) => m.date === selectedGroceryDate,
     );
     if (!matchingMenu) {
-      alert(
-        `Chưa tìm thấy thực đơn cho ngày ${selectedGroceryDate}. Vui lòng tạo thực đơn trước!`,
-      );
-      return;
+      const tpl = getTemplateMenuForDate(new Date(selectedGroceryDate));
+      matchingMenu = {
+        id: `default-${selectedGroceryDate}`,
+        date: selectedGroceryDate,
+        dayOfWeek: tpl.day.dayOfWeek,
+        breakfast: tpl.day.breakfast,
+        lunch: tpl.day.lunch,
+        snack: tpl.day.snack,
+        costPerStudent: 30000,
+        ingredients: tpl.day.ingredients || [],
+        isCustom: false,
+        weekTemplateNum: tpl.weekNumber,
+      };
     }
+
     if (
       !matchingMenu.ingredients ||
       matchingMenu.ingredients.length === 0
@@ -982,35 +1081,69 @@ export default function MenuTab() {
     }
   };
 
-  // Thao tác Xóa Thực Đơn Ngày
+  // Thao tác Xóa / Khôi phục Thực Đơn Ngày về mặc định
   const handleDeleteMenu = async (menuItem: DailyMenuItem) => {
+    if (!menuItem.isCustom) {
+      showToast(
+        `Thực đơn ngày ${menuItem.date} đang là thực đơn chuẩn mặc định của Tuần ${menuItem.weekTemplateNum || 1}.`,
+      );
+      return;
+    }
+
     if (
       !confirm(
-        `Bạn có chắc chắn muốn xóa thực đơn ngày ${menuItem.date} (${menuItem.dayOfWeek}) không?`,
+        `Bạn có chắc muốn xóa tùy chỉnh của ngày ${menuItem.date} (${menuItem.dayOfWeek}) để khôi phục về thực đơn mẫu mặc định không?`,
       )
     ) {
       return;
     }
 
     try {
-      const url = menuItem.id
-        ? `/api/menus?id=${menuItem.id}`
-        : `/api/menus?date=${menuItem.date}`;
+      const url = menuItem.id?.startsWith("default-")
+        ? `/api/menus?date=${menuItem.date}`
+        : `/api/menus?id=${menuItem.id}`;
       const res = await fetch(url, { method: "DELETE" });
       const result = await res.json();
       if (result.success) {
-        showToast("Đã xóa thực đơn ngày thành công!");
+        showToast("Đã khôi phục thực đơn ngày về mẫu mặc định 4 tuần!");
         loadMenus();
       }
     } catch (err) {
       console.error(err);
-      showToast("Lỗi khi xóa thực đơn.");
+      showToast("Lỗi khi khôi phục thực đơn.");
     }
   };
 
-  // Mở Modal Sửa Thực đơn
+  // Khôi phục toàn bộ tuần về thực đơn mẫu mặc định
+  const handleResetWeekToDefault = async () => {
+    const currWeek = weeksList[selectedWeekIndex];
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn xóa toàn bộ tùy chỉnh riêng của ${currWeek.label} và nạp lại chuẩn theo Thực đơn Mẫu 4 Tuần không?`,
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/menus?startDate=${currWeek.start}&endDate=${currWeek.end}`,
+        { method: "DELETE" },
+      );
+      const result = await res.json();
+      if (result.success) {
+        showToast("Đã khôi phục toàn bộ tuần này theo thực đơn mẫu chuẩn 4 tuần!");
+        loadMenus();
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Lỗi khi khôi phục tuần.");
+    }
+  };
+
+  // Mở Modal Sửa Thực đơn (Hỗ trợ cả ngày mẫu và ngày đã lưu DB)
   const handleOpenEditMenu = (menu: DailyMenuItem) => {
-    setEditingMenu(menu);
+    setEditingMenu(menu.isCustom ? menu : null);
     setMenuForm({
       date: menu.date,
       breakfast: menu.breakfast,
@@ -1027,7 +1160,7 @@ export default function MenuTab() {
   const handleOpenAddMenu = () => {
     setEditingMenu(null);
     setMenuForm({
-      date: new Date().toISOString().split("T")[0],
+      date: formatDateToISO(new Date()),
       breakfast: "",
       lunch: "",
       snack: "",
@@ -1290,58 +1423,86 @@ export default function MenuTab() {
       {/* ========================================================================= */}
       {/* 2. WEEK SELECTOR & QUICK NAVIGATION */}
       {/* ========================================================================= */}
-      <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
-            disabled={selectedWeekIndex >= weeksList.length - 1}
-            onClick={() => setSelectedWeekIndex((prev) => prev + 1)}
-            className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
-            title="Tuần trước đó"
-          >
-            <ChevronLeft className="w-4 h-4 text-slate-600" />
-          </button>
+      {(() => {
+        const currWeek = weeksList[selectedWeekIndex];
+        const monday = new Date(currWeek.start);
+        const weekIdx = getWeekIndexInMonth(monday);
+        const templateWeek = DEFAULT_ROTATING_WEEKS[weekIdx];
+        const hasCustomDays = weeklyMenus.some((m) => m.isCustom);
 
-          <div className="flex items-center gap-2 bg-slate-50 h-9 px-3.5 rounded-xl border border-slate-200 flex-1 sm:flex-initial">
-            <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
-            <select
-              value={selectedWeekIndex}
-              onChange={(e) => setSelectedWeekIndex(Number(e.target.value))}
-              className="bg-transparent font-extrabold text-slate-800 text-xs focus:outline-none cursor-pointer"
-            >
-              {weeksList.map((w, idx) => (
-                <option key={w.id} value={idx}>
-                  {w.label}
-                </option>
-              ))}
-            </select>
+        return (
+          <div className="bg-white p-4 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+            <div className="flex items-center gap-2 w-full lg:w-auto flex-wrap">
+              <button
+                disabled={selectedWeekIndex >= weeksList.length - 1}
+                onClick={() => setSelectedWeekIndex((prev) => prev + 1)}
+                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
+                title="Tuần trước đó"
+              >
+                <ChevronLeft className="w-4 h-4 text-slate-600" />
+              </button>
+
+              <div className="flex items-center gap-2 bg-slate-50 h-9 px-3.5 rounded-xl border border-slate-200 flex-1 sm:flex-initial">
+                <Calendar className="w-4 h-4 text-amber-600 shrink-0" />
+                <select
+                  value={selectedWeekIndex}
+                  onChange={(e) => setSelectedWeekIndex(Number(e.target.value))}
+                  className="bg-transparent font-extrabold text-slate-800 text-xs focus:outline-none cursor-pointer"
+                >
+                  {weeksList.map((w, idx) => (
+                    <option key={w.id} value={idx}>
+                      {w.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                disabled={selectedWeekIndex <= 0}
+                onClick={() => setSelectedWeekIndex((prev) => prev - 1)}
+                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
+                title="Tuần tiếp theo"
+              >
+                <ChevronRight className="w-4 h-4 text-slate-600" />
+              </button>
+
+              {/* Template Week Badge */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-xs font-bold text-amber-800">
+                <BookOpen className="w-3.5 h-3.5 text-amber-600" />
+                <span>{templateWeek.title}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 text-xs w-full lg:w-auto justify-between lg:justify-end">
+              {hasCustomDays && (
+                <button
+                  onClick={handleResetWeekToDefault}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 rounded-xl font-bold transition-all cursor-pointer border border-slate-200 text-xs"
+                  title="Xóa các tùy chỉnh riêng của tuần này để khôi phục về thực đơn mẫu"
+                >
+                  <RefreshCw className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Khôi phục Mẫu Tuần {weekIdx + 1}</span>
+                </button>
+              )}
+
+              <span className="text-slate-500 font-semibold">
+                Đơn giá suất ăn:{" "}
+                <strong className="text-amber-600 font-black">
+                  30.000 đ / trẻ / ngày
+                </strong>
+              </span>
+
+              <button
+                onClick={loadMenus}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors cursor-pointer"
+                title="Tải lại thực đơn"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
-
-          <button
-            disabled={selectedWeekIndex <= 0}
-            onClick={() => setSelectedWeekIndex((prev) => prev - 1)}
-            className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer shrink-0"
-            title="Tuần tiếp theo"
-          >
-            <ChevronRight className="w-4 h-4 text-slate-600" />
-          </button>
-        </div>
-
-        <div className="flex items-center gap-3 text-xs">
-          <span className="text-slate-500 font-semibold">
-            Đơn giá suất ăn định mức:{" "}
-            <strong className="text-amber-600 font-black">
-              30.000 đ / trẻ / ngày
-            </strong>
-          </span>
-          <button
-            onClick={loadMenus}
-            className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors cursor-pointer"
-            title="Tải lại thực đơn"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* 3. WEEKLY DAILY MENU CARDS (THÊM, XÓA, SỬA TỪNG NGÀY) */}
@@ -1349,9 +1510,9 @@ export default function MenuTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-            <span>📅 Thực Đơn Các Ngày Trong Tuần</span>
+            <span>📅 Thực Đơn 6 Ngày Trong Tuần (Thứ 2 - Thứ 7)</span>
             <span className="text-[11px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-              {weeklyMenus.length} ngày đã lên lịch
+              {weeklyMenus.length} ngày
             </span>
           </h3>
         </div>
@@ -1362,91 +1523,115 @@ export default function MenuTab() {
               <UtensilsCrossed className="w-6 h-6" />
             </div>
             <h4 className="font-extrabold text-slate-800 text-sm">
-              Tuần này chưa có thực đơn nào được lưu trong CSDL
+              Đang tải thực đơn tuần...
             </h4>
-            <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Bạn có thể bấm nút dưới đây để tạo thực đơn ngày mới cho các bé.
-            </p>
-            <button
-              onClick={handleOpenAddMenu}
-              className="inline-flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-2xl text-xs font-bold shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Tạo Thực Đơn Ngày Mới</span>
-            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3.5">
             {weeklyMenus.map((menu) => (
               <div
                 key={menu.id || menu.date}
-                className="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden flex flex-col justify-between hover:border-amber-300 hover:shadow-md transition-all group"
+                className={`bg-white rounded-3xl border shadow-sm overflow-hidden flex flex-col justify-between hover:shadow-md transition-all group ${
+                  menu.isCustom
+                    ? "border-indigo-300 ring-1 ring-indigo-200/60"
+                    : "border-slate-200/80 hover:border-amber-300"
+                }`}
               >
                 {/* Day Header */}
-                <div className="bg-slate-900 text-white p-3.5 flex items-center justify-between">
+                <div
+                  className={`p-3 text-white flex items-center justify-between ${
+                    menu.isCustom
+                      ? "bg-gradient-to-r from-indigo-900 to-slate-900"
+                      : "bg-slate-900"
+                  }`}
+                >
                   <div>
-                    <span className="font-black text-xs block">
-                      {menu.dayOfWeek}
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-xs block">
+                        {menu.dayOfWeek}
+                      </span>
+                      {menu.isCustom ? (
+                        <span
+                          className="text-[9px] font-extrabold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 px-1.5 py-0.2 rounded"
+                          title="Thực đơn ngày này đã được tùy chỉnh riêng"
+                        >
+                          Đã sửa
+                        </span>
+                      ) : (
+                        <span
+                          className="text-[9px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.2 rounded"
+                          title="Thực đơn mẫu chuẩn 4 tuần luân phiên"
+                        >
+                          Mẫu T{menu.weekTemplateNum || 1}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                       {menu.date}
                     </span>
                   </div>
+
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleOpenEditMenu(menu)}
                       className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                      title="Chỉnh sửa thực đơn ngày này"
+                      title={
+                        menu.isCustom
+                          ? "Chỉnh sửa thực đơn đã lưu"
+                          : "Tùy chỉnh từ thực đơn mẫu này"
+                      }
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
-                    <button
-                      onClick={() => handleDeleteMenu(menu)}
-                      className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-                      title="Xóa thực đơn ngày này"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    {menu.isCustom && (
+                      <button
+                        onClick={() => handleDeleteMenu(menu)}
+                        className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+                        title="Khôi phục về thực đơn mẫu mặc định"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {/* Meals Content */}
-                <div className="p-4 space-y-3 flex-1 text-xs">
+                <div className="p-3.5 space-y-2.5 flex-1 text-xs">
                   <div>
                     <span className="font-black text-indigo-600 block uppercase tracking-wider text-[10px] mb-0.5 flex items-center gap-1">
                       <Soup className="w-3.5 h-3.5" /> Bữa sáng
                     </span>
-                    <p className="text-slate-800 font-bold leading-relaxed">
+                    <p className="text-slate-800 font-bold leading-snug">
                       {menu.breakfast}
                     </p>
                   </div>
-                  <div className="border-t border-slate-100 pt-2.5">
+                  <div className="border-t border-slate-100 pt-2">
                     <span className="font-black text-emerald-600 block uppercase tracking-wider text-[10px] mb-0.5 flex items-center gap-1">
-                      <Drumstick className="w-3.5 h-3.5" /> Bữa trưa chính
+                      <Drumstick className="w-3.5 h-3.5" /> Bữa trưa
                     </span>
-                    <p className="text-slate-800 font-bold leading-relaxed">
+                    <p className="text-slate-800 font-bold leading-snug">
                       {menu.lunch}
                     </p>
                   </div>
-                  <div className="border-t border-slate-100 pt-2.5">
+                  <div className="border-t border-slate-100 pt-2">
                     <span className="font-black text-amber-600 block uppercase tracking-wider text-[10px] mb-0.5 flex items-center gap-1">
-                      <Apple className="w-3.5 h-3.5" /> Bữa xế (phụ)
+                      <Apple className="w-3.5 h-3.5" /> Bữa xế
                     </span>
-                    <p className="text-slate-800 font-bold leading-relaxed">
+                    <p className="text-slate-800 font-bold leading-snug">
                       {menu.snack}
                     </p>
                   </div>
                 </div>
 
                 {/* Footer Cost & Ingredients Count */}
-                <div className="bg-slate-50 p-3 border-t border-slate-100 text-xs font-bold text-slate-600 flex items-center justify-between">
+                <div className="bg-slate-50 p-2.5 border-t border-slate-100 text-xs font-bold text-slate-600 flex items-center justify-between">
                   <div className="flex items-center gap-1">
                     {menu.ingredients && menu.ingredients.length > 0 ? (
                       <span
                         className="text-[10px] font-extrabold bg-purple-50 text-purple-700 px-2 py-0.5 rounded-full border border-purple-200"
                         title="Đã cấu hình bóc tách nguyên liệu cho các bữa"
                       >
-                        {menu.ingredients.length} nguyên liệu
+                        {menu.ingredients.length} món NL
                       </span>
                     ) : (
                       <span className="text-[10px] text-slate-400">
@@ -1455,8 +1640,8 @@ export default function MenuTab() {
                     )}
                   </div>
                   <div className="text-right">
-                    <span className="text-[10px] text-slate-400 block font-normal">
-                      Định mức / trẻ:
+                    <span className="text-[10px] text-slate-400 block font-normal leading-none">
+                      Định mức:
                     </span>
                     <span className="text-amber-600 font-black">
                       {formatCurrency(menu.costPerStudent)}
@@ -1993,11 +2178,12 @@ export default function MenuTab() {
 
                 <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
                   {[
-                    { id: "ALL", label: "Tất Cả" },
-                    { id: "PROTEIN", label: "🥩 Đạm/Thịt Cá" },
-                    { id: "CARB", label: "🍚 Tinh Bột" },
-                    { id: "VEG", label: "🥦 Rau Củ" },
-                    { id: "FRUIT_DAIRY", label: "🥛 Sữa & Quả" },
+                    { id: "ALL", label: "Tất Cả (412)" },
+                    { id: "PROTEIN", label: "🥩 Đạm/Thịt Cá/Trứng" },
+                    { id: "CARB", label: "🍚 Tinh Bột/Gạo" },
+                    { id: "VEG", label: "🥦 Rau Củ Quả" },
+                    { id: "FRUIT_DAIRY", label: "🍮 Bánh Kẹo/Sữa/Quả" },
+                    { id: "SPICE_OTHER", label: "🧂 Gia Vị & Khác" },
                   ].map((cat) => (
                     <button
                       key={cat.id}
